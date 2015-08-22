@@ -28,7 +28,7 @@ site.
 
 ```rust
 let text = "[a link](http://www.notriddle.com/)";
-let mut md_parse = Parser::new(text);
+let mut md_parse = Parser::new_opt(text, OPTION_ENABLE_TABLES);
 let mut unsafe_html = String::new();
 push_html(&mut unsafe_html, md_parse);
 let safe_html = clean(&*unsafe_html);

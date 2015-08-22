@@ -70,16 +70,19 @@ pub struct Ammonia<'a> {
 
 impl<'a> Default for Ammonia<'a> {
     /// Allows:
-    ///  - Formatting: b, blockquote, code, del, dd, dl, dt, em, h1, h2, h3, i, kbd, li, ol,
-    ///                p, pre, s, sup, sub, strong, strike, ul, br, hr
+    ///  - Formatting: b, blockquote, br, code, dd, del, dl, dt, em, h1, h2, h3,
+    ///                hr, i, kbd, li, ol, p, pre, s, strike, strong, sub, sup,
+    ///                ul
+    ///  - Tables: table, tbody, td, th, thead, tr
     ///  - Links: a, img
     ///  - Attributes: <* title>, <a href>, <img width, height, src>
     ///  - URL schemes in links and images: http, https, mailto
     fn default() -> Self {
         let tags = collect![
-            "a", "b", "blockquote", "code", "del", "dd", "dl", "dt", "em", "i",
-            "h1", "h2", "h3", "img", "kbd", "li", "ol", "p", "pre", "s", "sup",
-            "sub", "strong", "strike", "ul", "br", "hr"
+            "a", "b", "blockquote", "br", "code", "dd", "del", "dl", "dt",
+            "em", "i", "h1", "h2", "h3", "hr", "img", "kbd", "li", "ol", "p",
+            "pre", "s", "strike", "strong", "sub", "sup", "table", "tbody",
+            "td", "th", "thead", "tr", "ul", "hr"
         ];
         let generic_attributes = collect![
             "title"
