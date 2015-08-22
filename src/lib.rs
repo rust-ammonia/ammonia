@@ -14,19 +14,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Ammonia is a whitelist-based HTML sanitization library. It is designed to
-/// take untrusted user input with some HTML.
-///
-/// Because Ammonia uses [html5ever] to parse document fragments the same way
-/// browsers do, it is extremely resilient to unknown attacks, much more so
-/// than regular-expression-based sanitizers.
-/// 
-/// This library's API is modeled after [jsocol's Bleach] library for Python,
-/// but is not affiliated with it in any way. Unlike Bleach, it does not do
-/// linkification, it only sanitizes URLs in existing links.
-///
-/// [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
-/// [jsocol's Bleach]: https://github.com/jsocol/bleach
+//! Ammonia is a whitelist-based HTML sanitization library. It is designed to
+//! take untrusted user input with some HTML.
+//!
+//! Because Ammonia uses [html5ever] to parse document fragments the same way
+//! browsers do, it is extremely resilient to unknown attacks, much more so
+//! than regular-expression-based sanitizers.
+//! 
+//! This library's API is modeled after [jsocol's Bleach] library for Python,
+//! but is not affiliated with it in any way. Unlike Bleach, it does not do
+//! linkification, it only sanitizes URLs in existing links.
+//!
+//! [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
+//! [jsocol's Bleach]: https://github.com/jsocol/bleach
 
 #[macro_use]
 extern crate grabbag_macros;
