@@ -2,6 +2,10 @@
 name = "ammonia"
 version = "0.1.0"
 authors = ["Michael Howell <michael@notriddle.com>"]
+description = "HTML Sanitization"
+keywords = [ "sanitization", "html" ]
+license = "Apache-2.0"
+readme = "README.md"
 
 [dependencies]
 html5ever = "0.2.0"
