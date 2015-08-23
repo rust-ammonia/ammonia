@@ -45,13 +45,15 @@ use string_cache::Atom;
 use url::Url;
 
 /// Clean HTML with a conservative set of defaults.
-///  - Formatting: b, blockquote, br, code, dd, del, dl, dt, em, h1, h2, h3,
-///                hr, i, kbd, li, ol, p, pre, s, strike, strong, sub, sup,
-///                ul
-///  - Tables: table, tbody, td, th, thead, tr
-///  - Links: a, img
-///  - Attributes: <* title>, <a href>, <img width, height, src>
-///  - URL schemes in links and images: http, https, mailto
+///
+///  * Formatting: `b`, `blockquote`, `br`, `code`, `dd`, `del`, `dl`, `dt`,
+///                `em`, `h1`, `h2`, `h3`, `hr`, `i`, `kbd`, `li`, `ol`, `p`,
+///                `pre`, `s`, `strike`, `strong`, `sub`, `sup`, `ul`
+///  * Tables: `table`, `tbody`, `td`, `th`, `thead`, `tr`
+///  * Links: `a`, `img`
+///  * Attributes: `<* title="">`, `<a href="">`,
+///                `<img width="" height="" src="">`
+///  * URL schemes in links and images: `http`, `https`, `mailto`
 pub fn clean(src: &str) -> String {
     Ammonia::default().clean(src)
 }
