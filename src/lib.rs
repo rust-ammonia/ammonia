@@ -52,7 +52,7 @@ use url::Url;
 ///  * Tables: `table`, `tbody`, `td`, `th`, `thead`, `tr`
 ///  * Links: `a`, `img`
 ///  * Attributes: `<* title="">`, `<a href="">`,
-///                `<img width="" height="" src="">`
+///                `<img width="" height="" src="" alt="">`
 ///  * URL schemes in links and images: `http`, `https`, `mailto`
 pub fn clean(src: &str) -> String {
     Ammonia::default().clean(src)
@@ -93,7 +93,7 @@ impl<'a> Default for Ammonia<'a> {
                 "href"
             ],
             "img" => collect![
-                "width", "height", "src"
+                "width", "height", "src", "alt"
             ]
         ];
         let url_schemes = collect![
