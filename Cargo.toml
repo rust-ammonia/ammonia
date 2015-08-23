@@ -7,6 +7,9 @@ keywords = [ "sanitization", "html" ]
 license = "Apache-2.0"
 readme = "README.md"
 
+[features]
+unstable = [ "html5ever/unstable", "tendril/unstable", "string_cache/unstable" ]
+
 [dependencies]
 html5ever = "0.2.0"
 tendril = "0.1.3"
