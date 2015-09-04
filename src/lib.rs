@@ -41,7 +41,7 @@ use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
 use html5ever::tree_builder::interface::{NodeOrText, TreeSink};
 use std::collections::{HashMap, HashSet};
 use std::mem::swap;
-use string_cache::Atom;
+use string_cache::{Atom, QualName, Namespace};
 use url::Url;
 
 /// Clean HTML with a conservative set of defaults.
@@ -116,7 +116,7 @@ impl<'a> Ammonia<'a> {
     /// algorithm also takes care of things like unclosed and (some) misnested
     /// tags.
     pub fn clean(&self, src: &'a str) -> String {
-        let mut dom: RcDom = html::parse_fragment(std::iter::once(format_tendril!("{}", src)), Atom::from_slice("div"), html::ParseOpts::default());
+        let mut dom: RcDom = html::parse_fragment(std::iter::once(format_tendril!("{}", src)), QualName::new(Namespace(Atom::from_slice("")), Atom::from_slice("div")), Vec::new(), html::ParseOpts::default());
         let mut stack = Vec::new();
         let body = {
             let document = dom.document.borrow_mut();
@@ -129,7 +129,7 @@ impl<'a> Ammonia<'a> {
                 let node = node_handle.borrow_mut();
                 match &node.node {
                     &NodeEnum::Comment(_) | &NodeEnum::Text(_) | &NodeEnum::Doctype(_, _, _) => false,
-                    &NodeEnum::Document | &NodeEnum::Element(_, _) => true,
+                    &NodeEnum::Document | &NodeEnum::Element(_, _, _) => true,
                 }
             };
             while has_children {
@@ -166,7 +166,7 @@ impl<'a> Ammonia<'a> {
                 &mut NodeEnum::Comment(_) => !self.strip_comments,
                 &mut NodeEnum::Doctype(_, _, _) |
                 &mut NodeEnum::Document => false,
-                &mut NodeEnum::Element(ref name, ref attrs) => {
+                &mut NodeEnum::Element(ref name, _, ref attrs) => {
                     let safe_tag = {
                         if self.tags.contains(&*name.local) {
                             attrs.iter().skip_while(|attr| {

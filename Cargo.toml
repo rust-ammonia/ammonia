@@ -11,7 +11,7 @@ readme = "README.md"
 unstable = [ "html5ever/unstable", "tendril/unstable", "string_cache/unstable" ]
 
 [dependencies]
-html5ever = "0.2.0"
+html5ever = "0.2.4"
 tendril = "0.1.3"
 string_cache = "0.1.8"
 grabbag_macros = "0.1.0"
