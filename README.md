@@ -1,7 +1,7 @@
 HTML Sanitization
 =================
 
-[![Build Status](https://travis-ci.org/notriddle/rust-ammonia.svg)](https://travis-ci.org/notriddle/rust-ammonia)
+[![Build Status](https://travis-ci.org/notriddle/ammonia.svg)](https://travis-ci.org/notriddle/ammonia)
 [![Crates.IO](https://img.shields.io/crates/v/ammonia.svg)](https://crates.io/crates/ammonia)
 
 [Documentation](https://www.notriddle.com/rustdoc/ammonia/)
