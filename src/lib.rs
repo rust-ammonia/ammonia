@@ -116,7 +116,7 @@ impl<'a> Ammonia<'a> {
     /// algorithm also takes care of things like unclosed and (some) misnested
     /// tags.
     pub fn clean(&self, src: &'a str) -> String {
-        let mut dom: RcDom = html::parse_fragment(std::iter::once(format_tendril!("{}", src)), QualName::new(Namespace(Atom::from_slice("")), Atom::from_slice("div")), Vec::new(), html::ParseOpts::default());
+        let mut dom: RcDom = html::parse_fragment(std::iter::once(format_tendril!("{}", src)), QualName::new(Namespace(Atom::from("")), Atom::from("div")), Vec::new(), html::ParseOpts::default());
         let mut stack = Vec::new();
         let body = {
             let document = dom.document.borrow_mut();
