@@ -7,7 +7,7 @@ keywords = [ "sanitization", "html" ]
 license = "MIT / Apache-2.0"
 readme = "README.md"
 documentation = "https://www.notriddle.com/rustdoc/ammonia/index.html"
-repository = "https://github.com/notriddle/rust-ammonia"
+repository = "https://github.com/notriddle/ammonia"
 
 [features]
 unstable = [ "html5ever/unstable", "tendril/unstable", "string_cache/unstable" ]
