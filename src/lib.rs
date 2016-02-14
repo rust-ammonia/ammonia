@@ -41,6 +41,7 @@ use url::Url;
 ///  * Attributes: `<* title="">`, `<a href="">`,
 ///                `<img width="" height="" src="" alt="">`
 ///  * URL schemes in links and images: `http`, `https`, `mailto`
+///  * Relative URLs are not allowed, to prevent cross-site request forgery.
 pub fn clean(src: &str) -> String {
     Ammonia::default().clean(src)
 }
@@ -58,6 +59,8 @@ pub struct Ammonia<'a> {
     pub generic_attributes: HashSet<&'a str>,
     /// Permitted URL schemes on href and src attributes.
     pub url_schemes: HashSet<&'a str>,
+    /// Permit relative URLs on href and src attributes.
+    pub url_relative: bool,
     /// True: do not include stripped tags. False: escape stripped tags.
     pub strip: bool,
     /// True: strip HTML comments. False: leave HTML comments in.
@@ -91,6 +94,7 @@ impl<'a> Default for Ammonia<'a> {
             tag_attributes: tag_attributes,
             generic_attributes: generic_attributes,
             url_schemes: url_schemes,
+            url_relative: false,
             strip: true,
             strip_comments: true,
         }
@@ -165,6 +169,8 @@ impl<'a> Ammonia<'a> {
                                     let url = Url::parse(&*attr.value);
                                     if let Ok(url) = url {
                                         self.url_schemes.contains(&*url.scheme)
+                                    } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
+                                        self.url_relative
                                     } else {
                                         false
                                     }
@@ -251,6 +257,26 @@ mod test {
         let fragment = "<b>AWESOME!";
         let result = clean(fragment);
         assert_eq!(result, "<b>AWESOME!</b>");
+    }
+    #[test]
+    fn allow_url_relative() {
+        let fragment = "<a href=\"test\">Test</a>";
+        let cleaner = Ammonia{
+            url_relative: true,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "<a href=\"test\">Test</a>");
+    }
+    #[test]
+    fn deny_url_relative() {
+        let fragment = "<a href=test>Test</a>";
+        let cleaner = Ammonia{
+            url_relative: false,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "Test");
     }
     // The rest of these are stolen from
     // https://code.google.com/p/html-sanitizer-testbed/source/browse/trunk/testcases/t10.html
