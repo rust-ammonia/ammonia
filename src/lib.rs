@@ -18,6 +18,7 @@
 #[macro_use]
 extern crate grabbag_macros;
 extern crate html5ever;
+#[macro_use]
 extern crate string_cache;
 #[macro_use]
 extern crate tendril;
@@ -28,7 +29,8 @@ use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
 use html5ever::tree_builder::interface::{NodeOrText, TreeSink};
 use std::collections::{HashMap, HashSet};
 use std::mem::swap;
-use string_cache::{Atom, QualName, Namespace};
+use string_cache::{QualName, Namespace};
+use tendril::stream::TendrilSink;
 use url::Url;
 
 /// Clean HTML with a conservative set of defaults.
@@ -107,7 +109,9 @@ impl<'a> Ammonia<'a> {
     /// algorithm also takes care of things like unclosed and (some) misnested
     /// tags.
     pub fn clean(&self, src: &'a str) -> String {
-        let mut dom: RcDom = html::parse_fragment(std::iter::once(format_tendril!("{}", src)), QualName::new(Namespace(Atom::from("")), Atom::from("div")), Vec::new(), html::ParseOpts::default());
+        let mut parser = html::parse_fragment(RcDom::default(), html::ParseOpts::default(), QualName::new(Namespace(atom!("")), atom!("div")), vec![]);
+        parser.process(format_tendril!("{}", src));
+        let mut dom = parser.finish();
         let mut stack = Vec::new();
         let body = {
             let document = dom.document.borrow_mut();
@@ -168,7 +172,7 @@ impl<'a> Ammonia<'a> {
                                 } else if &*attr.name.local == "href" || &*attr.name.local == "src" {
                                     let url = Url::parse(&*attr.value);
                                     if let Ok(url) = url {
-                                        self.url_schemes.contains(&*url.scheme)
+                                        self.url_schemes.contains(url.scheme())
                                     } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
                                         self.url_relative
                                     } else {
