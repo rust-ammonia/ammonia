@@ -15,9 +15,9 @@
 //! [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
 //! [jsocol's Bleach]: https://github.com/jsocol/bleach
 
-#[macro_use]
-extern crate grabbag_macros;
 extern crate html5ever;
+#[macro_use]
+extern crate maplit;
 #[macro_use]
 extern crate string_cache;
 #[macro_use]
@@ -71,24 +71,24 @@ pub struct Ammonia<'a> {
 
 impl<'a> Default for Ammonia<'a> {
     fn default() -> Self {
-        let tags = collect![
+        let tags = hashset![
             "a", "b", "blockquote", "br", "code", "dd", "del", "dl", "dt",
             "em", "i", "h1", "h2", "h3", "hr", "img", "kbd", "li", "ol", "p",
             "pre", "s", "strike", "strong", "sub", "sup", "table", "tbody",
             "td", "th", "thead", "tr", "ul", "hr"
         ];
-        let generic_attributes = collect![
+        let generic_attributes = hashset![
             "title"
         ];
-        let tag_attributes = collect![
-            "a" => collect![
+        let tag_attributes = hashmap![
+            "a" => hashset![
                 "href"
             ],
-            "img" => collect![
+            "img" => hashset![
                 "width", "height", "src", "alt"
             ]
         ];
-        let url_schemes = collect![
+        let url_schemes = hashset![
             "http", "https", "mailto"
         ];
         Ammonia{
