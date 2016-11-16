@@ -12,6 +12,13 @@
 //! but is not affiliated with it in any way. Unlike Bleach, it does not do
 //! linkification, it only sanitizes URLs in existing links.
 //!
+//! # Example
+//!
+//! ```
+//! let result = ammonia::clean("<b><img src='' onerror='alert(\\'hax\\')'>I'm not trying to XSS you</b>");
+//! assert_eq!(result, "<b>I'm not trying to XSS you</b>");
+//! ```
+//!
 //! [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
 //! [jsocol's Bleach]: https://github.com/jsocol/bleach
 

@@ -4,7 +4,7 @@ HTML Sanitization
 [![Build Status](https://travis-ci.org/notriddle/ammonia.svg)](https://travis-ci.org/notriddle/ammonia)
 [![Crates.IO](https://img.shields.io/crates/v/ammonia.svg)](https://crates.io/crates/ammonia)
 
-[Documentation](https://www.notriddle.com/rustdoc/ammonia/)
+[Documentation](https://docs.rs/ammonia/0.1.3/ammonia/)
 
 Ammonia is a whitelist-based HTML sanitization library. It is designed to
 take untrusted user input with some HTML.
