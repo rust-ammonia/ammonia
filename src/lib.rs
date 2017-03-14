@@ -70,8 +70,6 @@ pub struct Ammonia<'a> {
     pub url_schemes: HashSet<&'a str>,
     /// Permit relative URLs on href and src attributes.
     pub url_relative: bool,
-    /// True: do not include stripped tags. False: escape stripped tags.
-    pub strip: bool,
     /// True: strip HTML comments. False: leave HTML comments in.
     pub strip_comments: bool,
 }
@@ -104,7 +102,6 @@ impl<'a> Default for Ammonia<'a> {
             generic_attributes: generic_attributes,
             url_schemes: url_schemes,
             url_relative: false,
-            strip: true,
             strip_comments: true,
         }
     }
@@ -194,22 +191,12 @@ impl<'a> Ammonia<'a> {
                         }
                     };
                     if !safe_tag {
-                        if !self.strip {
-                            dom.append(parent.clone(), NodeOrText::AppendText(format_tendril!("<{}", &*name.local)));
-                            for attr in attrs {
-                                dom.append(parent.clone(), NodeOrText::AppendText(format_tendril!(" {}=\"{}\"", &*attr.name.local, attr.value)))
-                            }
-                            dom.append(parent.clone(), NodeOrText::AppendText(format_tendril!(">")));
-                        }
                         for sub in &mut child.children {
                             {
                                 let mut sub = sub.borrow_mut();
                                 sub.parent = None;
                             }
                             dom.append(parent.clone(), NodeOrText::AppendNode(sub.clone()));
-                        }
-                        if !self.strip {
-                            dom.append(parent.clone(), NodeOrText::AppendText(format_tendril!("</{}>", &*name.local)))
                         }
                     }
                     safe_tag
@@ -252,16 +239,6 @@ mod test {
         let fragment = "a <a href=\"javascript:evil()\">evil</a> example";
         let result = clean(fragment);
         assert_eq!(result, "a evil example");
-    }
-    #[test]
-    fn strip_js_link() {
-        let fragment = "a <a href=\"javascript:evil()\">evil</a> example";
-        let cleaner = Ammonia{
-            strip: false,
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
-        assert_eq!(result, "a &lt;a href=\"javascript:evil()\"&gt;evil&lt;/a&gt; example");
     }
     #[test]
     fn tag_rebalance() {
