@@ -172,7 +172,7 @@ impl<'a> Ammonia<'a> {
                                     self.tag_attributes.get(&*name.local).map(|ta| ta.contains(&*attr.name.local)) == Some(true);
                                 if !whitelisted {
                                     false
-                                } else if &*attr.name.local == "href" || &*attr.name.local == "src" {
+                                } else if &*attr.name.local == "href" || &*attr.name.local == "src" || (&*name.local == "object" && &*attr.name.local == "data") {
                                     let url = Url::parse(&*attr.value);
                                     if let Ok(url) = url {
                                         self.url_schemes.contains(url.scheme())
@@ -270,6 +270,22 @@ mod test {
         };
         let result = cleaner.clean(fragment);
         assert_eq!(result, "Test");
+    }
+    #[test]
+    fn object_data() {
+        let fragment = "<span data=\"javascript:evil()\">Test</span><object data=\"javascript:evil()\"></object>M";
+        let expected = "<span data=\"javascript:evil()\">Test</span>M";
+        let cleaner = Ammonia{
+            tags: hashset![
+                "span", "object"
+            ],
+            generic_attributes: hashset![
+                "data"
+            ],
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, expected);
     }
     // The rest of these are stolen from
     // https://code.google.com/p/html-sanitizer-testbed/source/browse/trunk/testcases/t10.html
