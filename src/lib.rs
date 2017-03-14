@@ -24,9 +24,9 @@
 
 extern crate html5ever;
 #[macro_use]
-extern crate maplit;
+extern crate html5ever_atoms;
 #[macro_use]
-extern crate string_cache;
+extern crate maplit;
 #[macro_use]
 extern crate tendril;
 extern crate url;
@@ -36,7 +36,6 @@ use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
 use html5ever::tree_builder::interface::{NodeOrText, TreeSink};
 use std::collections::{HashMap, HashSet};
 use std::mem::swap;
-use string_cache::{QualName, Namespace};
 use tendril::stream::TendrilSink;
 use url::Url;
 
@@ -113,7 +112,7 @@ impl<'a> Ammonia<'a> {
     /// algorithm also takes care of things like unclosed and (some) misnested
     /// tags.
     pub fn clean(&self, src: &'a str) -> String {
-        let mut parser = html::parse_fragment(RcDom::default(), html::ParseOpts::default(), QualName::new(Namespace(atom!("")), atom!("div")), vec![]);
+        let mut parser = html::parse_fragment(RcDom::default(), html::ParseOpts::default(), qualname!("", "div"), vec![]);
         parser.process(format_tendril!("{}", src));
         let mut dom = parser.finish();
         let mut stack = Vec::new();
@@ -248,7 +247,7 @@ mod test {
     }
     #[test]
     fn allow_url_relative() {
-        let fragment = "<a href=\"test\">Test</a>";
+        let fragment = "<a href=test>Test</a>";
         let cleaner = Ammonia{
             url_relative: true,
             .. Ammonia::default()
