@@ -24,9 +24,9 @@
 
 extern crate html5ever;
 #[macro_use]
-extern crate maplit;
+extern crate html5ever_atoms;
 #[macro_use]
-extern crate string_cache;
+extern crate maplit;
 #[macro_use]
 extern crate tendril;
 extern crate url;
@@ -36,7 +36,6 @@ use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
 use html5ever::tree_builder::interface::{NodeOrText, TreeSink};
 use std::collections::{HashMap, HashSet};
 use std::mem::swap;
-use string_cache::{QualName, Namespace};
 use tendril::stream::TendrilSink;
 use url::Url;
 
@@ -70,8 +69,6 @@ pub struct Ammonia<'a> {
     pub url_schemes: HashSet<&'a str>,
     /// Permit relative URLs on href and src attributes.
     pub url_relative: bool,
-    /// True: do not include stripped tags. False: escape stripped tags.
-    pub strip: bool,
     /// True: strip HTML comments. False: leave HTML comments in.
     pub strip_comments: bool,
 }
@@ -104,7 +101,6 @@ impl<'a> Default for Ammonia<'a> {
             generic_attributes: generic_attributes,
             url_schemes: url_schemes,
             url_relative: false,
-            strip: true,
             strip_comments: true,
         }
     }
@@ -116,7 +112,7 @@ impl<'a> Ammonia<'a> {
     /// algorithm also takes care of things like unclosed and (some) misnested
     /// tags.
     pub fn clean(&self, src: &'a str) -> String {
-        let mut parser = html::parse_fragment(RcDom::default(), html::ParseOpts::default(), QualName::new(Namespace(atom!("")), atom!("div")), vec![]);
+        let mut parser = html::parse_fragment(RcDom::default(), html::ParseOpts::default(), qualname!("", "div"), vec![]);
         parser.process(format_tendril!("{}", src));
         let mut dom = parser.finish();
         let mut stack = Vec::new();
@@ -176,7 +172,7 @@ impl<'a> Ammonia<'a> {
                                     self.tag_attributes.get(&*name.local).map(|ta| ta.contains(&*attr.name.local)) == Some(true);
                                 if !whitelisted {
                                     false
-                                } else if &*attr.name.local == "href" || &*attr.name.local == "src" {
+                                } else if &*attr.name.local == "href" || &*attr.name.local == "src" || (&*name.local == "object" && &*attr.name.local == "data") {
                                     let url = Url::parse(&*attr.value);
                                     if let Ok(url) = url {
                                         self.url_schemes.contains(url.scheme())
@@ -194,22 +190,12 @@ impl<'a> Ammonia<'a> {
                         }
                     };
                     if !safe_tag {
-                        if !self.strip {
-                            dom.append(parent.clone(), NodeOrText::AppendText(format_tendril!("<{}", &*name.local)));
-                            for attr in attrs {
-                                dom.append(parent.clone(), NodeOrText::AppendText(format_tendril!(" {}=\"{}\"", &*attr.name.local, attr.value)))
-                            }
-                            dom.append(parent.clone(), NodeOrText::AppendText(format_tendril!(">")));
-                        }
                         for sub in &mut child.children {
                             {
                                 let mut sub = sub.borrow_mut();
                                 sub.parent = None;
                             }
                             dom.append(parent.clone(), NodeOrText::AppendNode(sub.clone()));
-                        }
-                        if !self.strip {
-                            dom.append(parent.clone(), NodeOrText::AppendText(format_tendril!("</{}>", &*name.local)))
                         }
                     }
                     safe_tag
@@ -229,6 +215,12 @@ impl<'a> Ammonia<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
+    #[test]
+    fn included_angles() {
+        let fragment = "1 < 2";
+        let result = clean(fragment);
+        assert_eq!(result, "1 &lt; 2");
+    }
     #[test]
     fn remove_script() {
         let fragment = "an <script>evil()</script> example";
@@ -254,16 +246,6 @@ mod test {
         assert_eq!(result, "a evil example");
     }
     #[test]
-    fn strip_js_link() {
-        let fragment = "a <a href=\"javascript:evil()\">evil</a> example";
-        let cleaner = Ammonia{
-            strip: false,
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
-        assert_eq!(result, "a &lt;a href=\"javascript:evil()\"&gt;evil&lt;/a&gt; example");
-    }
-    #[test]
     fn tag_rebalance() {
         let fragment = "<b>AWESOME!";
         let result = clean(fragment);
@@ -271,7 +253,7 @@ mod test {
     }
     #[test]
     fn allow_url_relative() {
-        let fragment = "<a href=\"test\">Test</a>";
+        let fragment = "<a href=test>Test</a>";
         let cleaner = Ammonia{
             url_relative: true,
             .. Ammonia::default()
@@ -288,6 +270,22 @@ mod test {
         };
         let result = cleaner.clean(fragment);
         assert_eq!(result, "Test");
+    }
+    #[test]
+    fn object_data() {
+        let fragment = "<span data=\"javascript:evil()\">Test</span><object data=\"javascript:evil()\"></object>M";
+        let expected = "<span data=\"javascript:evil()\">Test</span>M";
+        let cleaner = Ammonia{
+            tags: hashset![
+                "span", "object"
+            ],
+            generic_attributes: hashset![
+                "data"
+            ],
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, expected);
     }
     // The rest of these are stolen from
     // https://code.google.com/p/html-sanitizer-testbed/source/browse/trunk/testcases/t10.html
