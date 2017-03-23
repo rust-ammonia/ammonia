@@ -7,7 +7,7 @@
 //! Because Ammonia uses [html5ever] to parse document fragments the same way
 //! browsers do, it is extremely resilient to unknown attacks, much more so
 //! than regular-expression-based sanitizers.
-//! 
+//!
 //! This library's API is modeled after [jsocol's Bleach] library for Python,
 //! but is not affiliated with it in any way. Unlike Bleach, it does not do
 //! linkification, it only sanitizes URLs in existing links.
@@ -71,6 +71,9 @@ pub struct Ammonia<'a> {
     pub url_relative: bool,
     /// True: strip HTML comments. False: leave HTML comments in.
     pub strip_comments: bool,
+    /// True: remove disallowed attributes, but not the elements containing them.
+    /// False: remove elements with disallowed attributes.
+    pub keep_cleaned_elements: bool,
 }
 
 impl<'a> Default for Ammonia<'a> {
@@ -102,6 +105,7 @@ impl<'a> Default for Ammonia<'a> {
             url_schemes: url_schemes,
             url_relative: false,
             strip_comments: true,
+            keep_cleaned_elements: false,
         }
     }
 }
@@ -164,10 +168,10 @@ impl<'a> Ammonia<'a> {
                 &mut NodeEnum::Comment(_) => !self.strip_comments,
                 &mut NodeEnum::Doctype(_, _, _) |
                 &mut NodeEnum::Document => false,
-                &mut NodeEnum::Element(ref name, _, ref attrs) => {
+                &mut NodeEnum::Element(ref name, _, ref mut attrs) => {
                     let safe_tag = {
                         if self.tags.contains(&*name.local) {
-                            attrs.iter().skip_while(|attr| {
+                            let attr_filter = |attr: &html5ever::Attribute| {
                                 let whitelisted = self.generic_attributes.contains(&*attr.name.local) ||
                                     self.tag_attributes.get(&*name.local).map(|ta| ta.contains(&*attr.name.local)) == Some(true);
                                 if !whitelisted {
@@ -184,7 +188,13 @@ impl<'a> Ammonia<'a> {
                                 } else {
                                     true
                                 }
-                            }).next().is_none()
+                            };
+                            if self.keep_cleaned_elements {
+                                attrs.retain(attr_filter);
+                                true
+                            } else {
+                                attrs.iter().all(attr_filter)
+                            }
                         } else {
                             false
                         }
@@ -286,6 +296,16 @@ mod test {
         };
         let result = cleaner.clean(fragment);
         assert_eq!(result, expected);
+    }
+    #[test]
+    fn remove_attributes() {
+        let fragment = "<table border=\"1\"><tr></tr></table>";
+        let cleaner = Ammonia {
+            keep_cleaned_elements: true,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "<table><tr></tr></table>");
     }
     // The rest of these are stolen from
     // https://code.google.com/p/html-sanitizer-testbed/source/browse/trunk/testcases/t10.html
