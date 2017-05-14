@@ -50,6 +50,8 @@ use url::Url;
 ///                `<img width="" height="" src="" alt="">`
 ///  * URL schemes in links and images: `http`, `https`, `mailto`
 ///  * Relative URLs are not allowed, to prevent cross-site request forgery.
+///  * Elements with invalid attributes are completely removed,
+///    to avoid confusion about what is and is not allowed.
 pub fn clean(src: &str) -> String {
     Ammonia::default().clean(src)
 }
@@ -306,6 +308,12 @@ mod test {
         };
         let result = cleaner.clean(fragment);
         assert_eq!(result, "<table><tr></tr></table>");
+    }
+    #[test]
+    fn quotes_in_attrs() {
+        let fragment = "<b title='\"'>contents</b>";
+        let result = clean(fragment);
+        assert_eq!(result, "<b title=\"&quot;\">contents</b>");
     }
     // The rest of these are stolen from
     // https://code.google.com/p/html-sanitizer-testbed/source/browse/trunk/testcases/t10.html
