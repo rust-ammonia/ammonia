@@ -3,3 +3,9 @@ rust:
  - nightly
  - beta
  - stable
+
+branches:
+ only:
+  - master
+  - staging
+  - trying
