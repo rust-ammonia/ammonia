@@ -6,7 +6,7 @@ description = "HTML Sanitization"
 keywords = [ "sanitization", "html" ]
 license = "MIT / Apache-2.0"
 readme = "README.md"
-documentation = "https://www.notriddle.com/rustdoc/ammonia/index.html"
+documentation = "https://docs.rs/ammonia/"
 repository = "https://github.com/notriddle/ammonia"
 
 [features]
