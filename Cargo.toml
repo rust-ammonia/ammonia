@@ -1,6 +1,6 @@
 [package]
 name = "ammonia"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Michael Howell <michael@notriddle.com>"]
 description = "HTML Sanitization"
 keywords = [ "sanitization", "html" ]
@@ -13,7 +13,7 @@ repository = "https://github.com/notriddle/ammonia"
 unstable = [ "html5ever/unstable", "tendril/unstable" ]
 
 [dependencies]
-html5ever = "0.17"
+html5ever = "0.18"
 maplit = "0.1"
 tendril = "0.3"
 url = "1.4"
