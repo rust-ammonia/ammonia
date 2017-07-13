@@ -298,6 +298,28 @@ mod test {
         assert_eq!(result, "Test");
     }
     #[test]
+    fn replace_rel() {
+        let fragment = "<a href=test rel=\"garbage\">Test</a>";
+        let cleaner = Ammonia{
+            url_relative: true,
+            keep_cleaned_elements: true,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>");
+    }
+    #[test]
+    fn consider_rel_still_banned() {
+        let fragment = "<a href=test rel=\"garbage\">Test</a>";
+        let cleaner = Ammonia{
+            url_relative: true,
+            keep_cleaned_elements: false,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "Test");
+    }
+    #[test]
     fn object_data() {
         let fragment = "<span data=\"javascript:evil()\">Test</span><object data=\"javascript:evil()\"></object>M";
         let expected = "<span data=\"javascript:evil()\">Test</span>M";
