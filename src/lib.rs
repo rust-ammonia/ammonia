@@ -33,8 +33,10 @@ use html5ever::{driver as html, QualName};
 use html5ever::rcdom::{RcDom, NodeData, Handle};
 use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
+use html5ever::interface::Attribute;
 use std::collections::{HashMap, HashSet};
 use tendril::stream::TendrilSink;
+use tendril::StrTendril;
 use url::Url;
 
 /// Clean HTML with a conservative set of defaults.
@@ -69,6 +71,9 @@ pub struct Ammonia<'a> {
     pub url_schemes: HashSet<&'a str>,
     /// Permit relative URLs on href and src attributes.
     pub url_relative: bool,
+    /// Stick these rel="" attributes on every link.
+    /// If rel is in the generic or tag attributes, this must be `None`.
+    pub link_rel: Option<&'a str>,
     /// True: strip HTML comments. False: leave HTML comments in.
     pub strip_comments: bool,
     /// True: remove disallowed attributes, but not the elements containing them.
@@ -104,6 +109,7 @@ impl<'a> Default for Ammonia<'a> {
             generic_attributes: generic_attributes,
             url_schemes: url_schemes,
             url_relative: false,
+            link_rel: Some("noopener noreferrer"),
             strip_comments: true,
             keep_cleaned_elements: false,
         }
@@ -120,6 +126,11 @@ impl<'a> Ammonia<'a> {
         parser.process(format_tendril!("{}", src));
         let mut dom = parser.finish();
         let mut stack = Vec::new();
+        let link_rel = self.link_rel.map(|link_rel| format_tendril!("{}", link_rel));
+        if link_rel.is_some() {
+            assert!(self.generic_attributes.get("rel").is_none());
+            assert!(self.tag_attributes.get("a").and_then(|a| a.get("rel")).is_none());
+        }
         let body = {
             let children = dom.document.children.borrow();
             children[0].clone()
@@ -137,7 +148,10 @@ impl<'a> Ammonia<'a> {
                 let mut children = std::mem::replace(&mut *node.children.borrow_mut(), Vec::new());
 
                 for child in &mut children {
-                    self.clean_child(&mut dom, child, node.clone());
+                    let clean = self.clean_child(&mut dom, child, node.clone());
+                    if clean {
+                        self.fix_child(child, &link_rel);
+                    }
                 }
                 {
                     has_children = node.children.borrow().len() != children.len();
@@ -155,7 +169,7 @@ impl<'a> Ammonia<'a> {
         String::from_utf8(ret_val).unwrap()
     }
 
-    fn clean_child(&self, dom: &mut RcDom, child: &mut Handle, parent: Handle) {
+    fn clean_child(&self, dom: &mut RcDom, child: &mut Handle, parent: Handle) -> bool {
         let pass = {
             match child.data {
                 NodeData::Text{..} => true,
@@ -208,6 +222,18 @@ impl<'a> Ammonia<'a> {
             child.parent.replace(None);
             dom.append(&parent.clone(), NodeOrText::AppendNode(child.clone()));
         }
+        pass
+    }
+
+    fn fix_child(&self, child: &mut Handle, link_rel: &Option<StrTendril>) {
+        if let (&NodeData::Element{ref name, ref attrs, ..}, &Some(ref link_rel)) = (&child.data, link_rel) {
+            if &*name.local == "a" {
+                attrs.borrow_mut().push(Attribute{
+                    name: QualName::new(None, ns!(), local_name!("rel")),
+                    value: link_rel.clone(),
+                })
+            }
+        }
     }
 }
 
@@ -229,20 +255,21 @@ mod test {
     #[test]
     fn ignore_link() {
         let fragment = "a <a href=\"http://www.google.com\">good</a> example";
+        let expected = "a <a href=\"http://www.google.com\" rel=\"noopener noreferrer\">good</a> example";
         let result = clean(fragment);
-        assert_eq!(result, fragment);
+        assert_eq!(result, expected);
     }
     #[test]
     fn remove_unsafe_link() {
-        let fragment = "a <a onclick=\"evil()\" href=\"http://www.google.com\">evil</a> example";
+        let fragment = "an <a onclick=\"evil()\" href=\"http://www.google.com\">evil</a> example";
         let result = clean(fragment);
-        assert_eq!(result, "a evil example");
+        assert_eq!(result, "an evil example");
     }
     #[test]
     fn remove_js_link() {
-        let fragment = "a <a href=\"javascript:evil()\">evil</a> example";
+        let fragment = "an <a href=\"javascript:evil()\">evil</a> example";
         let result = clean(fragment);
-        assert_eq!(result, "a evil example");
+        assert_eq!(result, "an evil example");
     }
     #[test]
     fn tag_rebalance() {
@@ -258,13 +285,35 @@ mod test {
             .. Ammonia::default()
         };
         let result = cleaner.clean(fragment);
-        assert_eq!(result, "<a href=\"test\">Test</a>");
+        assert_eq!(result, "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>");
     }
     #[test]
     fn deny_url_relative() {
         let fragment = "<a href=test>Test</a>";
         let cleaner = Ammonia{
             url_relative: false,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "Test");
+    }
+    #[test]
+    fn replace_rel() {
+        let fragment = "<a href=test rel=\"garbage\">Test</a>";
+        let cleaner = Ammonia{
+            url_relative: true,
+            keep_cleaned_elements: true,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>");
+    }
+    #[test]
+    fn consider_rel_still_banned() {
+        let fragment = "<a href=test rel=\"garbage\">Test</a>";
+        let cleaner = Ammonia{
+            url_relative: true,
+            keep_cleaned_elements: false,
             .. Ammonia::default()
         };
         let result = cleaner.clean(fragment);
@@ -301,6 +350,61 @@ mod test {
         let fragment = "<b title='\"'>contents</b>";
         let result = clean(fragment);
         assert_eq!(result, "<b title=\"&quot;\">contents</b>");
+    }
+    #[test]
+    #[should_panic]
+    fn panic_if_rel_is_allowed_and_replaced_generic() {
+        let cleaner = Ammonia {
+            link_rel: Some("noopener noreferrer"),
+            generic_attributes: hashset!["rel"],
+            .. Ammonia::default()
+        };
+        cleaner.clean("something");
+    }
+    #[test]
+    #[should_panic]
+    fn panic_if_rel_is_allowed_and_replaced_a() {
+        let cleaner = Ammonia {
+            link_rel: Some("noopener noreferrer"),
+            tag_attributes: hashmap![
+                "a" => hashset!["rel"],
+            ],
+            .. Ammonia::default()
+        };
+        cleaner.clean("something");
+    }
+    #[test]
+    fn no_panic_if_rel_is_allowed_and_replaced_span() {
+        let cleaner = Ammonia {
+            link_rel: Some("noopener noreferrer"),
+            tag_attributes: hashmap![
+                "span" => hashset!["rel"],
+            ],
+            .. Ammonia::default()
+        };
+        cleaner.clean("<span rel=\"what\">s</span>");
+    }
+    #[test]
+    fn no_panic_if_rel_is_allowed_and_not_replaced_generic() {
+        let cleaner = Ammonia {
+            link_rel: None,
+            generic_attributes: hashset![
+                "rel"
+            ],
+            .. Ammonia::default()
+        };
+        cleaner.clean("<a rel=\"what\">s</a>");
+    }
+    #[test]
+    fn no_panic_if_rel_is_allowed_and_not_replaced_a() {
+        let cleaner = Ammonia {
+            link_rel: None,
+            tag_attributes: hashmap![
+                "a" => hashset!["rel"],
+            ],
+            .. Ammonia::default()
+        };
+        cleaner.clean("<a rel=\"what\">s</a>");
     }
     // The rest of these are stolen from
     // https://code.google.com/p/html-sanitizer-testbed/source/browse/trunk/testcases/t10.html
