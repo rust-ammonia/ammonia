@@ -70,7 +70,7 @@ pub struct Ammonia<'a> {
     /// Permitted URL schemes on href and src attributes.
     pub url_schemes: HashSet<&'a str>,
     /// Permit relative URLs on href and src attributes.
-    pub url_relative: bool,
+    pub url_relative: UrlRelative<'a>,
     /// Stick these rel="" attributes on every link.
     /// If rel is in the generic or tag attributes, this must be `None`.
     pub link_rel: Option<&'a str>,
@@ -108,7 +108,7 @@ impl<'a> Default for Ammonia<'a> {
             tag_attributes: tag_attributes,
             generic_attributes: generic_attributes,
             url_schemes: url_schemes,
-            url_relative: false,
+            url_relative: UrlRelative::Deny,
             link_rel: Some("noopener noreferrer"),
             strip_comments: true,
             keep_cleaned_elements: false,
@@ -131,6 +131,11 @@ impl<'a> Ammonia<'a> {
             assert!(self.generic_attributes.get("rel").is_none());
             assert!(self.tag_attributes.get("a").and_then(|a| a.get("rel")).is_none());
         }
+        let url_base = if let UrlRelative::RewriteWithBase(base) = self.url_relative {
+            Some(Url::parse(base).expect("RewriteWithBase(base) should have a valid URL for base"))
+        } else {
+            None
+        };
         let body = {
             let children = dom.document.children.borrow();
             children[0].clone()
@@ -150,7 +155,7 @@ impl<'a> Ammonia<'a> {
                 for child in &mut children {
                     let clean = self.clean_child(&mut dom, child, node.clone());
                     if clean {
-                        self.fix_child(child, &link_rel);
+                        self.fix_child(child, &link_rel, &url_base);
                     }
                 }
                 {
@@ -184,12 +189,12 @@ impl<'a> Ammonia<'a> {
                                     self.tag_attributes.get(&*name.local).map(|ta| ta.contains(&*attr.name.local)) == Some(true);
                                 if !whitelisted {
                                     false
-                                } else if &*attr.name.local == "href" || &*attr.name.local == "src" || (&*name.local == "object" && &*attr.name.local == "data") {
+                                } else if is_url_attr(&*name.local, &*attr.name.local) {
                                     let url = Url::parse(&*attr.value);
                                     if let Ok(url) = url {
                                         self.url_schemes.contains(url.scheme())
                                     } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
-                                        self.url_relative
+                                        self.url_relative != UrlRelative::Deny
                                     } else {
                                         false
                                     }
@@ -225,7 +230,7 @@ impl<'a> Ammonia<'a> {
         pass
     }
 
-    fn fix_child(&self, child: &mut Handle, link_rel: &Option<StrTendril>) {
+    fn fix_child(&self, child: &mut Handle, link_rel: &Option<StrTendril>, url_base: &Option<Url>) {
         if let (&NodeData::Element{ref name, ref attrs, ..}, &Some(ref link_rel)) = (&child.data, link_rel) {
             if &*name.local == "a" {
                 attrs.borrow_mut().push(Attribute{
@@ -233,8 +238,57 @@ impl<'a> Ammonia<'a> {
                     value: link_rel.clone(),
                 })
             }
+            if let &Some(ref base) = url_base {
+                for attr in &mut *attrs.borrow_mut() {
+                    if is_url_attr(&*name.local, &*attr.name.local) {
+                        let url = base.join(&*attr.value).expect("invalid URLs should be stripped earlier");
+                        attr.value = format_tendril!("{}", url);
+                    }
+                }
+            }
         }
     }
+}
+
+/// Given an element name and attribute name, determine if the given attribute contains a URL.
+fn is_url_attr(element: &str, attr: &str) -> bool {
+    attr == "href" || attr == "src" || (element == "object" && attr == "data")
+}
+
+/// Policy for relative URLs, that is, URLs that do not specify the scheme in full.
+///
+/// This policy kicks in, if set, for any attribute named `src` or `href`,
+/// as well as the `data` attribute of an `object` tag.
+///
+/// # Examples
+///
+/// ## `Deny`
+///
+/// * `<a href="test">` is a file-relative URL, and will be removed
+/// * `<a href="/test">` is a domain-relative URL, and will be removed
+/// * `<a href="//example.com/test">` is a scheme-relative URL, and will be removed
+/// * `<a href="http://example.com/test">` is an absolute URL, and will be kept
+///
+/// ## `PassThrough`
+/// 
+/// No changes will be made to any URLs, except if a disallowed scheme is used.
+///
+/// ## `RewriteWithBase`
+///
+/// If the base is set to "http://notriddle.com/some-directory/some-file"
+///
+/// * `<a href="test">` will be rewritten to `<a href="http://notriddle.com/some-directory/test">`
+/// * `<a href="/test">` will be rewritten to `<a href="http://notriddle.com/test">`
+/// * `<a href="//example.com/test">` will be rewritten to `<a href="http://example.com/test">`
+/// * `<a href="http://example.com/test">` is an absolute URL, so it will be kept as-is
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum UrlRelative<'a> {
+    /// Relative URLs will be completely stripped from the document.
+    Deny,
+    /// Relative URLs will be passed through unchanged.
+    PassThrough,
+    /// Relative URLs will be changed into absolute URLs, based on this base URL.
+    RewriteWithBase(&'a str),
 }
 
 #[cfg(test)]
@@ -281,17 +335,27 @@ mod test {
     fn allow_url_relative() {
         let fragment = "<a href=test>Test</a>";
         let cleaner = Ammonia{
-            url_relative: true,
+            url_relative: UrlRelative::PassThrough,
             .. Ammonia::default()
         };
         let result = cleaner.clean(fragment);
         assert_eq!(result, "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>");
     }
     #[test]
+    fn rewrite_url_relative() {
+        let fragment = "<a href=test>Test</a>";
+        let cleaner = Ammonia{
+            url_relative: UrlRelative::RewriteWithBase("http://example.com/"),
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "<a href=\"http://example.com/test\" rel=\"noopener noreferrer\">Test</a>");
+    }
+    #[test]
     fn deny_url_relative() {
         let fragment = "<a href=test>Test</a>";
         let cleaner = Ammonia{
-            url_relative: false,
+            url_relative: UrlRelative::Deny,
             .. Ammonia::default()
         };
         let result = cleaner.clean(fragment);
@@ -301,7 +365,7 @@ mod test {
     fn replace_rel() {
         let fragment = "<a href=test rel=\"garbage\">Test</a>";
         let cleaner = Ammonia{
-            url_relative: true,
+            url_relative: UrlRelative::PassThrough,
             keep_cleaned_elements: true,
             .. Ammonia::default()
         };
@@ -312,7 +376,7 @@ mod test {
     fn consider_rel_still_banned() {
         let fragment = "<a href=test rel=\"garbage\">Test</a>";
         let cleaner = Ammonia{
-            url_relative: true,
+            url_relative: UrlRelative::PassThrough,
             keep_cleaned_elements: false,
             .. Ammonia::default()
         };
