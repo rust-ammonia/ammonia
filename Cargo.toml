@@ -9,11 +9,8 @@ readme = "README.md"
 documentation = "https://docs.rs/ammonia/"
 repository = "https://github.com/notriddle/ammonia"
 
-[features]
-unstable = [ "html5ever/unstable", "tendril/unstable" ]
-
 [dependencies]
-html5ever = "0.18"
+html5ever = "0.19"
 maplit = "0.1"
-tendril = "0.3"
+tendril = "0.4"
 url = "1.4"

@@ -3,9 +3,6 @@ name = "ammonia_bench"
 version = "0.0.1"
 license = "WTFPL"
 
-[features]
-unstable = [ "ammonia/unstable" ]
-
 [dependencies]
 ammonia = { path = "../" }
 time = "0.1"

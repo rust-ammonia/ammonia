@@ -122,7 +122,7 @@ impl<'a> Ammonia<'a> {
     /// algorithm also takes care of things like unclosed and (some) misnested
     /// tags.
     pub fn clean(&self, src: &'a str) -> String {
-        let mut parser = html::parse_fragment(RcDom::default(), html::ParseOpts::default(), QualName::new(None, ns!(), local_name!("div")), vec![]);
+        let mut parser = html::parse_fragment(RcDom::default(), html::ParseOpts::default(), QualName::new(None, ns!(html), local_name!("div")), vec![]);
         parser.process(format_tendril!("{}", src));
         let mut dom = parser.finish();
         let mut stack = Vec::new();
@@ -343,7 +343,7 @@ mod test {
             .. Ammonia::default()
         };
         let result = cleaner.clean(fragment);
-        assert_eq!(result, "<table><tr></tr></table>");
+        assert_eq!(result, "<table><tbody><tr></tr></tbody></table>");
     }
     #[test]
     fn quotes_in_attrs() {
@@ -425,5 +425,11 @@ mod test {
         let fragment = "<!-- Here is a comment: -- This is a nested comment -->\n<a href=\"http://harmless.com/This is still inside the comment: --evadefilter><img onerror=alert(100) src=''/><a href=\"test\">link</a>";
         let result = clean(fragment);
         assert_eq!(result, "\nlink");
+    }
+    #[test]
+    fn dont_close_void_elements() {
+        let fragment = "<br>";
+        let result = clean(fragment);
+        assert_eq!(result, "<br>");
     }
 }
