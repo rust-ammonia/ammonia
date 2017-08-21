@@ -69,7 +69,7 @@ pub struct Ammonia<'a> {
     pub generic_attributes: HashSet<&'a str>,
     /// Permitted URL schemes on href and src attributes.
     pub url_schemes: HashSet<&'a str>,
-    /// Permit relative URLs on href and src attributes.
+    /// Behavior on relative URLs: pass-through, resolve-with-base, or deny.
     pub url_relative: UrlRelative<'a>,
     /// Stick these rel="" attributes on every link.
     /// If rel is in the generic or tag attributes, this must be `None`.
