@@ -54,7 +54,7 @@ However, it takes about fifty times longer to sanitize an HTML string using
 Bleach than it does using Ammonia.
 
     $ cd benchmarks
-    $ cargo run --release --features unstable
+    $ cargo run --release
         Running `target/release/ammonia_bench`
     56829 nanoseconds to clean up the intro to the Ammonia docs.
     $ python3 bleach_bench.py
