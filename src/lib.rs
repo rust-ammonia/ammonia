@@ -29,6 +29,9 @@ extern crate maplit;
 #[macro_use]
 extern crate tendril;
 extern crate url;
+#[macro_use]
+extern crate lazy_static;
+
 use html5ever::{driver as html, QualName};
 use html5ever::rcdom::{RcDom, NodeData, Handle};
 use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
@@ -38,6 +41,10 @@ use std::collections::{HashMap, HashSet};
 use tendril::stream::TendrilSink;
 use tendril::StrTendril;
 use url::Url;
+
+lazy_static! {
+    static ref AMMONIA: Ammonia<'static> = Ammonia::default();
+}
 
 /// Clean HTML with a conservative set of defaults.
 ///
@@ -53,7 +60,7 @@ use url::Url;
 ///  * Elements with invalid attributes are completely removed,
 ///    to avoid confusion about what is and is not allowed.
 pub fn clean(src: &str) -> String {
-    Ammonia::default().clean(src)
+    AMMONIA.clean(src)
 }
 
 /// Settings for HTML cleaning.
