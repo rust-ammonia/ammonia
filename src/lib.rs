@@ -81,6 +81,10 @@ pub struct Ammonia<'a> {
     /// Stick these rel="" attributes on every link.
     /// If rel is in the generic or tag attributes, this must be `None`.
     pub link_rel: Option<&'a str>,
+    /// Classes that are allowed on certain tags. If the class attribute is not
+    /// itself whitelisted for a tag, then adding entries to this map does
+    /// nothing. It is structured as a map from tag name to a set of class names.
+    pub allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     /// True: strip HTML comments. False: leave HTML comments in.
     pub strip_comments: bool,
     /// True: remove disallowed attributes, but not the elements containing them.
@@ -110,6 +114,8 @@ impl<'a> Default for Ammonia<'a> {
         let url_schemes = hashset![
             "http", "https", "mailto"
         ];
+        let allowed_classes = hashmap![];
+
         Ammonia{
             tags: tags,
             tag_attributes: tag_attributes,
@@ -117,6 +123,7 @@ impl<'a> Default for Ammonia<'a> {
             url_schemes: url_schemes,
             url_relative: UrlRelative::Deny,
             link_rel: Some("noopener noreferrer"),
+            allowed_classes: allowed_classes,
             strip_comments: true,
             keep_cleaned_elements: false,
         }
@@ -238,18 +245,33 @@ impl<'a> Ammonia<'a> {
     }
 
     fn fix_child(&self, child: &mut Handle, link_rel: &Option<StrTendril>, url_base: &Option<Url>) {
-        if let (&NodeData::Element{ref name, ref attrs, ..}, &Some(ref link_rel)) = (&child.data, link_rel) {
-            if &*name.local == "a" {
-                attrs.borrow_mut().push(Attribute{
-                    name: QualName::new(None, ns!(), local_name!("rel")),
-                    value: link_rel.clone(),
-                })
+        if let &NodeData::Element{ref name, ref attrs, ..} = &child.data {
+            if let &Some(ref link_rel) = link_rel {
+                if &*name.local == "a" {
+                    attrs.borrow_mut().push(Attribute{
+                        name: QualName::new(None, ns!(), local_name!("rel")),
+                        value: link_rel.clone(),
+                    })
+                }
             }
             if let &Some(ref base) = url_base {
                 for attr in &mut *attrs.borrow_mut() {
                     if is_url_attr(&*name.local, &*attr.name.local) {
                         let url = base.join(&*attr.value).expect("invalid URLs should be stripped earlier");
                         attr.value = format_tendril!("{}", url);
+                    }
+                }
+            }
+            if let Some(allowed_values) = self.allowed_classes.get(&*name.local) {
+                for attr in &mut *attrs.borrow_mut() {
+                    if &attr.name.local == "class" {
+                        let mut classes = vec![];
+                        for class in attr.value.split(' ') {
+                            if allowed_values.contains(class) {
+                                classes.push(class.to_owned());
+                            }
+                        }
+                        attr.value = format_tendril!("{}", classes.join(" "));
                     }
                 }
             }
@@ -357,6 +379,17 @@ mod test {
         };
         let result = cleaner.clean(fragment);
         assert_eq!(result, "<a href=\"http://example.com/test\" rel=\"noopener noreferrer\">Test</a>");
+    }
+    #[test]
+    fn rewrite_url_relative_no_rel() {
+        let fragment = "<a href=test>Test</a>";
+        let cleaner = Ammonia{
+            url_relative: UrlRelative::RewriteWithBase("http://example.com/"),
+            link_rel: None,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "<a href=\"http://example.com/test\">Test</a>");
     }
     #[test]
     fn deny_url_relative() {
@@ -502,5 +535,24 @@ mod test {
         let fragment = "<br>";
         let result = clean(fragment);
         assert_eq!(result, "<br>");
+    }
+    #[test]
+    fn remove_non_allowed_classes() {
+        let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
+        let cleaner = Ammonia {
+            link_rel: None,
+            tag_attributes: hashmap![
+                "p" => hashset!["class"],
+                "a" => hashset!["class"],
+            ],
+            allowed_classes: hashmap![
+                "p" => hashset!["foo", "bar"],
+                "a" => hashset!["baz"],
+            ],
+            .. Ammonia::default()
+        };
+
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "<p class=\"foo bar\"><a class=\"baz\">Hey</a></p>");
     }
 }
