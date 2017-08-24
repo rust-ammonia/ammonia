@@ -253,12 +253,12 @@ impl<'a> Ammonia<'a> {
                         value: link_rel.clone(),
                     })
                 }
-                if let &Some(ref base) = url_base {
-                    for attr in &mut *attrs.borrow_mut() {
-                        if is_url_attr(&*name.local, &*attr.name.local) {
-                            let url = base.join(&*attr.value).expect("invalid URLs should be stripped earlier");
-                            attr.value = format_tendril!("{}", url);
-                        }
+            }
+            if let &Some(ref base) = url_base {
+                for attr in &mut *attrs.borrow_mut() {
+                    if is_url_attr(&*name.local, &*attr.name.local) {
+                        let url = base.join(&*attr.value).expect("invalid URLs should be stripped earlier");
+                        attr.value = format_tendril!("{}", url);
                     }
                 }
             }
@@ -379,6 +379,17 @@ mod test {
         };
         let result = cleaner.clean(fragment);
         assert_eq!(result, "<a href=\"http://example.com/test\" rel=\"noopener noreferrer\">Test</a>");
+    }
+    #[test]
+    fn rewrite_url_relative_no_rel() {
+        let fragment = "<a href=test>Test</a>";
+        let cleaner = Ammonia{
+            url_relative: UrlRelative::RewriteWithBase("http://example.com/"),
+            link_rel: None,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "<a href=\"http://example.com/test\">Test</a>");
     }
     #[test]
     fn deny_url_relative() {
