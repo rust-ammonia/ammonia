@@ -1,4 +1,4 @@
-// Copyright (C) 2015 Michael Howell
+// Copyright (C) Michael Howell and others
 // this library is released under the same terms as Rust itself.
 
 //! Ammonia is a whitelist-based HTML sanitization library. It is designed to
@@ -554,5 +554,11 @@ mod test {
 
         let result = cleaner.clean(fragment);
         assert_eq!(result, "<p class=\"foo bar\"><a class=\"baz\">Hey</a></p>");
+    }
+    #[test]
+    fn remove_entity_link() {
+        let fragment = r#"<a href="&#x6A&#x61&#x76&#x61&#x73&#x63&#x72&#x69&#x70&#x74&#x3A&#x61&#x6C&#x65&#x72&#x74&#x28&#x27&#x58&#x53&#x53&#x27&#x29">Click me!</a>"#;
+        let result = clean(fragment);
+        assert_eq!(result, "Click me!");
     }
 }
