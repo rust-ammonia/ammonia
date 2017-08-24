@@ -7,18 +7,18 @@ HTML Sanitization
 
 
 Ammonia is a whitelist-based HTML sanitization library. It is designed to
-take untrusted user input with some HTML.
+prevent cross-site scripting, layout breaking, and clickjacking caused
+by untrusted user-provided HTML being mixed into a larger web page.
 
-Because Ammonia uses [html5ever] to parse document fragments the same way
-browsers do, it is extremely resilient to unknown attacks, much more so
-than regular-expression-based sanitizers.
- 
-This library's API is modeled after [jsocol's Bleach] library for Python,
-but is not affiliated with it in any way. Unlike Bleach, it does not do
-linkification, it only sanitizes URLs in existing links.
+Ammonia uses [html5ever] to parse and serialize document fragments the same way browsers do,
+so it is extremely resilient to syntactic obfuscation.
+
+Ammonia parses its input exactly according to the HTML5 specification;
+it will not linkify bare URLs, insert line or paragraph breaks, or convert `(C)` into &copy;.
+If you want that, use a markup processor before running the sanitizer, like [pulldown-cmark].
 
 [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
-[jsocol's Bleach]: https://github.com/jsocol/bleach
+[pulldown-cmark]: https://github.com/google/pulldown-cmark
 
 
 Example
@@ -40,8 +40,6 @@ let safe_html = clean(&*unsafe_html);
 assert_eq!(safe_html, "<a href=\"http://www.notriddle.com/\">a link</a>");
 ```
 
-[pulldown-cmark]: https://github.com/google/pulldown-cmark
-
 
 Performance
 -----------
@@ -51,7 +49,7 @@ and serializes it again. It could be faster for what it does, and if you don't
 want to allow any HTML it is possible to be even faster than that.
 
 However, it takes about fifty times longer to sanitize an HTML string using
-Bleach than it does using Ammonia.
+[Bleach] than it does using Ammonia.
 
     $ cd benchmarks
     $ cargo run --release
@@ -60,3 +58,19 @@ Bleach than it does using Ammonia.
     $ python3 bleach_bench.py
     2910792.875289917 nanoseconds to clean up the intro to the Ammonia docs.
 
+
+Thanks
+------
+
+Thanks to the other sanitizer libraries, particularly [Bleach] for Python and [sanitize-html] for Node,
+which we blatantly copied most of our API from.
+
+Thanks to ChALkeR, whos [Improper Markup Sanitization] document helped us find high-level semantic holes in Ammonia.
+
+And finally, thanks to [the contributors].
+
+
+[sanitize-html]: https://www.npmjs.com/package/sanitize-html
+[Bleach]: https://github.com/jsocol/bleach
+[Improper Markup Sanitization]: https://github.com/ChALkeR/notes/blob/master/Improper-markup-sanitization.md
+[the contributors]: https://github.com/notriddle/ammonia/graphs/contributors
