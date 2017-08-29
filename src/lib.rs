@@ -38,6 +38,8 @@ use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::interface::Attribute;
 use std::collections::{HashMap, HashSet};
+use std::mem::replace;
+use std::rc::Rc;
 use tendril::stream::TendrilSink;
 use tendril::StrTendril;
 use url::Url;
@@ -147,30 +149,20 @@ impl<'a> Ammonia<'a> {
             let children = dom.document.children.borrow();
             children[0].clone()
         };
-        stack.push(body.clone());
+        stack.extend(replace(&mut *body.children.borrow_mut(), Vec::new()).into_iter().rev());
         while !stack.is_empty() {
-            let node = stack.pop().unwrap();
-            let mut has_children = {
-                match node.data {
-                    NodeData::Comment{..} | NodeData::Text{..} | NodeData::Doctype{..} | NodeData::ProcessingInstruction{..} => false,
-                    NodeData::Document | NodeData::Element{..} => true,
-                }
-            };
-            while has_children {
-                let mut children = std::mem::replace(&mut *node.children.borrow_mut(), Vec::new());
-
-                for child in &mut children {
-                    let clean = self.clean_child(&mut dom, child, node.clone());
-                    if clean {
-                        self.fix_child(child, &link_rel, &url_base);
-                    }
-                }
-                {
-                    has_children = node.children.borrow().len() != children.len();
+            let mut node = stack.pop().unwrap();
+            let parent = node.parent.replace(None).unwrap().upgrade().unwrap();
+            let pass = self.clean_child(&mut node);
+            if pass {
+                self.fix_child(&mut node, &link_rel, &url_base);
+                dom.append(&parent.clone(), NodeOrText::AppendNode(node.clone()));
+            } else {
+                for sub in node.children.borrow_mut().iter_mut() {
+                    sub.parent.replace(Some(Rc::downgrade(&parent)));
                 }
             }
-
-            stack.extend(node.children.borrow().iter().cloned());
+            stack.extend(replace(&mut *node.children.borrow_mut(), Vec::new()).into_iter().rev());
         }
         let mut ret_val = Vec::new();
         let opts = SerializeOpts{
@@ -181,60 +173,43 @@ impl<'a> Ammonia<'a> {
         String::from_utf8(ret_val).unwrap()
     }
 
-    fn clean_child(&self, dom: &mut RcDom, child: &mut Handle, parent: Handle) -> bool {
-        let pass = {
-            match child.data {
-                NodeData::Text{..} => true,
-                NodeData::Comment{..} => !self.strip_comments,
-                NodeData::Doctype{..} |
-                NodeData::Document | NodeData::ProcessingInstruction{..} => false,
-                NodeData::Element{ref name, ref attrs, ..} => {
-                    let safe_tag = {
-                        if self.tags.contains(&*name.local) {
-                            let attr_filter = |attr: &html5ever::Attribute| {
-                                let whitelisted = self.generic_attributes.contains(&*attr.name.local) ||
-                                    self.tag_attributes.get(&*name.local).map(|ta| ta.contains(&*attr.name.local)) == Some(true);
-                                if !whitelisted {
-                                    false
-                                } else if is_url_attr(&*name.local, &*attr.name.local) {
-                                    let url = Url::parse(&*attr.value);
-                                    if let Ok(url) = url {
-                                        self.url_schemes.contains(url.scheme())
-                                    } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
-                                        self.url_relative != UrlRelative::Deny
-                                    } else {
-                                        false
-                                    }
-                                } else {
-                                    true
-                                }
-                            };
-                            if self.keep_cleaned_elements {
-                                attrs.borrow_mut().retain(attr_filter);
-                                true
+    fn clean_child(&self, child: &mut Handle) -> bool {
+        match child.data {
+            NodeData::Text{..} => true,
+            NodeData::Comment{..} => !self.strip_comments,
+            NodeData::Doctype{..} |
+            NodeData::Document | NodeData::ProcessingInstruction{..} => false,
+            NodeData::Element{ref name, ref attrs, ..} => {
+                if self.tags.contains(&*name.local) {
+                    let attr_filter = |attr: &html5ever::Attribute| {
+                        let whitelisted = self.generic_attributes.contains(&*attr.name.local) ||
+                            self.tag_attributes.get(&*name.local).map(|ta| ta.contains(&*attr.name.local)) == Some(true);
+                        if !whitelisted {
+                            false
+                        } else if is_url_attr(&*name.local, &*attr.name.local) {
+                            let url = Url::parse(&*attr.value);
+                            if let Ok(url) = url {
+                                self.url_schemes.contains(url.scheme())
+                            } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
+                                self.url_relative != UrlRelative::Deny
                             } else {
-                                attrs.borrow().iter().all(attr_filter)
+                                false
                             }
                         } else {
-                            false
+                            true
                         }
                     };
-
-                    if !safe_tag {
-                        for sub in child.children.borrow_mut().iter_mut() {
-                            sub.parent.replace(None);
-                            dom.append(&parent.clone(), NodeOrText::AppendNode(sub.clone()));
-                        }
+                    if self.keep_cleaned_elements {
+                        attrs.borrow_mut().retain(attr_filter);
+                        true
+                    } else {
+                        attrs.borrow().iter().all(attr_filter)
                     }
-                    safe_tag
-                },
+                } else {
+                    false
+                }
             }
-        };
-        if pass {
-            child.parent.replace(None);
-            dom.append(&parent.clone(), NodeOrText::AppendNode(child.clone()));
         }
-        pass
     }
 
     fn fix_child(&self, child: &mut Handle, link_rel: &Option<StrTendril>, url_base: &Option<Url>) {
@@ -502,5 +477,21 @@ mod test {
         let fragment = "<br>";
         let result = clean(fragment);
         assert_eq!(result, "<br>");
+    }
+    #[test]
+    fn clean_children_of_bad_element() {
+        let fragment = "<bad><evil>a</evil>b</bad>";
+        let cleaner = Ammonia {
+            keep_cleaned_elements: false,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "ab");
+        let cleaner = Ammonia {
+            keep_cleaned_elements: true,
+            .. Ammonia::default()
+        };
+        let result = cleaner.clean(fragment);
+        assert_eq!(result, "ab");
     }
 }

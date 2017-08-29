@@ -1,3 +1,7 @@
+# 0.6.1
+
+* Fix a bug in the traversal code
+
 # 0.6.0
 
 * Resolve relative URLs with a given base (off by default, you need to specify that base URL)
