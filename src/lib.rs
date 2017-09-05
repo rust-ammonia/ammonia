@@ -552,4 +552,11 @@ mod test {
         let result = cleaner.clean(fragment);
         assert_eq!(result, "ab");
     }
+    fn require_sync<T: Sync>(_: T) {}
+    fn require_send<T: Send>(_: T) {}
+    #[test]
+    fn require_sync_and_send() {
+        require_sync(Ammonia::default());
+        require_send(Ammonia::default());
+    }
 }
