@@ -1,3 +1,5 @@
+#![doc(html_root_url = "https://docs.rs/ammonia/0.7.0")]
+
 // Copyright (C) Michael Howell and others
 // this library is released under the same terms as Rust itself.
 
@@ -274,7 +276,7 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
 /// * `<a href="http://example.com/test">` is an absolute URL, and will be kept
 ///
 /// ## `PassThrough`
-/// 
+///
 /// No changes will be made to any URLs, except if a disallowed scheme is used.
 ///
 /// ## `RewriteWithBase`
