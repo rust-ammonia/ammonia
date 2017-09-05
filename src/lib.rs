@@ -68,6 +68,7 @@ pub fn clean(src: &str) -> String {
 }
 
 /// Settings for HTML cleaning.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Ammonia<'a> {
     /// Tags that are allowed. Note that this only whitelists the tag; it will
     /// still be stripped if it has unlisted attributes.
