@@ -135,6 +135,11 @@ impl<'a> Default for Ammonia<'a> {
 }
 
 impl<'a> Ammonia<'a> {
+    /// Constructs an `Ammonia` instance configured with the default options.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Given a fragment of HTML, Ammonia will parse it according to the HTML5
     /// parsing algorithm and sanitize any disallowed tags or attributes. This
     /// algorithm also takes care of things like unclosed and (some) misnested
