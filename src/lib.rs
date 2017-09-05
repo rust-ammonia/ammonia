@@ -4,15 +4,15 @@
 // this library is released under the same terms as Rust itself.
 
 //! Ammonia is a whitelist-based HTML sanitization library. It is designed to
-//! take untrusted user input with some HTML.
+//! prevent cross-site scripting, layout breaking, and clickjacking caused
+//! by untrusted user-provided HTML being mixed into a larger web page.
 //!
-//! Because Ammonia uses [html5ever] to parse document fragments the same way
-//! browsers do, it is extremely resilient to unknown attacks, much more so
-//! than regular-expression-based sanitizers.
+//! Ammonia uses [html5ever] to parse and serialize document fragments the same way browsers do,
+//! so it is extremely resilient to syntactic obfuscation.
 //!
-//! This library's API is modeled after [jsocol's Bleach] library for Python,
-//! but is not affiliated with it in any way. Unlike Bleach, it does not do
-//! linkification, it only sanitizes URLs in existing links.
+//! Ammonia parses its input exactly according to the HTML5 specification;
+//! it will not linkify bare URLs, insert line or paragraph breaks, or convert `(C)` into &copy;.
+//! If you want that, use a markup processor before running the sanitizer, like [pulldown-cmark].
 //!
 //! # Example
 //!
@@ -22,7 +22,7 @@
 //! ```
 //!
 //! [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
-//! [jsocol's Bleach]: https://github.com/jsocol/bleach
+//! [pulldown-cmark]: https://github.com/google/pulldown-cmark "CommonMark parser"
 
 #[macro_use]
 extern crate html5ever;
