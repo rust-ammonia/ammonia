@@ -1,3 +1,7 @@
+# Unreleased
+
+*
+
 # 0.7.0
 
 * Add `allowed_classes`, allowing the user to set only specific items that can go in the class attribute
