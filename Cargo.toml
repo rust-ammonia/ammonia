@@ -3,11 +3,12 @@ name = "ammonia"
 version = "0.7.0"
 authors = ["Michael Howell <michael@notriddle.com>"]
 description = "HTML Sanitization"
-keywords = [ "sanitization", "html" ]
+keywords = [ "sanitization", "html", "security", "xss" ]
 license = "MIT / Apache-2.0"
 readme = "README.md"
 documentation = "https://docs.rs/ammonia/"
 repository = "https://github.com/notriddle/ammonia"
+categories = [ "web-programming", "text-processing" ]
 
 [dependencies]
 html5ever = "0.19"
