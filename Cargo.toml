@@ -1,6 +1,6 @@
 [package]
 name = "ammonia"
-version = "0.7.0"
+version = "0.7.0" # remember to update html_root_url
 authors = ["Michael Howell <michael@notriddle.com>"]
 description = "HTML Sanitization"
 keywords = [ "sanitization", "html", "security", "xss" ]
