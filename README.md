@@ -21,6 +21,11 @@ If you want that, use a markup processor before running the sanitizer, like [pul
 [pulldown-cmark]: https://github.com/google/pulldown-cmark
 
 
+Changes
+-----------
+Please see the [CHANGELOG](CHANGELOG.md) for a release history.
+
+
 Example
 -------
 
