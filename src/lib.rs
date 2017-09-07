@@ -155,6 +155,9 @@ impl<'a> Ammonia<'a> {
     }
 
     /// Sanitizes a HTML fragment from a reader according to the configured options.
+    ///
+    /// The input should be UTF-8 encoding, otherwise the decoding is lossy, just
+    /// like when using `String::from_utf8_lossy`.
     pub fn clean_from_reader<R>(&self, src: &mut R) -> io::Result<String>
     where
         R: std::io::Read,
