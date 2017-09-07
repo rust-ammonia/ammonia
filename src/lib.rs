@@ -40,6 +40,7 @@ use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::interface::Attribute;
 use std::collections::{HashMap, HashSet};
+use std::io;
 use std::mem::replace;
 use std::rc::Rc;
 use tendril::stream::TendrilSink;
@@ -154,13 +155,13 @@ impl<'a> Ammonia<'a> {
     }
 
     /// Sanitizes a HTML fragment from a reader according to the configured options.
-    pub fn clean_from_reader<R>(&self, src: &mut R) -> String
+    pub fn clean_from_reader<R>(&self, src: &mut R) -> io::Result<String>
     where
         R: std::io::Read,
     {
         let parser = Self::make_parser().from_utf8();
-        let dom = parser.read_from(src).unwrap();
-        self.clean_dom(dom)
+        let dom = parser.read_from(src)?;
+        Ok(self.clean_dom(dom))
     }
 
     fn clean_dom(&self, mut dom: RcDom) -> String {
@@ -583,7 +584,8 @@ mod test {
     fn reader_input() {
         let fragment = b"an <script>evil()</script> example";
         let result = Ammonia::default().clean_from_reader(&mut &fragment[..]);
-        assert_eq!(result, "an evil() example");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "an evil() example");
     }
     fn require_sync<T: Sync>(_: T) {}
     fn require_send<T: Send>(_: T) {}
