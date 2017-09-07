@@ -67,7 +67,12 @@ pub fn clean(src: &str) -> String {
     AMMONIA.clean(src)
 }
 
-/// Settings for HTML cleaning.
+/// An HTML sanitizer.
+///
+/// Given a fragment of HTML, Ammonia will parse it according to the HTML5
+/// parsing algorithm and sanitize any disallowed tags or attributes. This
+/// algorithm also takes care of things like unclosed and (some) misnested
+/// tags.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Ammonia<'a> {
     /// Tags that are allowed. Note that this only whitelists the tag; it will
@@ -141,14 +146,24 @@ impl<'a> Ammonia<'a> {
         Self::default()
     }
 
-    /// Given a fragment of HTML, Ammonia will parse it according to the HTML5
-    /// parsing algorithm and sanitize any disallowed tags or attributes. This
-    /// algorithm also takes care of things like unclosed and (some) misnested
-    /// tags.
+    /// Sanitizes a HTML fragment in a string according to the configured options.
     pub fn clean(&self, src: &'a str) -> String {
-        let mut parser = html::parse_fragment(RcDom::default(), html::ParseOpts::default(), QualName::new(None, ns!(html), local_name!("div")), vec![]);
-        parser.process(format_tendril!("{}", src));
-        let mut dom = parser.finish();
+        let parser = Self::make_parser();
+        let dom = parser.one(src);
+        self.clean_dom(dom)
+    }
+
+    /// Sanitizes a HTML fragment from a reader according to the configured options.
+    pub fn clean_from_reader<R>(&self, src: &mut R) -> String
+    where
+        R: std::io::Read,
+    {
+        let parser = Self::make_parser().from_utf8();
+        let dom = parser.read_from(src).unwrap();
+        self.clean_dom(dom)
+    }
+
+    fn clean_dom(&self, mut dom: RcDom) -> String {
         let mut stack = Vec::new();
         let link_rel = self.link_rel.map(|link_rel| format_tendril!("{}", link_rel));
         if link_rel.is_some() {
@@ -259,6 +274,10 @@ impl<'a> Ammonia<'a> {
                 }
             }
         }
+    }
+
+    fn make_parser() -> html::Parser<RcDom> {
+        html::parse_fragment(RcDom::default(), html::ParseOpts::default(), QualName::new(None, ns!(html), local_name!("div")), vec![])
     }
 }
 
@@ -559,6 +578,12 @@ mod test {
         };
         let result = cleaner.clean(fragment);
         assert_eq!(result, "ab");
+    }
+    #[test]
+    fn reader_input() {
+        let fragment = b"an <script>evil()</script> example";
+        let result = Ammonia::default().clean_from_reader(&mut &fragment[..]);
+        assert_eq!(result, "an evil() example");
     }
     fn require_sync<T: Sync>(_: T) {}
     fn require_send<T: Send>(_: T) {}
