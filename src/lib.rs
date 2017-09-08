@@ -404,7 +404,7 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
 /// * `<a href="/test">` will be rewritten to `<a href="http://notriddle.com/test">`
 /// * `<a href="//example.com/test">` will be rewritten to `<a href="http://example.com/test">`
 /// * `<a href="http://example.com/test">` is an absolute URL, so it will be kept as-is
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum UrlRelative<'a> {
     /// Relative URLs will be completely stripped from the document.
     Deny,
