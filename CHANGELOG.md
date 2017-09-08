@@ -1,6 +1,7 @@
 # Unreleased
 
-*
+* Breaking change: The `Ammonia` struct now uses the builder pattern for better forward compatibility
+* Added support for reading the input from a stream
 
 # 0.7.0
 
