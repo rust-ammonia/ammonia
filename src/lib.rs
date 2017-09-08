@@ -400,7 +400,8 @@ mod test {
     #[test]
     fn ignore_link() {
         let fragment = "a <a href=\"http://www.google.com\">good</a> example";
-        let expected = "a <a href=\"http://www.google.com\" rel=\"noopener noreferrer\">good</a> example";
+        let expected = "a <a href=\"http://www.google.com\" rel=\"noopener noreferrer\">\
+                        good</a> example";
         let result = clean(fragment);
         assert_eq!(result, expected);
     }
@@ -425,90 +426,78 @@ mod test {
     #[test]
     fn allow_url_relative() {
         let fragment = "<a href=test>Test</a>";
-        let cleaner = Ammonia{
-            url_relative: UrlRelative::PassThrough,
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
-        assert_eq!(result, "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>");
+        let result = Ammonia::new()
+            .url_relative(UrlRelative::PassThrough)
+            .clean(fragment);
+        assert_eq!(
+            result,
+            "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>"
+        );
     }
     #[test]
     fn rewrite_url_relative() {
         let fragment = "<a href=test>Test</a>";
-        let cleaner = Ammonia{
-            url_relative: UrlRelative::RewriteWithBase("http://example.com/"),
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
-        assert_eq!(result, "<a href=\"http://example.com/test\" rel=\"noopener noreferrer\">Test</a>");
+        let result = Ammonia::new()
+            .url_relative(UrlRelative::RewriteWithBase("http://example.com/"))
+            .clean(fragment);
+        assert_eq!(
+            result,
+            "<a href=\"http://example.com/test\" rel=\"noopener noreferrer\">Test</a>"
+        );
     }
     #[test]
     fn rewrite_url_relative_no_rel() {
         let fragment = "<a href=test>Test</a>";
-        let cleaner = Ammonia{
-            url_relative: UrlRelative::RewriteWithBase("http://example.com/"),
-            link_rel: None,
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
+        let result = Ammonia::new()
+            .url_relative(UrlRelative::RewriteWithBase("http://example.com/"))
+            .link_rel(None)
+            .clean(fragment);
         assert_eq!(result, "<a href=\"http://example.com/test\">Test</a>");
     }
     #[test]
     fn deny_url_relative() {
         let fragment = "<a href=test>Test</a>";
-        let cleaner = Ammonia{
-            url_relative: UrlRelative::Deny,
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
+        let result = Ammonia::new()
+            .url_relative(UrlRelative::Deny)
+            .clean(fragment);
         assert_eq!(result, "Test");
     }
     #[test]
     fn replace_rel() {
         let fragment = "<a href=test rel=\"garbage\">Test</a>";
-        let cleaner = Ammonia{
-            url_relative: UrlRelative::PassThrough,
-            keep_cleaned_elements: true,
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
-        assert_eq!(result, "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>");
+        let result = Ammonia::new()
+            .url_relative(UrlRelative::PassThrough)
+            .keep_cleaned_elements(true)
+            .clean(fragment);
+        assert_eq!(
+            result,
+            "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>"
+        );
     }
     #[test]
     fn consider_rel_still_banned() {
         let fragment = "<a href=test rel=\"garbage\">Test</a>";
-        let cleaner = Ammonia{
-            url_relative: UrlRelative::PassThrough,
-            keep_cleaned_elements: false,
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
+        let result = Ammonia::new()
+            .url_relative(UrlRelative::PassThrough)
+            .keep_cleaned_elements(false)
+            .clean(fragment);
         assert_eq!(result, "Test");
     }
     #[test]
     fn object_data() {
-        let fragment = "<span data=\"javascript:evil()\">Test</span><object data=\"javascript:evil()\"></object>M";
-        let expected = "<span data=\"javascript:evil()\">Test</span>M";
-        let cleaner = Ammonia{
-            tags: hashset![
-                "span", "object"
-            ],
-            generic_attributes: hashset![
-                "data"
-            ],
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
+        let fragment = "<span data=\"javascript:evil()\">Test</span>\
+                        <object data=\"javascript:evil()\"></object>M";
+        let expected = r#"<span data="javascript:evil()">Test</span>M"#;
+        let result = Ammonia::new()
+            .tags(hashset!["span", "object"])
+            .generic_attributes(hashset!["data"])
+            .clean(fragment);
         assert_eq!(result, expected);
     }
     #[test]
     fn remove_attributes() {
         let fragment = "<table border=\"1\"><tr></tr></table>";
-        let cleaner = Ammonia {
-            keep_cleaned_elements: true,
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
+        let result = Ammonia::new().keep_cleaned_elements(true).clean(fragment);
         assert_eq!(result, "<table><tbody><tr></tr></tbody></table>");
     }
     #[test]
@@ -520,57 +509,45 @@ mod test {
     #[test]
     #[should_panic]
     fn panic_if_rel_is_allowed_and_replaced_generic() {
-        let cleaner = Ammonia {
-            link_rel: Some("noopener noreferrer"),
-            generic_attributes: hashset!["rel"],
-            .. Ammonia::default()
-        };
-        cleaner.clean("something");
+        Ammonia::new()
+            .link_rel(Some("noopener noreferrer"))
+            .generic_attributes(hashset!["rel"])
+            .clean("something");
     }
     #[test]
     #[should_panic]
     fn panic_if_rel_is_allowed_and_replaced_a() {
-        let cleaner = Ammonia {
-            link_rel: Some("noopener noreferrer"),
-            tag_attributes: hashmap![
+        Ammonia::new()
+            .link_rel(Some("noopener noreferrer"))
+            .tag_attributes(hashmap![
                 "a" => hashset!["rel"],
-            ],
-            .. Ammonia::default()
-        };
-        cleaner.clean("something");
+            ])
+            .clean("something");
     }
     #[test]
     fn no_panic_if_rel_is_allowed_and_replaced_span() {
-        let cleaner = Ammonia {
-            link_rel: Some("noopener noreferrer"),
-            tag_attributes: hashmap![
+        Ammonia::new()
+            .link_rel(Some("noopener noreferrer"))
+            .tag_attributes(hashmap![
                 "span" => hashset!["rel"],
-            ],
-            .. Ammonia::default()
-        };
-        cleaner.clean("<span rel=\"what\">s</span>");
+            ])
+            .clean("<span rel=\"what\">s</span>");
     }
     #[test]
     fn no_panic_if_rel_is_allowed_and_not_replaced_generic() {
-        let cleaner = Ammonia {
-            link_rel: None,
-            generic_attributes: hashset![
-                "rel"
-            ],
-            .. Ammonia::default()
-        };
-        cleaner.clean("<a rel=\"what\">s</a>");
+        Ammonia::new()
+            .link_rel(None)
+            .generic_attributes(hashset!["rel"])
+            .clean("<a rel=\"what\">s</a>");
     }
     #[test]
     fn no_panic_if_rel_is_allowed_and_not_replaced_a() {
-        let cleaner = Ammonia {
-            link_rel: None,
-            tag_attributes: hashmap![
+        Ammonia::new()
+            .link_rel(None)
+            .tag_attributes(hashmap![
                 "a" => hashset!["rel"],
-            ],
-            .. Ammonia::default()
-        };
-        cleaner.clean("<a rel=\"what\">s</a>");
+            ])
+            .clean("<a rel=\"what\">s</a>");
     }
     // The rest of these are stolen from
     // https://code.google.com/p/html-sanitizer-testbed/source/browse/trunk/testcases/t10.html
@@ -588,7 +565,10 @@ mod test {
     }
     #[test]
     fn test_100() {
-        let fragment = "<!-- Here is a comment: -- This is a nested comment -->\n<a href=\"http://harmless.com/This is still inside the comment: --evadefilter><img onerror=alert(100) src=''/><a href=\"test\">link</a>";
+        let fragment = "<!-- Here is a comment: -- This is a nested comment -->\n\
+                        <a href=\"http://harmless.com/This is still inside the comment: \
+                        --evadefilter><img onerror=alert(100) src=''/><a href=\"test\">\
+                        link</a>";
         let result = clean(fragment);
         assert_eq!(result, "\nlink");
     }
@@ -601,48 +581,38 @@ mod test {
     #[test]
     fn remove_non_allowed_classes() {
         let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
-        let cleaner = Ammonia {
-            link_rel: None,
-            tag_attributes: hashmap![
+        let result = Ammonia::new()
+            .link_rel(None)
+            .tag_attributes(hashmap![
                 "p" => hashset!["class"],
                 "a" => hashset!["class"],
-            ],
-            allowed_classes: hashmap![
+            ])
+            .allowed_classes(hashmap![
                 "p" => hashset!["foo", "bar"],
                 "a" => hashset!["baz"],
-            ],
-            .. Ammonia::default()
-        };
-
-        let result = cleaner.clean(fragment);
+            ])
+            .clean(fragment);
         assert_eq!(result, "<p class=\"foo bar\"><a class=\"baz\">Hey</a></p>");
     }
     #[test]
     fn remove_entity_link() {
-        let fragment = r#"<a href="&#x6A&#x61&#x76&#x61&#x73&#x63&#x72&#x69&#x70&#x74&#x3A&#x61&#x6C&#x65&#x72&#x74&#x28&#x27&#x58&#x53&#x53&#x27&#x29">Click me!</a>"#;
+        let fragment = "<a href=\"&#x6A&#x61&#x76&#x61&#x73&#x63&#x72&#x69&#x70&#x74&#x3A&#x61\
+                        &#x6C&#x65&#x72&#x74&#x28&#x27&#x58&#x53&#x53&#x27&#x29\">Click me!</a>";
         let result = clean(fragment);
         assert_eq!(result, "Click me!");
     }
     #[test]
     fn clean_children_of_bad_element() {
         let fragment = "<bad><evil>a</evil>b</bad>";
-        let cleaner = Ammonia {
-            keep_cleaned_elements: false,
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
+        let result = Ammonia::new().keep_cleaned_elements(false).clean(fragment);
         assert_eq!(result, "ab");
-        let cleaner = Ammonia {
-            keep_cleaned_elements: true,
-            .. Ammonia::default()
-        };
-        let result = cleaner.clean(fragment);
+        let result = Ammonia::new().keep_cleaned_elements(true).clean(fragment);
         assert_eq!(result, "ab");
     }
     #[test]
     fn reader_input() {
         let fragment = b"an <script>evil()</script> example";
-        let result = Ammonia::default().clean_from_reader(&mut &fragment[..]);
+        let result = Ammonia::new().clean_from_reader(&mut &fragment[..]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "an evil() example");
     }
@@ -650,7 +620,7 @@ mod test {
     fn require_send<T: Send>(_: T) {}
     #[test]
     fn require_sync_and_send() {
-        require_sync(Ammonia::default());
-        require_send(Ammonia::default());
+        require_sync(Ammonia::new());
+        require_send(Ammonia::new());
     }
 }
