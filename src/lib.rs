@@ -324,13 +324,13 @@ impl<'a> Ammonia<'a> {
     }
 
     fn fix_child(&self, child: &mut Handle, link_rel: &Option<StrTendril>, url_base: &Option<Url>) {
-        if let &NodeData::Element {
+        if let NodeData::Element {
             ref name,
             ref attrs,
             ..
-        } = &child.data
+        } = child.data
         {
-            if let &Some(ref link_rel) = link_rel {
+            if let Some(ref link_rel) = *link_rel {
                 if &*name.local == "a" {
                     attrs.borrow_mut().push(Attribute {
                         name: QualName::new(None, ns!(), local_name!("rel")),
@@ -338,7 +338,7 @@ impl<'a> Ammonia<'a> {
                     })
                 }
             }
-            if let &Some(ref base) = url_base {
+            if let Some(ref base) = *url_base {
                 for attr in &mut *attrs.borrow_mut() {
                     if is_url_attr(&*name.local, &*attr.name.local) {
                         let url = base.join(&*attr.value)
