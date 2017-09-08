@@ -126,62 +126,73 @@ impl<'a> Default for Ammonia<'a> {
 }
 
 impl<'a> Ammonia<'a> {
-    /// Tags that are allowed. Note that this only whitelists the tag; it will
-    /// still be stripped if it has unlisted attributes.
+    /// Sets the tags that are allowed.
+    ///
+    /// Note that this only whitelists the tag; by default elements will still be stripped
+    /// if they have unlisted attributes.
     pub fn tags(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.tags = value;
         self
     }
 
-    /// Attributes that are allowed on certain tags. If the tag is not itself
-    /// whitelisted, adding entries to this map do nothing. It is structured
-    /// as a map from tag name to set of attribute name.
+    /// Sets the HTML attributes that are allowed on specific tags.
+    ///
+    /// The value is structured as a map from tag names to a set of attribute names.
+    ///
+    /// If a tag is not itself whitelisted, adding entries to this map will do nothing.
     pub fn tag_attributes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
         self.tag_attributes = value;
         self
     }
 
-    /// Attributes that are allowed on any tag.
+    /// Sets the attributes that are allowed on any tag.
     pub fn generic_attributes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.generic_attributes = value;
         self
     }
 
-    /// Permitted URL schemes on href and src attributes.
+    /// Sets the URL schemes permitted on `href` and `src` attributes.
     pub fn url_schemes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.url_schemes = value;
         self
     }
 
-    /// Behavior on relative URLs: pass-through, resolve-with-base, or deny.
+    /// Configures the behavior for relative URLs: pass-through, resolve-with-base, or deny.
     pub fn url_relative(&mut self, value: UrlRelative<'a>) -> &mut Self {
         self.url_relative = value;
         self
     }
 
-    /// Stick these rel="" attributes on every link.
-    /// If rel is in the generic or tag attributes, this must be `None`.
+    /// Configures a `rel` attribute that will be added on links.
+    ///
+    /// If `rel` is in the generic or tag attributes, this must be set to `None`.
     pub fn link_rel(&mut self, value: Option<&'a str>) -> &mut Self {
         self.link_rel = value;
         self
     }
 
-    /// Classes that are allowed on certain tags. If the class attribute is not
-    /// itself whitelisted for a tag, then adding entries to this map does
-    /// nothing. It is structured as a map from tag name to a set of class names.
+    /// Sets the CSS classes that are allowed on specific tags.
+    ///
+    /// The values is structured as a map from tag names to a set of class names.
+    ///
+    /// If the `class` attribute is not itself whitelisted for a tag, then adding entries to
+    /// this map does nothing.
     pub fn allowed_classes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
         self.allowed_classes = value;
         self
     }
 
-    /// True: strip HTML comments. False: leave HTML comments in.
+    /// Configures the handling of HTML comments.
+    ///
+    /// If this option is true, the comments will be removed.
     pub fn strip_comments(&mut self, value: bool) -> &mut Self {
         self.strip_comments = value;
         self
     }
 
-    /// True: remove disallowed attributes, but not the elements containing them.
-    /// False: remove elements with disallowed attributes.
+    /// Configures the handling of elements with disallowed attributes
+    ///
+    /// If this option is true, the elements with disallowed attributes will be kept.
     pub fn keep_cleaned_elements(&mut self, value: bool) -> &mut Self {
         self.keep_cleaned_elements = value;
         self
@@ -192,14 +203,14 @@ impl<'a> Ammonia<'a> {
         Self::default()
     }
 
-    /// Sanitizes a HTML fragment in a string according to the configured options.
+    /// Sanitizes an HTML fragment in a string according to the configured options.
     pub fn clean(&self, src: &'a str) -> String {
         let parser = Self::make_parser();
         let dom = parser.one(src);
         self.clean_dom(dom)
     }
 
-    /// Sanitizes a HTML fragment from a reader according to the configured options.
+    /// Sanitizes an HTML fragment from a reader according to the configured options.
     ///
     /// The input should be UTF-8 encoding, otherwise the decoding is lossy, just
     /// like when using `String::from_utf8_lossy`.
