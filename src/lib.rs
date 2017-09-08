@@ -76,31 +76,15 @@ pub fn clean(src: &str) -> String {
 /// tags.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Ammonia<'a> {
-    /// Tags that are allowed. Note that this only whitelists the tag; it will
-    /// still be stripped if it has unlisted attributes.
-    pub tags: HashSet<&'a str>,
-    /// Attributes that are allowed on certain tags. If the tag is not itself
-    /// whitelisted, adding entries to this map do nothing. It is structured
-    /// as a map from tag name to set of attribute name.
-    pub tag_attributes: HashMap<&'a str, HashSet<&'a str>>,
-    /// Attributes that are allowed on any tag.
-    pub generic_attributes: HashSet<&'a str>,
-    /// Permitted URL schemes on href and src attributes.
-    pub url_schemes: HashSet<&'a str>,
-    /// Behavior on relative URLs: pass-through, resolve-with-base, or deny.
-    pub url_relative: UrlRelative<'a>,
-    /// Stick these rel="" attributes on every link.
-    /// If rel is in the generic or tag attributes, this must be `None`.
-    pub link_rel: Option<&'a str>,
-    /// Classes that are allowed on certain tags. If the class attribute is not
-    /// itself whitelisted for a tag, then adding entries to this map does
-    /// nothing. It is structured as a map from tag name to a set of class names.
-    pub allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
-    /// True: strip HTML comments. False: leave HTML comments in.
-    pub strip_comments: bool,
-    /// True: remove disallowed attributes, but not the elements containing them.
-    /// False: remove elements with disallowed attributes.
-    pub keep_cleaned_elements: bool,
+    tags: HashSet<&'a str>,
+    tag_attributes: HashMap<&'a str, HashSet<&'a str>>,
+    generic_attributes: HashSet<&'a str>,
+    url_schemes: HashSet<&'a str>,
+    url_relative: UrlRelative<'a>,
+    link_rel: Option<&'a str>,
+    allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
+    strip_comments: bool,
+    keep_cleaned_elements: bool,
 }
 
 impl<'a> Default for Ammonia<'a> {
@@ -142,6 +126,67 @@ impl<'a> Default for Ammonia<'a> {
 }
 
 impl<'a> Ammonia<'a> {
+    /// Tags that are allowed. Note that this only whitelists the tag; it will
+    /// still be stripped if it has unlisted attributes.
+    pub fn tags(&mut self, value: HashSet<&'a str>) -> &mut Self {
+        self.tags = value;
+        self
+    }
+
+    /// Attributes that are allowed on certain tags. If the tag is not itself
+    /// whitelisted, adding entries to this map do nothing. It is structured
+    /// as a map from tag name to set of attribute name.
+    pub fn tag_attributes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
+        self.tag_attributes = value;
+        self
+    }
+
+    /// Attributes that are allowed on any tag.
+    pub fn generic_attributes(&mut self, value: HashSet<&'a str>) -> &mut Self {
+        self.generic_attributes = value;
+        self
+    }
+
+    /// Permitted URL schemes on href and src attributes.
+    pub fn url_schemes(&mut self, value: HashSet<&'a str>) -> &mut Self {
+        self.url_schemes = value;
+        self
+    }
+
+    /// Behavior on relative URLs: pass-through, resolve-with-base, or deny.
+    pub fn url_relative(&mut self, value: UrlRelative<'a>) -> &mut Self {
+        self.url_relative = value;
+        self
+    }
+
+    /// Stick these rel="" attributes on every link.
+    /// If rel is in the generic or tag attributes, this must be `None`.
+    pub fn link_rel(&mut self, value: Option<&'a str>) -> &mut Self {
+        self.link_rel = value;
+        self
+    }
+
+    /// Classes that are allowed on certain tags. If the class attribute is not
+    /// itself whitelisted for a tag, then adding entries to this map does
+    /// nothing. It is structured as a map from tag name to a set of class names.
+    pub fn allowed_classes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
+        self.allowed_classes = value;
+        self
+    }
+
+    /// True: strip HTML comments. False: leave HTML comments in.
+    pub fn strip_comments(&mut self, value: bool) -> &mut Self {
+        self.strip_comments = value;
+        self
+    }
+
+    /// True: remove disallowed attributes, but not the elements containing them.
+    /// False: remove elements with disallowed attributes.
+    pub fn keep_cleaned_elements(&mut self, value: bool) -> &mut Self {
+        self.keep_cleaned_elements = value;
+        self
+    }
+
     /// Constructs an `Ammonia` instance configured with the default options.
     pub fn new() -> Self {
         Self::default()
