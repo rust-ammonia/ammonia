@@ -14,5 +14,5 @@ categories = [ "web-programming", "text-processing" ]
 html5ever = "0.19"
 maplit = "0.1"
 tendril = "0.4"
-url = "1.4"
+url = "1.5"
 lazy_static = "0.2"

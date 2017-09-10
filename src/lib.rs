@@ -17,7 +17,9 @@
 //! # Example
 //!
 //! ```
-//! let result = ammonia::clean("<b><img src='' onerror='alert(\\'hax\\')'>I'm not trying to XSS you</b>");
+//! let result = ammonia::clean(
+//!     "<b><img src='' onerror='alert(\\'hax\\')'>I'm not trying to XSS you</b>"
+//! );
 //! assert_eq!(result, "<b>I'm not trying to XSS you</b>");
 //! ```
 //!
@@ -27,15 +29,15 @@
 #[macro_use]
 extern crate html5ever;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate maplit;
 #[macro_use]
 extern crate tendril;
 extern crate url;
-#[macro_use]
-extern crate lazy_static;
 
 use html5ever::{driver as html, QualName};
-use html5ever::rcdom::{RcDom, NodeData, Handle};
+use html5ever::rcdom::{Handle, NodeData, RcDom};
 use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::interface::Attribute;
@@ -89,15 +91,14 @@ pub struct Ammonia<'a> {
 
 impl<'a> Default for Ammonia<'a> {
     fn default() -> Self {
+        #[cfg_attr(rustfmt, rustfmt_skip)]
         let tags = hashset![
             "a", "b", "blockquote", "br", "code", "dd", "del", "dl", "dt",
             "em", "i", "h1", "h2", "h3", "hr", "img", "kbd", "li", "ol", "p",
             "pre", "s", "strike", "strong", "sub", "sup", "table", "tbody",
             "td", "th", "thead", "tr", "ul", "hr"
         ];
-        let generic_attributes = hashset![
-            "title"
-        ];
+        let generic_attributes = hashset!["title"];
         let tag_attributes = hashmap![
             "a" => hashset![
                 "href"
@@ -106,12 +107,10 @@ impl<'a> Default for Ammonia<'a> {
                 "width", "height", "src", "alt"
             ]
         ];
-        let url_schemes = hashset![
-            "http", "https", "mailto"
-        ];
+        let url_schemes = hashset!["http", "https", "mailto"];
         let allowed_classes = hashmap![];
 
-        Ammonia{
+        Ammonia {
             tags: tags,
             tag_attributes: tag_attributes,
             generic_attributes: generic_attributes,
@@ -225,13 +224,21 @@ impl<'a> Ammonia<'a> {
 
     fn clean_dom(&self, mut dom: RcDom) -> String {
         let mut stack = Vec::new();
-        let link_rel = self.link_rel.map(|link_rel| format_tendril!("{}", link_rel));
+        let link_rel = self.link_rel
+            .map(|link_rel| format_tendril!("{}", link_rel));
         if link_rel.is_some() {
             assert!(self.generic_attributes.get("rel").is_none());
-            assert!(self.tag_attributes.get("a").and_then(|a| a.get("rel")).is_none());
+            assert!(
+                self.tag_attributes
+                    .get("a")
+                    .and_then(|a| a.get("rel"))
+                    .is_none()
+            );
         }
         let url_base = if let UrlRelative::RewriteWithBase(base) = self.url_relative {
-            Some(Url::parse(base).expect("RewriteWithBase(base) should have a valid URL for base"))
+            Some(
+                Url::parse(base).expect("RewriteWithBase(base) should have a valid URL for base"),
+            )
         } else {
             None
         };
@@ -239,7 +246,11 @@ impl<'a> Ammonia<'a> {
             let children = dom.document.children.borrow();
             children[0].clone()
         };
-        stack.extend(replace(&mut *body.children.borrow_mut(), Vec::new()).into_iter().rev());
+        stack.extend(
+            replace(&mut *body.children.borrow_mut(), Vec::new())
+                .into_iter()
+                .rev(),
+        );
         while !stack.is_empty() {
             let mut node = stack.pop().unwrap();
             let parent = node.parent.replace(None).unwrap().upgrade().unwrap();
@@ -252,12 +263,16 @@ impl<'a> Ammonia<'a> {
                     sub.parent.replace(Some(Rc::downgrade(&parent)));
                 }
             }
-            stack.extend(replace(&mut *node.children.borrow_mut(), Vec::new()).into_iter().rev());
+            stack.extend(
+                replace(&mut *node.children.borrow_mut(), Vec::new())
+                    .into_iter()
+                    .rev(),
+            );
         }
         let mut ret_val = Vec::new();
-        let opts = SerializeOpts{
+        let opts = SerializeOpts {
             traversal_scope: TraversalScope::ChildrenOnly,
-            .. SerializeOpts::default()
+            ..SerializeOpts::default()
         };
         serialize(&mut ret_val, &body, opts).unwrap();
         String::from_utf8(ret_val).unwrap()
@@ -265,57 +280,69 @@ impl<'a> Ammonia<'a> {
 
     fn clean_child(&self, child: &mut Handle) -> bool {
         match child.data {
-            NodeData::Text{..} => true,
-            NodeData::Comment{..} => !self.strip_comments,
-            NodeData::Doctype{..} |
-            NodeData::Document | NodeData::ProcessingInstruction{..} => false,
-            NodeData::Element{ref name, ref attrs, ..} => {
-                if self.tags.contains(&*name.local) {
-                    let attr_filter = |attr: &html5ever::Attribute| {
-                        let whitelisted = self.generic_attributes.contains(&*attr.name.local) ||
-                            self.tag_attributes.get(&*name.local).map(|ta| ta.contains(&*attr.name.local)) == Some(true);
-                        if !whitelisted {
-                            false
-                        } else if is_url_attr(&*name.local, &*attr.name.local) {
-                            let url = Url::parse(&*attr.value);
-                            if let Ok(url) = url {
-                                self.url_schemes.contains(url.scheme())
-                            } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
-                                self.url_relative != UrlRelative::Deny
-                            } else {
-                                false
-                            }
+            NodeData::Text { .. } => true,
+            NodeData::Comment { .. } => !self.strip_comments,
+            NodeData::Doctype { .. } |
+            NodeData::Document |
+            NodeData::ProcessingInstruction { .. } => false,
+            NodeData::Element {
+                ref name,
+                ref attrs,
+                ..
+            } => if self.tags.contains(&*name.local) {
+                let attr_filter = |attr: &html5ever::Attribute| {
+                    let whitelisted = self.generic_attributes.contains(&*attr.name.local) ||
+                        self.tag_attributes
+                            .get(&*name.local)
+                            .map(|ta| ta.contains(&*attr.name.local)) ==
+                            Some(true);
+                    if !whitelisted {
+                        false
+                    } else if is_url_attr(&*name.local, &*attr.name.local) {
+                        let url = Url::parse(&*attr.value);
+                        if let Ok(url) = url {
+                            self.url_schemes.contains(url.scheme())
+                        } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
+                            self.url_relative != UrlRelative::Deny
                         } else {
-                            true
+                            false
                         }
-                    };
-                    if self.keep_cleaned_elements {
-                        attrs.borrow_mut().retain(attr_filter);
-                        true
                     } else {
-                        attrs.borrow().iter().all(attr_filter)
+                        true
                     }
+                };
+                if self.keep_cleaned_elements {
+                    attrs.borrow_mut().retain(attr_filter);
+                    true
                 } else {
-                    false
+                    attrs.borrow().iter().all(attr_filter)
                 }
-            }
+            } else {
+                false
+            },
         }
     }
 
     fn fix_child(&self, child: &mut Handle, link_rel: &Option<StrTendril>, url_base: &Option<Url>) {
-        if let &NodeData::Element{ref name, ref attrs, ..} = &child.data {
-            if let &Some(ref link_rel) = link_rel {
+        if let NodeData::Element {
+            ref name,
+            ref attrs,
+            ..
+        } = child.data
+        {
+            if let Some(ref link_rel) = *link_rel {
                 if &*name.local == "a" {
-                    attrs.borrow_mut().push(Attribute{
+                    attrs.borrow_mut().push(Attribute {
                         name: QualName::new(None, ns!(), local_name!("rel")),
                         value: link_rel.clone(),
                     })
                 }
             }
-            if let &Some(ref base) = url_base {
+            if let Some(ref base) = *url_base {
                 for attr in &mut *attrs.borrow_mut() {
                     if is_url_attr(&*name.local, &*attr.name.local) {
-                        let url = base.join(&*attr.value).expect("invalid URLs should be stripped earlier");
+                        let url = base.join(&*attr.value)
+                            .expect("invalid URLs should be stripped earlier");
                         attr.value = format_tendril!("{}", url);
                     }
                 }
@@ -337,7 +364,12 @@ impl<'a> Ammonia<'a> {
     }
 
     fn make_parser() -> html::Parser<RcDom> {
-        html::parse_fragment(RcDom::default(), html::ParseOpts::default(), QualName::new(None, ns!(html), local_name!("div")), vec![])
+        html::parse_fragment(
+            RcDom::default(),
+            html::ParseOpts::default(),
+            QualName::new(None, ns!(html), local_name!("div")),
+            vec![],
+        )
     }
 }
 
@@ -372,7 +404,7 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
 /// * `<a href="/test">` will be rewritten to `<a href="http://notriddle.com/test">`
 /// * `<a href="//example.com/test">` will be rewritten to `<a href="http://example.com/test">`
 /// * `<a href="http://example.com/test">` is an absolute URL, so it will be kept as-is
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum UrlRelative<'a> {
     /// Relative URLs will be completely stripped from the document.
     Deny,
