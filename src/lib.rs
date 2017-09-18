@@ -20,7 +20,7 @@
 //! let result = ammonia::clean(
 //!     "<b><img src='' onerror='alert(\\'hax\\')'>I'm not trying to XSS you</b>"
 //! );
-//! assert_eq!(result, "<b>I'm not trying to XSS you</b>");
+//! assert_eq!(result, "<b><img>I'm not trying to XSS you</b>");
 //! ```
 //!
 //! [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
@@ -86,7 +86,6 @@ pub struct Ammonia<'a> {
     link_rel: Option<&'a str>,
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     strip_comments: bool,
-    keep_cleaned_elements: bool,
 }
 
 impl<'a> Default for Ammonia<'a> {
@@ -119,7 +118,6 @@ impl<'a> Default for Ammonia<'a> {
             link_rel: Some("noopener noreferrer"),
             allowed_classes: allowed_classes,
             strip_comments: true,
-            keep_cleaned_elements: false,
         }
     }
 }
@@ -186,14 +184,6 @@ impl<'a> Ammonia<'a> {
     /// If this option is true, the comments will be removed.
     pub fn strip_comments(&mut self, value: bool) -> &mut Self {
         self.strip_comments = value;
-        self
-    }
-
-    /// Configures the handling of elements with disallowed attributes
-    ///
-    /// If this option is true, the elements with disallowed attributes will be kept.
-    pub fn keep_cleaned_elements(&mut self, value: bool) -> &mut Self {
-        self.keep_cleaned_elements = value;
         self
     }
 
@@ -311,12 +301,8 @@ impl<'a> Ammonia<'a> {
                         true
                     }
                 };
-                if self.keep_cleaned_elements {
-                    attrs.borrow_mut().retain(attr_filter);
-                    true
-                } else {
-                    attrs.borrow().iter().all(attr_filter)
-                }
+                attrs.borrow_mut().retain(attr_filter);
+                true
             } else {
                 false
             },
@@ -441,13 +427,13 @@ mod test {
     fn remove_unsafe_link() {
         let fragment = "an <a onclick=\"evil()\" href=\"http://www.google.com\">evil</a> example";
         let result = clean(fragment);
-        assert_eq!(result, "an evil example");
+        assert_eq!(result, "an <a href=\"http://www.google.com\" rel=\"noopener noreferrer\">evil</a> example");
     }
     #[test]
     fn remove_js_link() {
         let fragment = "an <a href=\"javascript:evil()\">evil</a> example";
         let result = clean(fragment);
-        assert_eq!(result, "an evil example");
+        assert_eq!(result, "an <a rel=\"noopener noreferrer\">evil</a> example");
     }
     #[test]
     fn tag_rebalance() {
@@ -492,14 +478,13 @@ mod test {
         let result = Ammonia::new()
             .url_relative(UrlRelative::Deny)
             .clean(fragment);
-        assert_eq!(result, "Test");
+        assert_eq!(result, "<a rel=\"noopener noreferrer\">Test</a>");
     }
     #[test]
     fn replace_rel() {
         let fragment = "<a href=test rel=\"garbage\">Test</a>";
         let result = Ammonia::new()
             .url_relative(UrlRelative::PassThrough)
-            .keep_cleaned_elements(true)
             .clean(fragment);
         assert_eq!(
             result,
@@ -511,15 +496,15 @@ mod test {
         let fragment = "<a href=test rel=\"garbage\">Test</a>";
         let result = Ammonia::new()
             .url_relative(UrlRelative::PassThrough)
-            .keep_cleaned_elements(false)
+            .link_rel(None)
             .clean(fragment);
-        assert_eq!(result, "Test");
+        assert_eq!(result, "<a href=\"test\">Test</a>");
     }
     #[test]
     fn object_data() {
         let fragment = "<span data=\"javascript:evil()\">Test</span>\
                         <object data=\"javascript:evil()\"></object>M";
-        let expected = r#"<span data="javascript:evil()">Test</span>M"#;
+        let expected = r#"<span data="javascript:evil()">Test</span><object></object>M"#;
         let result = Ammonia::new()
             .tags(hashset!["span", "object"])
             .generic_attributes(hashset!["data"])
@@ -529,7 +514,7 @@ mod test {
     #[test]
     fn remove_attributes() {
         let fragment = "<table border=\"1\"><tr></tr></table>";
-        let result = Ammonia::new().keep_cleaned_elements(true).clean(fragment);
+        let result = Ammonia::new().clean(fragment);
         assert_eq!(result, "<table><tbody><tr></tr></tbody></table>");
     }
     #[test]
@@ -581,29 +566,6 @@ mod test {
             ])
             .clean("<a rel=\"what\">s</a>");
     }
-    // The rest of these are stolen from
-    // https://code.google.com/p/html-sanitizer-testbed/source/browse/trunk/testcases/t10.html
-    #[test]
-    fn test_10() {
-        let fragment = "<SCRIPT/alert(10);/";
-        let result = clean(fragment);
-        assert_eq!(result, "");
-    }
-    #[test]
-    fn test_11() {
-        let fragment = "<IMG SRC=\"javas%63ript:alert(11);\">";
-        let result = clean(fragment);
-        assert_eq!(result, "");
-    }
-    #[test]
-    fn test_100() {
-        let fragment = "<!-- Here is a comment: -- This is a nested comment -->\n\
-                        <a href=\"http://harmless.com/This is still inside the comment: \
-                        --evadefilter><img onerror=alert(100) src=''/><a href=\"test\">\
-                        link</a>";
-        let result = clean(fragment);
-        assert_eq!(result, "\nlink");
-    }
     #[test]
     fn dont_close_void_elements() {
         let fragment = "<br>";
@@ -631,14 +593,12 @@ mod test {
         let fragment = "<a href=\"&#x6A&#x61&#x76&#x61&#x73&#x63&#x72&#x69&#x70&#x74&#x3A&#x61\
                         &#x6C&#x65&#x72&#x74&#x28&#x27&#x58&#x53&#x53&#x27&#x29\">Click me!</a>";
         let result = clean(fragment);
-        assert_eq!(result, "Click me!");
+        assert_eq!(result, "<a rel=\"noopener noreferrer\">Click me!</a>");
     }
     #[test]
     fn clean_children_of_bad_element() {
         let fragment = "<bad><evil>a</evil>b</bad>";
-        let result = Ammonia::new().keep_cleaned_elements(false).clean(fragment);
-        assert_eq!(result, "ab");
-        let result = Ammonia::new().keep_cleaned_elements(true).clean(fragment);
+        let result = Ammonia::new().clean(fragment);
         assert_eq!(result, "ab");
     }
     #[test]
