@@ -2,6 +2,7 @@
 
 * Breaking change: The `Ammonia` struct now uses the builder pattern for better forward compatibility
 * Added support for reading the input from a stream
+* Breaking change: `keep_cleaned_elements` is changed from being an off-by-default option to the only supported behavior
 
 # 0.7.0
 
