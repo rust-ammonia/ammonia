@@ -414,7 +414,7 @@ impl<'a> Ammonia<'a> {
 
     /// Remove unwanted attributes, and check if the node should be kept or not.
     ///
-    /// The root node doesn't need cleaned because we create the root node ourselves,
+    /// The root node doesn't need cleaning because we create the root node ourselves,
     /// and it doesn't get serialized, and ... it just exists to give the parser
     /// a context (in this case, a div-like block context).
     fn clean_child(&self, child: &mut Handle) -> bool {
