@@ -42,6 +42,7 @@ use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::interface::Attribute;
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::io;
 use std::mem::replace;
 use std::rc::Rc;
@@ -69,7 +70,7 @@ lazy_static! {
 ///
 ///     assert_eq!(ammonia::clean("<script>XSS</script>"), "XSS")
 pub fn clean(src: &str) -> String {
-    AMMONIA.clean(src)
+    AMMONIA.clean(src).to_string()
 }
 
 /// An HTML sanitizer.
@@ -85,7 +86,8 @@ pub fn clean(src: &str) -> String {
 ///     let a = Ammonia::default()
 ///         .link_rel(None)
 ///         .url_relative(UrlRelative::PassThrough)
-///         .clean("<a href=/>test");
+///         .clean("<a href=/>test")
+///         .to_string();
 ///     assert_eq!(
 ///         a,
 ///         "<a href=\"/\">test</a>");
@@ -145,7 +147,10 @@ impl<'a> Ammonia<'a> {
     ///
     ///     use ammonia::*;
     ///     let tags = ["my-tag"].into_iter().cloned().collect();
-    ///     let a = Ammonia::new().tags(tags).clean("<my-tag>");
+    ///     let a = Ammonia::new()
+    ///         .tags(tags)
+    ///         .clean("<my-tag>")
+    ///         .to_string();
     ///     assert_eq!(a, "<my-tag></my-tag>");
     pub fn tags(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.tags = value;
@@ -166,7 +171,8 @@ impl<'a> Ammonia<'a> {
     ///         ("my-tag", ["val"].into_iter().cloned().collect())
     ///     ].into_iter().cloned().collect();
     ///     let a = Ammonia::new().tags(tags).tag_attributes(tag_attributes)
-    ///         .clean("<my-tag val=1>");
+    ///         .clean("<my-tag val=1>")
+    ///         .to_string();
     ///     assert_eq!(a, "<my-tag val=\"1\"></my-tag>");
     pub fn tag_attributes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
         self.tag_attributes = value;
@@ -181,7 +187,8 @@ impl<'a> Ammonia<'a> {
     ///     let attributes = ["data-val"].into_iter().cloned().collect();
     ///     let a = Ammonia::new()
     ///         .generic_attributes(attributes)
-    ///         .clean("<b data-val=1>");
+    ///         .clean("<b data-val=1>")
+    ///         .to_string();
     ///     assert_eq!(a, "<b data-val=\"1\"></b>");
     pub fn generic_attributes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.generic_attributes = value;
@@ -197,8 +204,10 @@ impl<'a> Ammonia<'a> {
     ///         "http", "https", "mailto", "magnet"
     ///     ].into_iter().cloned().collect();
     ///     let a = Ammonia::new().url_schemes(url_schemes)
-    ///         .clean("<a href=\"magnet:?xt=urn:ed2k:31D6CFE0D16AE931B73C59D7E0C089C0&xl=0&dn=zero_len.fil&xt=urn:bitprint:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ.LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ&xt=urn:md5:D41D8CD98F00B204E9800998ECF8427E\">zero-length file</a>");
-    ///     // See `link_rel` for information on the rel="noopener noreferrer" part of the cleaned HTML.
+    ///         .clean("<a href=\"magnet:?xt=urn:ed2k:31D6CFE0D16AE931B73C59D7E0C089C0&xl=0&dn=zero_len.fil&xt=urn:bitprint:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ.LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ&xt=urn:md5:D41D8CD98F00B204E9800998ECF8427E\">zero-length file</a>")
+    ///         .to_string();
+    ///     // See `link_rel` for information on the rel="noopener noreferrer" attribute
+    ///     // in the cleaned HTML.
     ///     assert_eq!(a,
     ///       "<a href=\"magnet:?xt=urn:ed2k:31D6CFE0D16AE931B73C59D7E0C089C0&amp;xl=0&amp;dn=zero_len.fil&amp;xt=urn:bitprint:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ.LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ&amp;xt=urn:md5:D41D8CD98F00B204E9800998ECF8427E\" rel=\"noopener noreferrer\">zero-length file</a>");
     pub fn url_schemes(&mut self, value: HashSet<&'a str>) -> &mut Self {
@@ -212,8 +221,10 @@ impl<'a> Ammonia<'a> {
     ///
     ///     use ammonia::*;
     ///     let a = Ammonia::new().url_relative(UrlRelative::PassThrough)
-    ///         .clean("<a href=/>Home</a>");
-    ///     // See `link_rel` for information on the rel="noopener noreferrer" part of the cleaned HTML.
+    ///         .clean("<a href=/>Home</a>")
+    ///         .to_string();
+    ///     // See `link_rel` for information on the rel="noopener noreferrer" attribute
+    ///     // in the cleaned HTML.
     ///     assert_eq!(
     ///       a,
     ///       "<a href=\"/\" rel=\"noopener noreferrer\">Home</a>");
@@ -233,7 +244,7 @@ impl<'a> Ammonia<'a> {
     ///   to the website that is linked to.
     /// * `nofollow`: This prevents search engines from [using this link for
     ///   ranking], which disincentivizes spammers.
-    /// 
+    ///
     /// [a particular type of XSS attack]: https://mathiasbynens.github.io/rel-noopener/
     /// [sending the source URL]: https://en.wikipedia.org/wiki/HTTP_referer
     /// [using this link for ranking]: https://en.wikipedia.org/wiki/Nofollow
@@ -242,7 +253,8 @@ impl<'a> Ammonia<'a> {
     ///
     ///     use ammonia::*;
     ///     let a = Ammonia::new().link_rel(None)
-    ///         .clean("<a href=https://rust-lang.org/>Rust</a>");
+    ///         .clean("<a href=https://rust-lang.org/>Rust</a>")
+    ///         .to_string();
     ///     assert_eq!(
     ///       a,
     ///       "<a href=\"https://rust-lang.org/\">Rust</a>");
@@ -268,7 +280,8 @@ impl<'a> Ammonia<'a> {
     ///     let a = Ammonia::new()
     ///         .allowed_classes(allowed_classes)
     ///         .generic_attributes(["class"].into_iter().cloned().collect())
-    ///         .clean("<code class=rs>fn main() {}</code>");
+    ///         .clean("<code class=rs>fn main() {}</code>")
+    ///         .to_string();
     ///     assert_eq!(
     ///       a,
     ///       "<code class=\"rs\">fn main() {}</code>");
@@ -287,7 +300,8 @@ impl<'a> Ammonia<'a> {
     ///
     ///     use ammonia::*;
     ///     let a = Ammonia::new().strip_comments(false)
-    ///         .clean("<!-- yes -->");
+    ///         .clean("<!-- yes -->")
+    ///         .to_string();
     ///     assert_eq!(
     ///       a,
     ///       "<!-- yes -->");
@@ -301,11 +315,12 @@ impl<'a> Ammonia<'a> {
     /// # Examples
     ///
     ///     use ammonia::*;
-    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
-    ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
+    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Ammonia.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
+    ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Ammonia.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
     ///     let result = Ammonia::new() // <--
     ///         .url_relative(UrlRelative::RewriteWithBase("https://docs.rs/ammonia/1.0/ammonia/"))
-    ///         .clean(input);
+    ///         .clean(input)
+    ///         .to_string();
     ///     assert_eq!(result, output);
     pub fn new() -> Self {
         Self::default()
@@ -316,13 +331,14 @@ impl<'a> Ammonia<'a> {
     /// # Examples
     ///
     ///     use ammonia::*;
-    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
-    ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
+    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Ammonia.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
+    ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Ammonia.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
     ///     let result = Ammonia::new()
     ///         .url_relative(UrlRelative::RewriteWithBase("https://docs.rs/ammonia/1.0/ammonia/"))
-    ///         .clean(input); // <--
+    ///         .clean(input)
+    ///         .to_string(); // <--
     ///     assert_eq!(result, output);
-    pub fn clean(&self, src: &'a str) -> String {
+    pub fn clean(&self, src: &'a str) -> Document {
         let parser = Self::make_parser();
         let dom = parser.one(src);
         self.clean_dom(dom)
@@ -339,13 +355,14 @@ impl<'a> Ammonia<'a> {
     ///     # use std::error::Error;
     ///     # fn do_main() -> Result<(), Box<Error>> {
     ///     let a = Ammonia::new()
-    ///         .clean_from_reader(&mut (b"<!-- no -->" as &[u8]))?; // notice the `b`
+    ///         .clean_from_reader(&mut (b"<!-- no -->" as &[u8]))? // notice the `b`
+    ///         .to_string();
     ///     assert_eq!(a, "");
     ///     # Ok(()) }
     ///     # fn main() { do_main().unwrap() }
-    pub fn clean_from_reader<R>(&self, src: &mut R) -> io::Result<String>
+    pub fn clean_from_reader<R>(&self, src: &mut R) -> io::Result<Document>
     where
-        R: std::io::Read,
+        R: io::Read,
     {
         let parser = Self::make_parser().from_utf8();
         let dom = parser.read_from(src)?;
@@ -357,7 +374,7 @@ impl<'a> Ammonia<'a> {
     /// This is not a public API because RcDom isn't really stable.
     /// We want to be able to take breaking changes to html5ever itself
     /// without having to break Ammonia's API.
-    fn clean_dom(&self, mut dom: RcDom) -> String {
+    fn clean_dom(&self, mut dom: RcDom) -> Document {
         let mut stack = Vec::new();
         let link_rel = self.link_rel
             .map(|link_rel| format_tendril!("{}", link_rel));
@@ -404,13 +421,7 @@ impl<'a> Ammonia<'a> {
                     .rev(),
             );
         }
-        let mut ret_val = Vec::new();
-        let opts = SerializeOpts {
-            traversal_scope: TraversalScope::ChildrenOnly,
-            ..SerializeOpts::default()
-        };
-        serialize(&mut ret_val, &body, opts).unwrap();
-        String::from_utf8(ret_val).unwrap()
+        Document(body)
     }
 
     /// Remove unwanted attributes, and check if the node should be kept or not.
@@ -466,7 +477,12 @@ impl<'a> Ammonia<'a> {
     /// * relative URL rewriting
     /// * adding `<a rel>` attributes
     /// * filtering out banned classes
-    fn adjust_node_attributes(&self, child: &mut Handle, link_rel: &Option<StrTendril>, url_base: &Option<Url>) {
+    fn adjust_node_attributes(
+        &self,
+        child: &mut Handle,
+        link_rel: &Option<StrTendril>,
+        url_base: &Option<Url>,
+    ) {
         if let NodeData::Element {
             ref name,
             ref attrs,
@@ -561,6 +577,165 @@ pub enum UrlRelative<'a> {
     RewriteWithBase(&'a str),
 }
 
+/// A sanitized HTML document.
+///
+/// The `Document` type is an opaque struct representing an HTML fragment that was sanitized by
+/// `ammonia`. It can be converted to a `String` or written to a `Write` instance. This allows
+/// users to avoid buffering the serialized representation to a `String` when desired.
+///
+/// This type is opaque to insulate the caller from breaking changes in the `html5ever` interface.
+///
+/// Note that this type wraps an `html5ever` DOM tree. `ammonia` does not support streaming, so
+/// the complete fragment needs to be stored in memory during processing. Currently, `Document`
+/// is backed by an `html5ever::rcdom::Node` object.
+///
+/// # Examples
+///
+///     use ammonia::Ammonia;
+///
+///     let input = "<!-- comments will be stripped -->This is an Ammonia example.";
+///     let output = "This is an Ammonia example.";
+///
+///     let document = Ammonia::new()
+///         .clean(input);
+///     assert_eq!(document.to_string(), output);
+#[derive(Clone)]
+pub struct Document(Handle);
+
+impl Document {
+    /// Serializes a `Document` instance to a `String`.
+    ///
+    /// This method returns a `String` with the sanitized HTML. This is the simplest way to use
+    /// `ammonia`.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::Ammonia;
+    ///
+    ///     let input = "Some <div>HTML here";
+    ///     let output = "Some HTML here";
+    ///
+    ///     let document = Ammonia::new()
+    ///         .clean(input);
+    ///     assert_eq!(document.to_string(), output);
+    pub fn to_string(&self) -> String {
+        let opts = Self::serialize_opts();
+        let mut ret_val = Vec::new();
+        serialize(&mut ret_val, &self.0, opts).unwrap();
+        String::from_utf8(ret_val).unwrap()
+    }
+
+    /// Serializes a `Document` instance to a writer.
+    ///
+    /// This method writes the sanitized HTML to a `Write` instance, avoiding a buffering step.
+    ///
+    /// Note that the in-memory representation of `Document` is larger than the serialized
+    /// `String`.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::Ammonia;
+    ///
+    ///     let input = "Some <div>HTML here";
+    ///     let expected = b"Some HTML here";
+    ///
+    ///     let document = Ammonia::new()
+    ///         .clean(input);
+    ///
+    ///     let mut sanitized = Vec::new();
+    ///     document.write_to(&mut sanitized).unwrap();
+    ///     assert_eq!(sanitized, expected);
+    pub fn write_to<W>(&self, writer: &mut W) -> io::Result<()>
+    where
+        W: io::Write,
+    {
+        let opts = Self::serialize_opts();
+        serialize(writer, &self.0, opts)
+    }
+
+    /// Exposes the `Document` instance as an [`html5ever::rcdom::Handle`][h].
+    ///
+    /// This method returns the inner object backing the `Document` instance. This allows
+    /// making further changes to the DOM without introducing redundant serialization and
+    /// parsing.
+    ///
+    /// Note that this method should be considered unstable and sits outside of the semver
+    /// stability guarantees. It may change, break, or go away at any time, either because
+    /// of `html5ever` changes or `ammonia` implementation changes.
+    ///
+    /// For this method to be accessible, a `cfg` flag is required. The easiest way is to
+    /// use the `RUSTFLAGS` environment variable:
+    ///
+    /// [h]: ../markup5ever/rcdom/type.Handle.html
+    ///
+    /// ```text
+    /// RUSTFLAGS='--cfg ammonia_unstable' cargo build
+    /// ```
+    ///
+    /// on Unix-like platforms, or
+    ///
+    /// ```text
+    /// set RUSTFLAGS=--cfg ammonia_unstable
+    /// cargo build
+    /// ```
+    ///
+    /// on Windows.
+    ///
+    /// This requirement also applies to crates that transitively depend on crates that use
+    /// this flag.
+    ///
+    /// # Examples
+    ///
+    ///     # extern crate ammonia;
+    ///     # extern crate html5ever;
+    ///     use ammonia::Ammonia;
+    ///     use html5ever::serialize::{serialize, SerializeOpts};
+    ///
+    ///     # use std::error::Error;
+    ///     # fn do_main() -> Result<(), Box<Error>> {
+    ///     let input = "<a>one link</a> and <a>one more</a>";
+    ///     let expected = "<a>one more</a> and <a>one link</a>";
+    ///
+    ///     let document = Ammonia::new()
+    ///         .link_rel(None)
+    ///         .clean(input);
+    ///
+    ///     let mut node = document.to_dom_node();
+    ///     node.children.borrow_mut().reverse();
+    ///
+    ///     let mut buf = Vec::new();
+    ///     serialize(&mut buf, &node, SerializeOpts::default())?;
+    ///     let output = String::from_utf8(buf)?;
+    ///
+    ///     assert_eq!(output, expected);
+    ///     # Ok(())
+    ///     # }
+    ///     # fn main() { do_main().unwrap() }
+    #[cfg(ammonia_unstable)]
+    pub fn to_dom_node(&self) -> Handle {
+        self.0.clone()
+    }
+
+    fn serialize_opts() -> SerializeOpts {
+        SerializeOpts {
+            traversal_scope: TraversalScope::ChildrenOnly,
+            ..SerializeOpts::default()
+        }
+    }
+}
+
+impl fmt::Debug for Document {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "Document({})", self.to_string())
+    }
+}
+
+impl From<Document> for String {
+    fn from(document: Document) -> Self {
+        document.to_string()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -588,7 +763,10 @@ mod test {
     fn remove_unsafe_link() {
         let fragment = "an <a onclick=\"evil()\" href=\"http://www.google.com\">evil</a> example";
         let result = clean(fragment);
-        assert_eq!(result, "an <a href=\"http://www.google.com\" rel=\"noopener noreferrer\">evil</a> example");
+        assert_eq!(
+            result,
+            "an <a href=\"http://www.google.com\" rel=\"noopener noreferrer\">evil</a> example"
+        );
     }
     #[test]
     fn remove_js_link() {
@@ -607,7 +785,8 @@ mod test {
         let fragment = "<a href=test>Test</a>";
         let result = Ammonia::new()
             .url_relative(UrlRelative::PassThrough)
-            .clean(fragment);
+            .clean(fragment)
+            .to_string();
         assert_eq!(
             result,
             "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>"
@@ -618,7 +797,8 @@ mod test {
         let fragment = "<a href=test>Test</a>";
         let result = Ammonia::new()
             .url_relative(UrlRelative::RewriteWithBase("http://example.com/"))
-            .clean(fragment);
+            .clean(fragment)
+            .to_string();
         assert_eq!(
             result,
             "<a href=\"http://example.com/test\" rel=\"noopener noreferrer\">Test</a>"
@@ -630,7 +810,8 @@ mod test {
         let result = Ammonia::new()
             .url_relative(UrlRelative::RewriteWithBase("http://example.com/"))
             .link_rel(None)
-            .clean(fragment);
+            .clean(fragment)
+            .to_string();
         assert_eq!(result, "<a href=\"http://example.com/test\">Test</a>");
     }
     #[test]
@@ -638,7 +819,8 @@ mod test {
         let fragment = "<a href=test>Test</a>";
         let result = Ammonia::new()
             .url_relative(UrlRelative::Deny)
-            .clean(fragment);
+            .clean(fragment)
+            .to_string();
         assert_eq!(result, "<a rel=\"noopener noreferrer\">Test</a>");
     }
     #[test]
@@ -646,7 +828,8 @@ mod test {
         let fragment = "<a href=test rel=\"garbage\">Test</a>";
         let result = Ammonia::new()
             .url_relative(UrlRelative::PassThrough)
-            .clean(fragment);
+            .clean(fragment)
+            .to_string();
         assert_eq!(
             result,
             "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>"
@@ -658,7 +841,8 @@ mod test {
         let result = Ammonia::new()
             .url_relative(UrlRelative::PassThrough)
             .link_rel(None)
-            .clean(fragment);
+            .clean(fragment)
+            .to_string();
         assert_eq!(result, "<a href=\"test\">Test</a>");
     }
     #[test]
@@ -669,14 +853,18 @@ mod test {
         let result = Ammonia::new()
             .tags(hashset!["span", "object"])
             .generic_attributes(hashset!["data"])
-            .clean(fragment);
+            .clean(fragment)
+            .to_string();
         assert_eq!(result, expected);
     }
     #[test]
     fn remove_attributes() {
         let fragment = "<table border=\"1\"><tr></tr></table>";
         let result = Ammonia::new().clean(fragment);
-        assert_eq!(result, "<table><tbody><tr></tr></tbody></table>");
+        assert_eq!(
+            result.to_string(),
+            "<table><tbody><tr></tr></tbody></table>"
+        );
     }
     #[test]
     fn quotes_in_attrs() {
@@ -731,7 +919,7 @@ mod test {
     fn dont_close_void_elements() {
         let fragment = "<br>";
         let result = clean(fragment);
-        assert_eq!(result, "<br>");
+        assert_eq!(result.to_string(), "<br>");
     }
     #[test]
     fn remove_non_allowed_classes() {
@@ -747,27 +935,52 @@ mod test {
                 "a" => hashset!["baz"],
             ])
             .clean(fragment);
-        assert_eq!(result, "<p class=\"foo bar\"><a class=\"baz\">Hey</a></p>");
+        assert_eq!(
+            result.to_string(),
+            "<p class=\"foo bar\"><a class=\"baz\">Hey</a></p>"
+        );
     }
     #[test]
     fn remove_entity_link() {
         let fragment = "<a href=\"&#x6A&#x61&#x76&#x61&#x73&#x63&#x72&#x69&#x70&#x74&#x3A&#x61\
                         &#x6C&#x65&#x72&#x74&#x28&#x27&#x58&#x53&#x53&#x27&#x29\">Click me!</a>";
         let result = clean(fragment);
-        assert_eq!(result, "<a rel=\"noopener noreferrer\">Click me!</a>");
+        assert_eq!(
+            result.to_string(),
+            "<a rel=\"noopener noreferrer\">Click me!</a>"
+        );
     }
     #[test]
     fn clean_children_of_bad_element() {
         let fragment = "<bad><evil>a</evil>b</bad>";
         let result = Ammonia::new().clean(fragment);
-        assert_eq!(result, "ab");
+        assert_eq!(result.to_string(), "ab");
     }
     #[test]
     fn reader_input() {
         let fragment = b"an <script>evil()</script> example";
         let result = Ammonia::new().clean_from_reader(&mut &fragment[..]);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "an evil() example");
+        assert_eq!(result.unwrap().to_string(), "an evil() example");
+    }
+    #[test]
+    fn debug_impl() {
+        let fragment = r#"a <a>link</a>"#;
+        let result = Ammonia::new().link_rel(None).clean(fragment);
+        assert_eq!(format!("{:?}", result), "Document(a <a>link</a>)");
+    }
+    #[cfg(ammonia_unstable)]
+    #[test]
+    fn to_dom_node() {
+        let fragment = r#"a <a>link</a>"#;
+        let result = Ammonia::new().link_rel(None).clean(fragment);
+        let _node = result.to_dom_node();
+    }
+    #[test]
+    fn string_from_document() {
+        let fragment = r#"a <a>link"#;
+        let result = String::from(Ammonia::new().link_rel(None).clean(fragment));
+        assert_eq!(format!("{}", result), "a <a>link</a>");
     }
     fn require_sync<T: Sync>(_: T) {}
     fn require_send<T: Send>(_: T) {}
