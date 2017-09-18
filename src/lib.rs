@@ -301,11 +301,12 @@ impl<'a> Ammonia<'a> {
     /// # Examples
     ///
     ///     use ammonia::*;
-    ///     let a = Ammonia::new() // <--
-    ///         .clean("<!-- no -->");
-    ///     assert_eq!(
-    ///       a,
-    ///       "");
+    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
+    ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
+    ///     let result = Ammonia::new() // <--
+    ///         .url_relative(UrlRelative::RewriteWithBase("https://docs.rs/ammonia/1.0/ammonia/"))
+    ///         .clean(input);
+    ///     assert_eq!(result, output);
     pub fn new() -> Self {
         Self::default()
     }
@@ -315,11 +316,12 @@ impl<'a> Ammonia<'a> {
     /// # Examples
     ///
     ///     use ammonia::*;
-    ///     let a = Ammonia::new()
-    ///         .clean("<!-- no -->"); // <--
-    ///     assert_eq!(
-    ///       a,
-    ///       "");
+    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
+    ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
+    ///     let result = Ammonia::new()
+    ///         .url_relative(UrlRelative::RewriteWithBase("https://docs.rs/ammonia/1.0/ammonia/"))
+    ///         .clean(input); // <--
+    ///     assert_eq!(result, output);
     pub fn clean(&self, src: &'a str) -> String {
         let parser = Self::make_parser();
         let dom = parser.one(src);
@@ -337,10 +339,8 @@ impl<'a> Ammonia<'a> {
     ///     # use std::error::Error;
     ///     # fn do_main() -> Result<(), Box<Error>> {
     ///     let a = Ammonia::new()
-    ///         .clean_from_reader(&mut (b"<!-- no -->" as &[u8])); // notice the `b`
-    ///     assert_eq!(
-    ///       a?,
-    ///       "");
+    ///         .clean_from_reader(&mut (b"<!-- no -->" as &[u8]))?; // notice the `b`
+    ///     assert_eq!(a, "");
     ///     # Ok(()) }
     ///     # fn main() { do_main().unwrap() }
     pub fn clean_from_reader<R>(&self, src: &mut R) -> io::Result<String>
