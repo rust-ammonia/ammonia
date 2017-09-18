@@ -64,8 +64,6 @@ lazy_static! {
 ///                `<img width="" height="" src="" alt="">`
 ///  * URL schemes in links and images: `http`, `https`, `mailto`
 ///  * Relative URLs are not allowed, to prevent cross-site request forgery.
-///  * Elements with invalid attributes are completely removed,
-///    to avoid confusion about what is and is not allowed.
 pub fn clean(src: &str) -> String {
     AMMONIA.clean(src)
 }
