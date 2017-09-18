@@ -390,7 +390,7 @@ impl<'a> Ammonia<'a> {
             let parent = node.parent.replace(None).unwrap().upgrade().unwrap();
             let pass = self.clean_child(&mut node);
             if pass {
-                self.fix_child(&mut node, &link_rel, &url_base);
+                self.adjust_node_attributes(&mut node, &link_rel, &url_base);
                 dom.append(&parent.clone(), NodeOrText::AppendNode(node.clone()));
             } else {
                 for sub in node.children.borrow_mut().iter_mut() {
@@ -465,7 +465,7 @@ impl<'a> Ammonia<'a> {
     /// * relative URL rewriting
     /// * adding `<a rel>` attributes
     /// * filtering out banned classes
-    fn fix_child(&self, child: &mut Handle, link_rel: &Option<StrTendril>, url_base: &Option<Url>) {
+    fn adjust_node_attributes(&self, child: &mut Handle, link_rel: &Option<StrTendril>, url_base: &Option<Url>) {
         if let NodeData::Element {
             ref name,
             ref attrs,
