@@ -51,7 +51,7 @@ use tendril::StrTendril;
 use url::Url;
 
 lazy_static! {
-    static ref AMMONIA: Ammonia<'static> = Ammonia::default();
+    static ref AMMONIA: Builder<'static> = Builder::default();
 }
 
 /// Clean HTML with a conservative set of defaults.
@@ -83,7 +83,7 @@ pub fn clean(src: &str) -> String {
 /// # Examples
 ///
 ///     use ammonia::*;
-///     let a = Ammonia::default()
+///     let a = Builder::default()
 ///         .link_rel(None)
 ///         .url_relative(UrlRelative::PassThrough)
 ///         .clean("<a href=/>test")
@@ -92,7 +92,7 @@ pub fn clean(src: &str) -> String {
 ///         a,
 ///         "<a href=\"/\">test</a>");
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Ammonia<'a> {
+pub struct Builder<'a> {
     tags: HashSet<&'a str>,
     tag_attributes: HashMap<&'a str, HashSet<&'a str>>,
     generic_attributes: HashSet<&'a str>,
@@ -103,7 +103,7 @@ pub struct Ammonia<'a> {
     strip_comments: bool,
 }
 
-impl<'a> Default for Ammonia<'a> {
+impl<'a> Default for Builder<'a> {
     fn default() -> Self {
         #[cfg_attr(rustfmt, rustfmt_skip)]
         let tags = hashset![
@@ -124,7 +124,7 @@ impl<'a> Default for Ammonia<'a> {
         let url_schemes = hashset!["http", "https", "mailto"];
         let allowed_classes = hashmap![];
 
-        Ammonia {
+        Builder {
             tags: tags,
             tag_attributes: tag_attributes,
             generic_attributes: generic_attributes,
@@ -137,7 +137,7 @@ impl<'a> Default for Ammonia<'a> {
     }
 }
 
-impl<'a> Ammonia<'a> {
+impl<'a> Builder<'a> {
     /// Sets the tags that are allowed.
     ///
     /// Note that this only whitelists the tag; by default elements will still be stripped
@@ -147,7 +147,7 @@ impl<'a> Ammonia<'a> {
     ///
     ///     use ammonia::*;
     ///     let tags = ["my-tag"].into_iter().cloned().collect();
-    ///     let a = Ammonia::new()
+    ///     let a = Builder::new()
     ///         .tags(tags)
     ///         .clean("<my-tag>")
     ///         .to_string();
@@ -170,7 +170,7 @@ impl<'a> Ammonia<'a> {
     ///     let tag_attributes = [
     ///         ("my-tag", ["val"].into_iter().cloned().collect())
     ///     ].into_iter().cloned().collect();
-    ///     let a = Ammonia::new().tags(tags).tag_attributes(tag_attributes)
+    ///     let a = Builder::new().tags(tags).tag_attributes(tag_attributes)
     ///         .clean("<my-tag val=1>")
     ///         .to_string();
     ///     assert_eq!(a, "<my-tag val=\"1\"></my-tag>");
@@ -185,7 +185,7 @@ impl<'a> Ammonia<'a> {
     ///
     ///     use ammonia::*;
     ///     let attributes = ["data-val"].into_iter().cloned().collect();
-    ///     let a = Ammonia::new()
+    ///     let a = Builder::new()
     ///         .generic_attributes(attributes)
     ///         .clean("<b data-val=1>")
     ///         .to_string();
@@ -203,7 +203,7 @@ impl<'a> Ammonia<'a> {
     ///     let url_schemes = [
     ///         "http", "https", "mailto", "magnet"
     ///     ].into_iter().cloned().collect();
-    ///     let a = Ammonia::new().url_schemes(url_schemes)
+    ///     let a = Builder::new().url_schemes(url_schemes)
     ///         .clean("<a href=\"magnet:?xt=urn:ed2k:31D6CFE0D16AE931B73C59D7E0C089C0&xl=0&dn=zero_len.fil&xt=urn:bitprint:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ.LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ&xt=urn:md5:D41D8CD98F00B204E9800998ECF8427E\">zero-length file</a>")
     ///         .to_string();
     ///     // See `link_rel` for information on the rel="noopener noreferrer" attribute
@@ -220,7 +220,7 @@ impl<'a> Ammonia<'a> {
     /// # Examples
     ///
     ///     use ammonia::*;
-    ///     let a = Ammonia::new().url_relative(UrlRelative::PassThrough)
+    ///     let a = Builder::new().url_relative(UrlRelative::PassThrough)
     ///         .clean("<a href=/>Home</a>")
     ///         .to_string();
     ///     // See `link_rel` for information on the rel="noopener noreferrer" attribute
@@ -252,7 +252,7 @@ impl<'a> Ammonia<'a> {
     /// # Examples
     ///
     ///     use ammonia::*;
-    ///     let a = Ammonia::new().link_rel(None)
+    ///     let a = Builder::new().link_rel(None)
     ///         .clean("<a href=https://rust-lang.org/>Rust</a>")
     ///         .to_string();
     ///     assert_eq!(
@@ -277,7 +277,7 @@ impl<'a> Ammonia<'a> {
     ///     let allowed_classes = [
     ///         ("code", ["rs", "ex", "c", "cxx", "js"].into_iter().cloned().collect())
     ///     ].into_iter().cloned().collect();
-    ///     let a = Ammonia::new()
+    ///     let a = Builder::new()
     ///         .allowed_classes(allowed_classes)
     ///         .generic_attributes(["class"].into_iter().cloned().collect())
     ///         .clean("<code class=rs>fn main() {}</code>")
@@ -299,7 +299,7 @@ impl<'a> Ammonia<'a> {
     /// # Examples
     ///
     ///     use ammonia::*;
-    ///     let a = Ammonia::new().strip_comments(false)
+    ///     let a = Builder::new().strip_comments(false)
     ///         .clean("<!-- yes -->")
     ///         .to_string();
     ///     assert_eq!(
@@ -315,9 +315,9 @@ impl<'a> Ammonia<'a> {
     /// # Examples
     ///
     ///     use ammonia::*;
-    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Ammonia.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
-    ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Ammonia.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
-    ///     let result = Ammonia::new() // <--
+    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
+    ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
+    ///     let result = Builder::new() // <--
     ///         .url_relative(UrlRelative::RewriteWithBase("https://docs.rs/ammonia/1.0/ammonia/"))
     ///         .clean(input)
     ///         .to_string();
@@ -331,9 +331,9 @@ impl<'a> Ammonia<'a> {
     /// # Examples
     ///
     ///     use ammonia::*;
-    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Ammonia.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
-    ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Ammonia.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
-    ///     let result = Ammonia::new()
+    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
+    ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
+    ///     let result = Builder::new()
     ///         .url_relative(UrlRelative::RewriteWithBase("https://docs.rs/ammonia/1.0/ammonia/"))
     ///         .clean(input)
     ///         .to_string(); // <--
@@ -354,7 +354,7 @@ impl<'a> Ammonia<'a> {
     ///     use ammonia::*;
     ///     # use std::error::Error;
     ///     # fn do_main() -> Result<(), Box<Error>> {
-    ///     let a = Ammonia::new()
+    ///     let a = Builder::new()
     ///         .clean_from_reader(&mut (b"<!-- no -->" as &[u8]))? // notice the `b`
     ///         .to_string();
     ///     assert_eq!(a, "");
@@ -591,12 +591,12 @@ pub enum UrlRelative<'a> {
 ///
 /// # Examples
 ///
-///     use ammonia::Ammonia;
+///     use ammonia::Builder;
 ///
 ///     let input = "<!-- comments will be stripped -->This is an Ammonia example.";
 ///     let output = "This is an Ammonia example.";
 ///
-///     let document = Ammonia::new()
+///     let document = Builder::new()
 ///         .clean(input);
 ///     assert_eq!(document.to_string(), output);
 #[derive(Clone)]
@@ -610,12 +610,12 @@ impl Document {
     ///
     /// # Examples
     ///
-    ///     use ammonia::Ammonia;
+    ///     use ammonia::Builder;
     ///
     ///     let input = "Some <div>HTML here";
     ///     let output = "Some HTML here";
     ///
-    ///     let document = Ammonia::new()
+    ///     let document = Builder::new()
     ///         .clean(input);
     ///     assert_eq!(document.to_string(), output);
     pub fn to_string(&self) -> String {
@@ -634,12 +634,12 @@ impl Document {
     ///
     /// # Examples
     ///
-    ///     use ammonia::Ammonia;
+    ///     use ammonia::Builder;
     ///
     ///     let input = "Some <div>HTML here";
     ///     let expected = b"Some HTML here";
     ///
-    ///     let document = Ammonia::new()
+    ///     let document = Builder::new()
     ///         .clean(input);
     ///
     ///     let mut sanitized = Vec::new();
@@ -688,7 +688,7 @@ impl Document {
     ///
     ///     # extern crate ammonia;
     ///     # extern crate html5ever;
-    ///     use ammonia::Ammonia;
+    ///     use ammonia::Builder;
     ///     use html5ever::serialize::{serialize, SerializeOpts};
     ///
     ///     # use std::error::Error;
@@ -696,7 +696,7 @@ impl Document {
     ///     let input = "<a>one link</a> and <a>one more</a>";
     ///     let expected = "<a>one more</a> and <a>one link</a>";
     ///
-    ///     let document = Ammonia::new()
+    ///     let document = Builder::new()
     ///         .link_rel(None)
     ///         .clean(input);
     ///
@@ -783,7 +783,7 @@ mod test {
     #[test]
     fn allow_url_relative() {
         let fragment = "<a href=test>Test</a>";
-        let result = Ammonia::new()
+        let result = Builder::new()
             .url_relative(UrlRelative::PassThrough)
             .clean(fragment)
             .to_string();
@@ -795,7 +795,7 @@ mod test {
     #[test]
     fn rewrite_url_relative() {
         let fragment = "<a href=test>Test</a>";
-        let result = Ammonia::new()
+        let result = Builder::new()
             .url_relative(UrlRelative::RewriteWithBase("http://example.com/"))
             .clean(fragment)
             .to_string();
@@ -807,7 +807,7 @@ mod test {
     #[test]
     fn rewrite_url_relative_no_rel() {
         let fragment = "<a href=test>Test</a>";
-        let result = Ammonia::new()
+        let result = Builder::new()
             .url_relative(UrlRelative::RewriteWithBase("http://example.com/"))
             .link_rel(None)
             .clean(fragment)
@@ -817,7 +817,7 @@ mod test {
     #[test]
     fn deny_url_relative() {
         let fragment = "<a href=test>Test</a>";
-        let result = Ammonia::new()
+        let result = Builder::new()
             .url_relative(UrlRelative::Deny)
             .clean(fragment)
             .to_string();
@@ -826,7 +826,7 @@ mod test {
     #[test]
     fn replace_rel() {
         let fragment = "<a href=test rel=\"garbage\">Test</a>";
-        let result = Ammonia::new()
+        let result = Builder::new()
             .url_relative(UrlRelative::PassThrough)
             .clean(fragment)
             .to_string();
@@ -838,7 +838,7 @@ mod test {
     #[test]
     fn consider_rel_still_banned() {
         let fragment = "<a href=test rel=\"garbage\">Test</a>";
-        let result = Ammonia::new()
+        let result = Builder::new()
             .url_relative(UrlRelative::PassThrough)
             .link_rel(None)
             .clean(fragment)
@@ -850,7 +850,7 @@ mod test {
         let fragment = "<span data=\"javascript:evil()\">Test</span>\
                         <object data=\"javascript:evil()\"></object>M";
         let expected = r#"<span data="javascript:evil()">Test</span><object></object>M"#;
-        let result = Ammonia::new()
+        let result = Builder::new()
             .tags(hashset!["span", "object"])
             .generic_attributes(hashset!["data"])
             .clean(fragment)
@@ -860,7 +860,7 @@ mod test {
     #[test]
     fn remove_attributes() {
         let fragment = "<table border=\"1\"><tr></tr></table>";
-        let result = Ammonia::new().clean(fragment);
+        let result = Builder::new().clean(fragment);
         assert_eq!(
             result.to_string(),
             "<table><tbody><tr></tr></tbody></table>"
@@ -875,7 +875,7 @@ mod test {
     #[test]
     #[should_panic]
     fn panic_if_rel_is_allowed_and_replaced_generic() {
-        Ammonia::new()
+        Builder::new()
             .link_rel(Some("noopener noreferrer"))
             .generic_attributes(hashset!["rel"])
             .clean("something");
@@ -883,7 +883,7 @@ mod test {
     #[test]
     #[should_panic]
     fn panic_if_rel_is_allowed_and_replaced_a() {
-        Ammonia::new()
+        Builder::new()
             .link_rel(Some("noopener noreferrer"))
             .tag_attributes(hashmap![
                 "a" => hashset!["rel"],
@@ -892,7 +892,7 @@ mod test {
     }
     #[test]
     fn no_panic_if_rel_is_allowed_and_replaced_span() {
-        Ammonia::new()
+        Builder::new()
             .link_rel(Some("noopener noreferrer"))
             .tag_attributes(hashmap![
                 "span" => hashset!["rel"],
@@ -901,14 +901,14 @@ mod test {
     }
     #[test]
     fn no_panic_if_rel_is_allowed_and_not_replaced_generic() {
-        Ammonia::new()
+        Builder::new()
             .link_rel(None)
             .generic_attributes(hashset!["rel"])
             .clean("<a rel=\"what\">s</a>");
     }
     #[test]
     fn no_panic_if_rel_is_allowed_and_not_replaced_a() {
-        Ammonia::new()
+        Builder::new()
             .link_rel(None)
             .tag_attributes(hashmap![
                 "a" => hashset!["rel"],
@@ -924,7 +924,7 @@ mod test {
     #[test]
     fn remove_non_allowed_classes() {
         let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
-        let result = Ammonia::new()
+        let result = Builder::new()
             .link_rel(None)
             .tag_attributes(hashmap![
                 "p" => hashset!["class"],
@@ -953,40 +953,40 @@ mod test {
     #[test]
     fn clean_children_of_bad_element() {
         let fragment = "<bad><evil>a</evil>b</bad>";
-        let result = Ammonia::new().clean(fragment);
+        let result = Builder::new().clean(fragment);
         assert_eq!(result.to_string(), "ab");
     }
     #[test]
     fn reader_input() {
         let fragment = b"an <script>evil()</script> example";
-        let result = Ammonia::new().clean_from_reader(&mut &fragment[..]);
+        let result = Builder::new().clean_from_reader(&mut &fragment[..]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().to_string(), "an evil() example");
     }
     #[test]
     fn debug_impl() {
         let fragment = r#"a <a>link</a>"#;
-        let result = Ammonia::new().link_rel(None).clean(fragment);
+        let result = Builder::new().link_rel(None).clean(fragment);
         assert_eq!(format!("{:?}", result), "Document(a <a>link</a>)");
     }
     #[cfg(ammonia_unstable)]
     #[test]
     fn to_dom_node() {
         let fragment = r#"a <a>link</a>"#;
-        let result = Ammonia::new().link_rel(None).clean(fragment);
+        let result = Builder::new().link_rel(None).clean(fragment);
         let _node = result.to_dom_node();
     }
     #[test]
     fn string_from_document() {
         let fragment = r#"a <a>link"#;
-        let result = String::from(Ammonia::new().link_rel(None).clean(fragment));
+        let result = String::from(Builder::new().link_rel(None).clean(fragment));
         assert_eq!(format!("{}", result), "a <a>link</a>");
     }
     fn require_sync<T: Sync>(_: T) {}
     fn require_send<T: Send>(_: T) {}
     #[test]
     fn require_sync_and_send() {
-        require_sync(Ammonia::new());
-        require_send(Ammonia::new());
+        require_sync(Builder::new());
+        require_send(Builder::new());
     }
 }
