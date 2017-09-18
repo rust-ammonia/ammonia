@@ -14,7 +14,7 @@
 //! it will not linkify bare URLs, insert line or paragraph breaks, or convert `(C)` into &copy;.
 //! If you want that, use a markup processor before running the sanitizer, like [pulldown-cmark].
 //!
-//! # Example
+//! # Examples
 //!
 //! ```
 //! let result = ammonia::clean(
@@ -64,6 +64,10 @@ lazy_static! {
 ///                `<img width="" height="" src="" alt="">`
 ///  * URL schemes in links and images: `http`, `https`, `mailto`
 ///  * Relative URLs are not allowed, to prevent cross-site request forgery.
+///
+/// # Examples
+///
+///     assert_eq!(ammonia::clean("<script>XSS</script>"), "XSS")
 pub fn clean(src: &str) -> String {
     AMMONIA.clean(src)
 }
@@ -74,6 +78,17 @@ pub fn clean(src: &str) -> String {
 /// parsing algorithm and sanitize any disallowed tags or attributes. This
 /// algorithm also takes care of things like unclosed and (some) misnested
 /// tags.
+///
+/// # Examples
+///
+///     use ammonia::*;
+///     let a = Ammonia::default()
+///         .link_rel(None)
+///         .url_relative(UrlRelative::PassThrough)
+///         .clean("<a href=/>test");
+///     assert_eq!(
+///         a,
+///         "<a href=\"/\">test</a>");
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Ammonia<'a> {
     tags: HashSet<&'a str>,
@@ -125,6 +140,13 @@ impl<'a> Ammonia<'a> {
     ///
     /// Note that this only whitelists the tag; by default elements will still be stripped
     /// if they have unlisted attributes.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     let tags = ["my-tag"].into_iter().cloned().collect();
+    ///     let a = Ammonia::new().tags(tags).clean("<my-tag>");
+    ///     assert_eq!(a, "<my-tag></my-tag>");
     pub fn tags(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.tags = value;
         self
@@ -135,24 +157,65 @@ impl<'a> Ammonia<'a> {
     /// The value is structured as a map from tag names to a set of attribute names.
     ///
     /// If a tag is not itself whitelisted, adding entries to this map will do nothing.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     let tags = ["my-tag"].into_iter().cloned().collect();
+    ///     let tag_attributes = [
+    ///         ("my-tag", ["val"].into_iter().cloned().collect())
+    ///     ].into_iter().cloned().collect();
+    ///     let a = Ammonia::new().tags(tags).tag_attributes(tag_attributes)
+    ///         .clean("<my-tag val=1>");
+    ///     assert_eq!(a, "<my-tag val=\"1\"></my-tag>");
     pub fn tag_attributes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
         self.tag_attributes = value;
         self
     }
 
     /// Sets the attributes that are allowed on any tag.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     let attributes = ["data-val"].into_iter().cloned().collect();
+    ///     let a = Ammonia::new()
+    ///         .generic_attributes(attributes)
+    ///         .clean("<b data-val=1>");
+    ///     assert_eq!(a, "<b data-val=\"1\"></b>");
     pub fn generic_attributes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.generic_attributes = value;
         self
     }
 
     /// Sets the URL schemes permitted on `href` and `src` attributes.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     let url_schemes = [
+    ///         "http", "https", "mailto", "magnet"].into_iter().cloned().collect();
+    ///     let a = Ammonia::new().url_schemes(url_schemes)
+    ///         .clean("<a href=\"magnet:?xt=urn:ed2k:31D6CFE0D16AE931B73C59D7E0C089C0&xl=0&dn=zero_len.fil&xt=urn:bitprint:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ.LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ&xt=urn:md5:D41D8CD98F00B204E9800998ECF8427E\">zero-length file</a>");
+    ///     // See `link_rel` for information on the rel="noopener noreferrer" part of the cleaned HTML.
+    ///     assert_eq!(a,
+    ///       "<a href=\"magnet:?xt=urn:ed2k:31D6CFE0D16AE931B73C59D7E0C089C0&amp;xl=0&amp;dn=zero_len.fil&amp;xt=urn:bitprint:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ.LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ&amp;xt=urn:md5:D41D8CD98F00B204E9800998ECF8427E\" rel=\"noopener noreferrer\">zero-length file</a>");
     pub fn url_schemes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.url_schemes = value;
         self
     }
 
     /// Configures the behavior for relative URLs: pass-through, resolve-with-base, or deny.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     let a = Ammonia::new().url_relative(UrlRelative::PassThrough)
+    ///         .clean("<a href=/>Home</a>");
+    ///     // See `link_rel` for information on the rel="noopener noreferrer" part of the cleaned HTML.
+    ///     assert_eq!(
+    ///       a,
+    ///       "<a href=\"/\" rel=\"noopener noreferrer\">Home</a>");
     pub fn url_relative(&mut self, value: UrlRelative<'a>) -> &mut Self {
         self.url_relative = value;
         self
@@ -161,6 +224,27 @@ impl<'a> Ammonia<'a> {
     /// Configures a `rel` attribute that will be added on links.
     ///
     /// If `rel` is in the generic or tag attributes, this must be set to `None`.
+    /// Common `rel` values to allow include:
+    ///
+    /// * noopener: This prevents [a particular type of XSS attack],
+    ///   and should usually be turned on for untrusted HTML.
+    /// * noreferrer: This prevents the browser from [sending the source URL]
+    ///   to the website that is linked to.
+    /// * nofollow: This prevents search engines from [using this link for
+    ///   ranking], which disincentivizes spammers.
+    /// 
+    /// [a particular type of XSS attack]: https://mathiasbynens.github.io/rel-noopener/
+    /// [sending the source URL]: https://en.wikipedia.org/wiki/HTTP_referer
+    /// [using this link for ranking]: https://en.wikipedia.org/wiki/Nofollow
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     let a = Ammonia::new().link_rel(None)
+    ///         .clean("<a href=https://rust-lang.org/>Rust</a>");
+    ///     assert_eq!(
+    ///       a,
+    ///       "<a href=\"https://rust-lang.org/\">Rust</a>");
     pub fn link_rel(&mut self, value: Option<&'a str>) -> &mut Self {
         self.link_rel = value;
         self
@@ -172,6 +256,22 @@ impl<'a> Ammonia<'a> {
     ///
     /// If the `class` attribute is not itself whitelisted for a tag, then adding entries to
     /// this map does nothing.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     # fn main() {
+    ///     let allowed_classes = [
+    ///         ("code", ["rs", "ex", "c", "cxx", "js"].into_iter().cloned().collect())
+    ///     ].into_iter().cloned().collect();
+    ///     let a = Ammonia::new()
+    ///         .allowed_classes(allowed_classes)
+    ///         .generic_attributes(["class"].into_iter().cloned().collect())
+    ///         .clean("<code class=rs>fn main() {}</code>");
+    ///     assert_eq!(
+    ///       a,
+    ///       "<code class=\"rs\">fn main() {}</code>");
+    ///     # }
     pub fn allowed_classes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
         self.allowed_classes = value;
         self
@@ -179,18 +279,46 @@ impl<'a> Ammonia<'a> {
 
     /// Configures the handling of HTML comments.
     ///
-    /// If this option is true, the comments will be removed.
+    /// If this option is false, the comments will be kept.
+    /// It defaults to true.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     let a = Ammonia::new().strip_comments(false)
+    ///         .clean("<!-- yes -->");
+    ///     assert_eq!(
+    ///       a,
+    ///       "<!-- yes -->");
     pub fn strip_comments(&mut self, value: bool) -> &mut Self {
         self.strip_comments = value;
         self
     }
 
     /// Constructs an `Ammonia` instance configured with the default options.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     let a = Ammonia::new() // <--
+    ///         .clean("<!-- no -->");
+    ///     assert_eq!(
+    ///       a,
+    ///       "");
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Sanitizes an HTML fragment in a string according to the configured options.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     let a = Ammonia::new()
+    ///         .clean("<!-- no -->"); // <--
+    ///     assert_eq!(
+    ///       a,
+    ///       "");
     pub fn clean(&self, src: &'a str) -> String {
         let parser = Self::make_parser();
         let dom = parser.one(src);
@@ -201,6 +329,19 @@ impl<'a> Ammonia<'a> {
     ///
     /// The input should be UTF-8 encoding, otherwise the decoding is lossy, just
     /// like when using `String::from_utf8_lossy`.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::*;
+    ///     # use std::error::Error;
+    ///     # fn do_main() -> Result<(), Box<Error>> {
+    ///     let a = Ammonia::new()
+    ///         .clean_from_reader(&mut (b"<!-- no -->" as &[u8])); // notice the `b`
+    ///     assert_eq!(
+    ///       a?,
+    ///       "");
+    ///     # Ok(()) }
+    ///     # fn main() { do_main().unwrap() }
     pub fn clean_from_reader<R>(&self, src: &mut R) -> io::Result<String>
     where
         R: std::io::Read,
@@ -210,6 +351,11 @@ impl<'a> Ammonia<'a> {
         Ok(self.clean_dom(dom))
     }
 
+    /// Clean a post-parsing DOM.
+    ///
+    /// This is not a public API because RcDom isn't really stable.
+    /// We want to be able to take breaking changes to html5ever itself
+    /// without having to break Ammonia's API.
     fn clean_dom(&self, mut dom: RcDom) -> String {
         let mut stack = Vec::new();
         let link_rel = self.link_rel
@@ -266,6 +412,11 @@ impl<'a> Ammonia<'a> {
         String::from_utf8(ret_val).unwrap()
     }
 
+    /// Remove unwanted attributes, and check if the node should be kept or not.
+    ///
+    /// The root node doesn't need cleaned because we create the root node ourselves,
+    /// and it doesn't get serialized, and ... it just exists to give the parser
+    /// a context (in this case, a div-like block context).
     fn clean_child(&self, child: &mut Handle) -> bool {
         match child.data {
             NodeData::Text { .. } => true,
@@ -307,6 +458,13 @@ impl<'a> Ammonia<'a> {
         }
     }
 
+    /// Add and transform special-cased attributes and elements.
+    ///
+    /// This function handles:
+    ///
+    /// * relative URL rewriting
+    /// * adding `<a rel>` attributes
+    /// * filtering out banned classes
     fn fix_child(&self, child: &mut Handle, link_rel: &Option<StrTendril>, url_base: &Option<Url>) {
         if let NodeData::Element {
             ref name,
@@ -347,6 +505,10 @@ impl<'a> Ammonia<'a> {
         }
     }
 
+    /// Initializes an HTML fragment parser.
+    ///
+    /// Ammonia conforms to the HTML5 fragment parsing rules,
+    /// by parsing the given fragment as if it were included in a <div> tag.
     fn make_parser() -> html::Parser<RcDom> {
         html::parse_fragment(
             RcDom::default(),
