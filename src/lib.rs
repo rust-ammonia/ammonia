@@ -194,7 +194,8 @@ impl<'a> Ammonia<'a> {
     ///
     ///     use ammonia::*;
     ///     let url_schemes = [
-    ///         "http", "https", "mailto", "magnet"].into_iter().cloned().collect();
+    ///         "http", "https", "mailto", "magnet"
+    ///     ].into_iter().cloned().collect();
     ///     let a = Ammonia::new().url_schemes(url_schemes)
     ///         .clean("<a href=\"magnet:?xt=urn:ed2k:31D6CFE0D16AE931B73C59D7E0C089C0&xl=0&dn=zero_len.fil&xt=urn:bitprint:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ.LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ&xt=urn:md5:D41D8CD98F00B204E9800998ECF8427E\">zero-length file</a>");
     ///     // See `link_rel` for information on the rel="noopener noreferrer" part of the cleaned HTML.
