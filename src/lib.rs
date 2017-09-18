@@ -226,11 +226,11 @@ impl<'a> Ammonia<'a> {
     /// If `rel` is in the generic or tag attributes, this must be set to `None`.
     /// Common `rel` values to allow include:
     ///
-    /// * noopener: This prevents [a particular type of XSS attack],
+    /// * `noopener`: This prevents [a particular type of XSS attack],
     ///   and should usually be turned on for untrusted HTML.
-    /// * noreferrer: This prevents the browser from [sending the source URL]
+    /// * `noreferrer`: This prevents the browser from [sending the source URL]
     ///   to the website that is linked to.
-    /// * nofollow: This prevents search engines from [using this link for
+    /// * `nofollow`: This prevents search engines from [using this link for
     ///   ranking], which disincentivizes spammers.
     /// 
     /// [a particular type of XSS attack]: https://mathiasbynens.github.io/rel-noopener/
