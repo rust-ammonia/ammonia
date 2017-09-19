@@ -82,7 +82,8 @@ pub fn clean(src: &str) -> String {
 ///
 /// # Examples
 ///
-///     use ammonia::*;
+///     use ammonia::{Builder, UrlRelative};
+///
 ///     let a = Builder::default()
 ///         .link_rel(None)
 ///         .url_relative(UrlRelative::PassThrough)
@@ -145,13 +146,20 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
-    ///     let tags = ["my-tag"].into_iter().cloned().collect();
+    ///     #[macro_use]
+    ///     extern crate maplit;
+    ///     # extern crate ammonia;
+    ///
+    ///     use ammonia::Builder;
+    ///
+    ///     # fn main() {
+    ///     let tags = hashset!["my-tag"];
     ///     let a = Builder::new()
     ///         .tags(tags)
     ///         .clean("<my-tag>")
     ///         .to_string();
     ///     assert_eq!(a, "<my-tag></my-tag>");
+    ///     # }
     pub fn tags(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.tags = value;
         self
@@ -165,15 +173,22 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
-    ///     let tags = ["my-tag"].into_iter().cloned().collect();
-    ///     let tag_attributes = [
-    ///         ("my-tag", ["val"].into_iter().cloned().collect())
-    ///     ].into_iter().cloned().collect();
+    ///     #[macro_use]
+    ///     extern crate maplit;
+    ///     # extern crate ammonia;
+    ///
+    ///     use ammonia::Builder;
+    ///
+    ///     # fn main() {
+    ///     let tags = hashset!["my-tag"];
+    ///     let tag_attributes = hashmap![
+    ///         "my-tag" => hashset!["val"]
+    ///     ];
     ///     let a = Builder::new().tags(tags).tag_attributes(tag_attributes)
     ///         .clean("<my-tag val=1>")
     ///         .to_string();
     ///     assert_eq!(a, "<my-tag val=\"1\"></my-tag>");
+    ///     # }
     pub fn tag_attributes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
         self.tag_attributes = value;
         self
@@ -183,13 +198,20 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
-    ///     let attributes = ["data-val"].into_iter().cloned().collect();
+    ///     #[macro_use]
+    ///     extern crate maplit;
+    ///     # extern crate ammonia;
+    ///
+    ///     use ammonia::Builder;
+    ///
+    ///     # fn main() {
+    ///     let attributes = hashset!["data-val"];
     ///     let a = Builder::new()
     ///         .generic_attributes(attributes)
     ///         .clean("<b data-val=1>")
     ///         .to_string();
     ///     assert_eq!(a, "<b data-val=\"1\"></b>");
+    ///     # }
     pub fn generic_attributes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.generic_attributes = value;
         self
@@ -199,17 +221,25 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
-    ///     let url_schemes = [
+    ///     #[macro_use]
+    ///     extern crate maplit;
+    ///     # extern crate ammonia;
+    ///
+    ///     use ammonia::Builder;
+    ///
+    ///     # fn main() {
+    ///     let url_schemes = hashset![
     ///         "http", "https", "mailto", "magnet"
-    ///     ].into_iter().cloned().collect();
+    ///     ];
     ///     let a = Builder::new().url_schemes(url_schemes)
     ///         .clean("<a href=\"magnet:?xt=urn:ed2k:31D6CFE0D16AE931B73C59D7E0C089C0&xl=0&dn=zero_len.fil&xt=urn:bitprint:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ.LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ&xt=urn:md5:D41D8CD98F00B204E9800998ECF8427E\">zero-length file</a>")
     ///         .to_string();
+    ///
     ///     // See `link_rel` for information on the rel="noopener noreferrer" attribute
     ///     // in the cleaned HTML.
     ///     assert_eq!(a,
     ///       "<a href=\"magnet:?xt=urn:ed2k:31D6CFE0D16AE931B73C59D7E0C089C0&amp;xl=0&amp;dn=zero_len.fil&amp;xt=urn:bitprint:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ.LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ&amp;xt=urn:md5:D41D8CD98F00B204E9800998ECF8427E\" rel=\"noopener noreferrer\">zero-length file</a>");
+    ///     # }
     pub fn url_schemes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.url_schemes = value;
         self
@@ -219,10 +249,12 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
+    ///     use ammonia::{Builder, UrlRelative};
+    ///
     ///     let a = Builder::new().url_relative(UrlRelative::PassThrough)
     ///         .clean("<a href=/>Home</a>")
     ///         .to_string();
+    ///
     ///     // See `link_rel` for information on the rel="noopener noreferrer" attribute
     ///     // in the cleaned HTML.
     ///     assert_eq!(
@@ -251,7 +283,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
+    ///     use ammonia::Builder;
+    ///
     ///     let a = Builder::new().link_rel(None)
     ///         .clean("<a href=https://rust-lang.org/>Rust</a>")
     ///         .to_string();
@@ -272,14 +305,20 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
+    ///     #[macro_use]
+    ///     extern crate maplit;
+    ///     # extern crate ammonia;
+    ///
+    ///     use ammonia::Builder;
+    ///
     ///     # fn main() {
-    ///     let allowed_classes = [
-    ///         ("code", ["rs", "ex", "c", "cxx", "js"].into_iter().cloned().collect())
-    ///     ].into_iter().cloned().collect();
+    ///     let allowed_classes = hashmap![
+    ///         "code" => hashset!["rs", "ex", "c", "cxx", "js"]
+    ///     ];
+    ///     let allowed_attributes = hashset!["class"];
     ///     let a = Builder::new()
     ///         .allowed_classes(allowed_classes)
-    ///         .generic_attributes(["class"].into_iter().cloned().collect())
+    ///         .generic_attributes(allowed_attributes)
     ///         .clean("<code class=rs>fn main() {}</code>")
     ///         .to_string();
     ///     assert_eq!(
@@ -298,7 +337,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
+    ///     use ammonia::Builder;
+    ///
     ///     let a = Builder::new().strip_comments(false)
     ///         .clean("<!-- yes -->")
     ///         .to_string();
@@ -314,9 +354,11 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
+    ///     use ammonia::{Builder, UrlRelative};
+    ///
     ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
     ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
+    ///
     ///     let result = Builder::new() // <--
     ///         .url_relative(UrlRelative::RewriteWithBase("https://docs.rs/ammonia/1.0/ammonia/"))
     ///         .clean(input)
@@ -330,9 +372,11 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
+    ///     use ammonia::{Builder, UrlRelative};
+    ///
     ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
     ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
+    ///
     ///     let result = Builder::new()
     ///         .url_relative(UrlRelative::RewriteWithBase("https://docs.rs/ammonia/1.0/ammonia/"))
     ///         .clean(input)
@@ -351,8 +395,9 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::*;
+    ///     use ammonia::Builder;
     ///     # use std::error::Error;
+    ///
     ///     # fn do_main() -> Result<(), Box<Error>> {
     ///     let a = Builder::new()
     ///         .clean_from_reader(&mut (b"<!-- no -->" as &[u8]))? // notice the `b`
@@ -687,7 +732,8 @@ impl Document {
     /// # Examples
     ///
     ///     # extern crate ammonia;
-    ///     # extern crate html5ever;
+    ///     extern crate html5ever;
+    ///
     ///     use ammonia::Builder;
     ///     use html5ever::serialize::{serialize, SerializeOpts};
     ///
