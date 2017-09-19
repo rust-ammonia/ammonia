@@ -9,3 +9,7 @@ branches:
   - master
   - staging
   - trying
+
+env:
+  - RUSTFLAGS='--cfg ammonia_unstable'
+  - RUSTFLAGS=''

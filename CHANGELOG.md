@@ -1,8 +1,9 @@
 # Unreleased
 
-* Breaking change: The `Ammonia` struct now uses the builder pattern for better forward compatibility
-* Added support for reading the input from a stream
+* Breaking change: The `Ammonia` struct is now called `Builder` and uses that pattern for better forward compatibility
+* Breaking change: The `Builder::clean()` method now returns a `Document` struct instead of a `String`
 * Breaking change: `keep_cleaned_elements` is changed from being an off-by-default option to the only supported behavior
+* Added support for reading the input from a stream
 
 # 0.7.0
 
