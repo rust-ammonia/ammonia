@@ -92,6 +92,82 @@ pub fn clean(src: &str) -> String {
 ///     assert_eq!(
 ///         a,
 ///         "<a href=\"/\">test</a>");
+///
+/// # Panics
+///
+/// Running `clean` or `clean_from_reader` may cause a panic if the builder is
+/// configured with any of these (contradictory) settings:
+///
+///  * the `rel` attribute is added to `generic_attributes` or the
+///    `tag_attributes` for the `<a>` tag, and `link_rel` is not set to `None`.
+///
+///    For example, this is going to panic, since `link_rel` is set by default,
+///    and it makes no sense to simultaneously say that the user is allowed to
+///    set their own `rel` attribute while saying that every link shall be set
+///    to `noopener noreferrer`:
+///
+///    ```should_panic
+///    #[macro_use]
+///    extern crate maplit;
+///    # extern crate ammonia;
+///    # fn main() {
+///    use ammonia::Builder;
+///    Builder::default()
+///        .generic_attributes(hashset!["rel"])
+///         .clean("");
+///    # }
+///    ```
+///
+///    This, however, is perfectly valid:
+///
+///    ```
+///    #[macro_use]
+///    extern crate maplit;
+///    # extern crate ammonia;
+///    # fn main() {
+///    use ammonia::Builder;
+///    Builder::default()
+///        .generic_attributes(hashset!["rel"])
+///        .link_rel(None)
+///        .clean("");
+///    # }
+///    ```
+///
+///  * the `class` attribute is in `allowed_classes` and is in the
+///    correspinding `tag_attributes` or in `generic_attributes`
+///
+///    This is done both to line up with the treatment of `rel`,
+///    and to prevent people from accidentally allowing arbitrary
+///    classes on a particular element.
+///
+///    This will panic:
+///
+///    ```should_panic
+///    #[macro_use]
+///    extern crate maplit;
+///    # extern crate ammonia;
+///    # fn main() {
+///    use ammonia::Builder;
+///    Builder::default()
+///        .generic_attributes(hashset!["class"])
+///        .allowed_classes(hashmap!["span" => hashset!["hidden"]])
+///         .clean("");
+///    # }
+///    ```
+///
+///    This, however, is perfectly valid:
+///
+///    ```
+///    #[macro_use]
+///    extern crate maplit;
+///    # extern crate ammonia;
+///    # fn main() {
+///    use ammonia::Builder;
+///    Builder::default()
+///        .allowed_classes(hashmap!["span" => hashset!["hidden"]])
+///        .clean("");
+///    # }
+///    ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Builder<'a> {
     tags: HashSet<&'a str>,
