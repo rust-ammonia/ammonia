@@ -391,10 +391,8 @@ impl<'a> Builder<'a> {
     ///     let allowed_classes = hashmap![
     ///         "code" => hashset!["rs", "ex", "c", "cxx", "js"]
     ///     ];
-    ///     let allowed_attributes = hashset!["class"];
     ///     let a = Builder::new()
     ///         .allowed_classes(allowed_classes)
-    ///         .generic_attributes(allowed_attributes)
     ///         .clean("<code class=rs>fn main() {}</code>")
     ///         .to_string();
     ///     assert_eq!(
@@ -508,6 +506,15 @@ impl<'a> Builder<'a> {
                     .is_none()
             );
         }
+        assert!(self.allowed_classes.is_empty() || !self.generic_attributes.contains("class"));
+        for (tag_name, _classes) in &self.allowed_classes {
+            assert!(
+                self.tag_attributes
+                    .get(tag_name)
+                    .and_then(|a| a.get("class"))
+                    .is_none()
+            );
+        }
         let url_base = if let UrlRelative::RewriteWithBase(base) = self.url_relative {
             Some(
                 Url::parse(base).expect("RewriteWithBase(base) should have a valid URL for base"),
@@ -569,7 +576,12 @@ impl<'a> Builder<'a> {
                             .map(|ta| ta.contains(&*attr.name.local)) ==
                             Some(true);
                     if !whitelisted {
-                        false
+                        // If the class attribute is not whitelisted,
+                        // but there is a whitelisted set of allowed_classes,
+                        // do not strip out the class attribute.
+                        // Banned classes will be filtered later.
+                        &*attr.name.local == "class" &&
+                          self.allowed_classes.get(&*name.local).is_some()
                     } else if is_url_attr(&*name.local, &*attr.name.local) {
                         let url = Url::parse(&*attr.value);
                         if let Ok(url) = url {
@@ -1043,14 +1055,57 @@ mod test {
         let result = clean(fragment);
         assert_eq!(result.to_string(), "<br>");
     }
+    #[should_panic]
+    #[test]
+    fn panic_on_allowed_classes_tag_attributes() {
+        let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
+        Builder::new()
+            .link_rel(None)
+            .tag_attributes(hashmap![
+                "p" => hashset!["class"],
+                "a" => hashset!["class"],
+            ])
+            .allowed_classes(hashmap![
+                "p" => hashset!["foo", "bar"],
+                "a" => hashset!["baz"],
+            ])
+            .clean(fragment);
+    }
+    #[should_panic]
+    #[test]
+    fn panic_on_allowed_classes_generic_attributes() {
+        let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
+        Builder::new()
+            .link_rel(None)
+            .generic_attributes(hashset!["class", "href", "some-foo"])
+            .allowed_classes(hashmap![
+                "p" => hashset!["foo", "bar"],
+                "a" => hashset!["baz"],
+            ])
+            .clean(fragment);
+    }
     #[test]
     fn remove_non_allowed_classes() {
         let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
         let result = Builder::new()
             .link_rel(None)
+            .allowed_classes(hashmap![
+                "p" => hashset!["foo", "bar"],
+                "a" => hashset!["baz"],
+            ])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<p class=\"foo bar\"><a class=\"baz\">Hey</a></p>"
+        );
+    }
+    #[test]
+    fn remove_non_allowed_classes_with_tag_class() {
+        let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
+        let result = Builder::new()
+            .link_rel(None)
             .tag_attributes(hashmap![
-                "p" => hashset!["class"],
-                "a" => hashset!["class"],
+                "div" => hashset!["class"],
             ])
             .allowed_classes(hashmap![
                 "p" => hashset!["foo", "bar"],
