@@ -38,7 +38,7 @@ extern crate url;
 
 use html5ever::{driver as html, QualName};
 use html5ever::rcdom::{Handle, NodeData, RcDom};
-use html5ever::serialize::{serialize, SerializeOpts, TraversalScope};
+use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::interface::Attribute;
 use std::collections::{HashMap, HashSet};
@@ -890,10 +890,7 @@ impl Document {
     }
 
     fn serialize_opts() -> SerializeOpts {
-        SerializeOpts {
-            traversal_scope: TraversalScope::ChildrenOnly,
-            ..SerializeOpts::default()
-        }
+        SerializeOpts::default()
     }
 }
 
