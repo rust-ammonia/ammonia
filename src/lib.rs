@@ -532,7 +532,9 @@ impl<'a> Builder<'a> {
                 .rev(),
         );
         while let Some(mut node) = stack.pop() {
-            let parent = node.parent.replace(None).unwrap().upgrade().unwrap();
+            let parent = node.parent
+                .replace(None).expect("a node in the DOM will have a parent, except the root, which is not processed")
+                .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
             let pass = self.clean_child(&mut node);
             if pass {
                 self.adjust_node_attributes(&mut node, &link_rel, &url_base);
@@ -753,10 +755,10 @@ impl Document {
     pub fn to_string(&self) -> String {
         let opts = Self::serialize_opts();
         let mut ret_val = Vec::new();
-        // Writing to a string shouldn't fail (expect on OOM), so this unwrap() should be fine
-        serialize(&mut ret_val, &self.0, opts).unwrap();
-        // html5ever only supports UTF8, so this shouldn't fail
-        String::from_utf8(ret_val).unwrap()
+        serialize(&mut ret_val, &self.0, opts)
+            .expect("Writing to a string shouldn't fail (expect on OOM)");
+        String::from_utf8(ret_val)
+            .expect("html5ever only supports UTF8")
     }
 
     /// Serializes a `Document` instance to a writer.
@@ -777,7 +779,8 @@ impl Document {
     ///         .clean(input);
     ///
     ///     let mut sanitized = Vec::new();
-    ///     document.write_to(&mut sanitized).unwrap();
+    ///     document.write_to(&mut sanitized)
+    ///         .expect("Writing to a string should not fail (except on OOM)");
     ///     assert_eq!(sanitized, expected);
     pub fn write_to<W>(&self, writer: &mut W) -> io::Result<()>
     where
