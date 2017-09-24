@@ -92,6 +92,82 @@ pub fn clean(src: &str) -> String {
 ///     assert_eq!(
 ///         a,
 ///         "<a href=\"/\">test</a>");
+///
+/// # Panics
+///
+/// Running `clean` or `clean_from_reader` may cause a panic if the builder is
+/// configured with any of these (contradictory) settings:
+///
+///  * the `rel` attribute is added to `generic_attributes` or the
+///    `tag_attributes` for the `<a>` tag, and `link_rel` is not set to `None`.
+///
+///    For example, this is going to panic, since `link_rel` is set by default,
+///    and it makes no sense to simultaneously say that the user is allowed to
+///    set their own `rel` attribute while saying that every link shall be set
+///    to `noopener noreferrer`:
+///
+///    ```should_panic
+///    #[macro_use]
+///    extern crate maplit;
+///    # extern crate ammonia;
+///    # fn main() {
+///    use ammonia::Builder;
+///    Builder::default()
+///        .generic_attributes(hashset!["rel"])
+///        .clean("");
+///    # }
+///    ```
+///
+///    This, however, is perfectly valid:
+///
+///    ```
+///    #[macro_use]
+///    extern crate maplit;
+///    # extern crate ammonia;
+///    # fn main() {
+///    use ammonia::Builder;
+///    Builder::default()
+///        .generic_attributes(hashset!["rel"])
+///        .link_rel(None)
+///        .clean("");
+///    # }
+///    ```
+///
+///  * the `class` attribute is in `allowed_classes` and is in the
+///    correspinding `tag_attributes` or in `generic_attributes`
+///
+///    This is done both to line up with the treatment of `rel`,
+///    and to prevent people from accidentally allowing arbitrary
+///    classes on a particular element.
+///
+///    This will panic:
+///
+///    ```should_panic
+///    #[macro_use]
+///    extern crate maplit;
+///    # extern crate ammonia;
+///    # fn main() {
+///    use ammonia::Builder;
+///    Builder::default()
+///        .generic_attributes(hashset!["class"])
+///        .allowed_classes(hashmap!["span" => hashset!["hidden"]])
+///        .clean("");
+///    # }
+///    ```
+///
+///    This, however, is perfectly valid:
+///
+///    ```
+///    #[macro_use]
+///    extern crate maplit;
+///    # extern crate ammonia;
+///    # fn main() {
+///    use ammonia::Builder;
+///    Builder::default()
+///        .allowed_classes(hashmap!["span" => hashset!["hidden"]])
+///        .clean("");
+///    # }
+///    ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Builder<'a> {
     tags: HashSet<&'a str>,
@@ -315,10 +391,8 @@ impl<'a> Builder<'a> {
     ///     let allowed_classes = hashmap![
     ///         "code" => hashset!["rs", "ex", "c", "cxx", "js"]
     ///     ];
-    ///     let allowed_attributes = hashset!["class"];
     ///     let a = Builder::new()
     ///         .allowed_classes(allowed_classes)
-    ///         .generic_attributes(allowed_attributes)
     ///         .clean("<code class=rs>fn main() {}</code>")
     ///         .to_string();
     ///     assert_eq!(
@@ -432,6 +506,15 @@ impl<'a> Builder<'a> {
                     .is_none()
             );
         }
+        assert!(self.allowed_classes.is_empty() || !self.generic_attributes.contains("class"));
+        for (tag_name, _classes) in &self.allowed_classes {
+            assert!(
+                self.tag_attributes
+                    .get(tag_name)
+                    .and_then(|a| a.get("class"))
+                    .is_none()
+            );
+        }
         let url_base = if let UrlRelative::RewriteWithBase(base) = self.url_relative {
             Some(
                 Url::parse(base).expect("RewriteWithBase(base) should have a valid URL for base"),
@@ -448,9 +531,10 @@ impl<'a> Builder<'a> {
                 .into_iter()
                 .rev(),
         );
-        while !stack.is_empty() {
-            let mut node = stack.pop().unwrap();
-            let parent = node.parent.replace(None).unwrap().upgrade().unwrap();
+        while let Some(mut node) = stack.pop() {
+            let parent = node.parent
+                .replace(None).expect("a node in the DOM will have a parent, except the root, which is not processed")
+                .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
             let pass = self.clean_child(&mut node);
             if pass {
                 self.adjust_node_attributes(&mut node, &link_rel, &url_base);
@@ -493,7 +577,12 @@ impl<'a> Builder<'a> {
                             .map(|ta| ta.contains(&*attr.name.local)) ==
                             Some(true);
                     if !whitelisted {
-                        false
+                        // If the class attribute is not whitelisted,
+                        // but there is a whitelisted set of allowed_classes,
+                        // do not strip out the class attribute.
+                        // Banned classes will be filtered later.
+                        &*attr.name.local == "class" &&
+                          self.allowed_classes.contains_key(&*name.local)
                     } else if is_url_attr(&*name.local, &*attr.name.local) {
                         let url = Url::parse(&*attr.value);
                         if let Ok(url) = url {
@@ -666,8 +755,10 @@ impl Document {
     pub fn to_string(&self) -> String {
         let opts = Self::serialize_opts();
         let mut ret_val = Vec::new();
-        serialize(&mut ret_val, &self.0, opts).unwrap();
-        String::from_utf8(ret_val).unwrap()
+        serialize(&mut ret_val, &self.0, opts)
+            .expect("Writing to a string shouldn't fail (expect on OOM)");
+        String::from_utf8(ret_val)
+            .expect("html5ever only supports UTF8")
     }
 
     /// Serializes a `Document` instance to a writer.
@@ -688,7 +779,8 @@ impl Document {
     ///         .clean(input);
     ///
     ///     let mut sanitized = Vec::new();
-    ///     document.write_to(&mut sanitized).unwrap();
+    ///     document.write_to(&mut sanitized)
+    ///         .expect("Writing to a string should not fail (except on OOM)");
     ///     assert_eq!(sanitized, expected);
     pub fn write_to<W>(&self, writer: &mut W) -> io::Result<()>
     where
@@ -967,14 +1059,57 @@ mod test {
         let result = clean(fragment);
         assert_eq!(result.to_string(), "<br>");
     }
+    #[should_panic]
+    #[test]
+    fn panic_on_allowed_classes_tag_attributes() {
+        let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
+        Builder::new()
+            .link_rel(None)
+            .tag_attributes(hashmap![
+                "p" => hashset!["class"],
+                "a" => hashset!["class"],
+            ])
+            .allowed_classes(hashmap![
+                "p" => hashset!["foo", "bar"],
+                "a" => hashset!["baz"],
+            ])
+            .clean(fragment);
+    }
+    #[should_panic]
+    #[test]
+    fn panic_on_allowed_classes_generic_attributes() {
+        let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
+        Builder::new()
+            .link_rel(None)
+            .generic_attributes(hashset!["class", "href", "some-foo"])
+            .allowed_classes(hashmap![
+                "p" => hashset!["foo", "bar"],
+                "a" => hashset!["baz"],
+            ])
+            .clean(fragment);
+    }
     #[test]
     fn remove_non_allowed_classes() {
         let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
         let result = Builder::new()
             .link_rel(None)
+            .allowed_classes(hashmap![
+                "p" => hashset!["foo", "bar"],
+                "a" => hashset!["baz"],
+            ])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<p class=\"foo bar\"><a class=\"baz\">Hey</a></p>"
+        );
+    }
+    #[test]
+    fn remove_non_allowed_classes_with_tag_class() {
+        let fragment = "<p class=\"foo bar\"><a class=\"baz bleh\">Hey</a></p>";
+        let result = Builder::new()
+            .link_rel(None)
             .tag_attributes(hashmap![
-                "p" => hashset!["class"],
-                "a" => hashset!["class"],
+                "div" => hashset!["class"],
             ])
             .allowed_classes(hashmap![
                 "p" => hashset!["foo", "bar"],
