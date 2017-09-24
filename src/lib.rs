@@ -531,8 +531,7 @@ impl<'a> Builder<'a> {
                 .into_iter()
                 .rev(),
         );
-        while !stack.is_empty() {
-            let mut node = stack.pop().unwrap();
+        while let Some(mut node) = stack.pop() {
             let parent = node.parent.replace(None).unwrap().upgrade().unwrap();
             let pass = self.clean_child(&mut node);
             if pass {
