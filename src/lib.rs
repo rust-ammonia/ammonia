@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/ammonia/0.7.0")]
+#![doc(html_root_url = "https://docs.rs/ammonia/1.0.0-rc1")]
 
 // Copyright (C) Michael Howell and others
 // this library is released under the same terms as Rust itself.

@@ -1,5 +1,9 @@
 # Unreleased
 
+*
+
+# 1.0.0
+
 * Breaking change: The `Ammonia` struct is now called `Builder` and uses that pattern for better forward compatibility
 * Breaking change: The `Builder::clean()` method now returns a `Document` struct instead of a `String`
 * Breaking change: `keep_cleaned_elements` is changed from being an off-by-default option to the only supported behavior

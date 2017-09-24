@@ -1,6 +1,6 @@
 [package]
 name = "ammonia"
-version = "0.7.0"
+version = "1.0.0-rc1"
 authors = ["Michael Howell <michael@notriddle.com>"]
 description = "HTML Sanitization"
 keywords = [ "sanitization", "html", "security", "xss" ]
