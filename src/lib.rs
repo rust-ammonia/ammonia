@@ -114,7 +114,7 @@ pub fn clean(src: &str) -> String {
 ///    use ammonia::Builder;
 ///    Builder::default()
 ///        .generic_attributes(hashset!["rel"])
-///         .clean("");
+///        .clean("");
 ///    # }
 ///    ```
 ///
@@ -151,7 +151,7 @@ pub fn clean(src: &str) -> String {
 ///    Builder::default()
 ///        .generic_attributes(hashset!["class"])
 ///        .allowed_classes(hashmap!["span" => hashset!["hidden"]])
-///         .clean("");
+///        .clean("");
 ///    # }
 ///    ```
 ///
@@ -582,7 +582,7 @@ impl<'a> Builder<'a> {
                         // do not strip out the class attribute.
                         // Banned classes will be filtered later.
                         &*attr.name.local == "class" &&
-                          self.allowed_classes.get(&*name.local).is_some()
+                          self.allowed_classes.contains_key(&*name.local)
                     } else if is_url_attr(&*name.local, &*attr.name.local) {
                         let url = Url::parse(&*attr.value);
                         if let Ok(url) = url {
