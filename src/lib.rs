@@ -753,7 +753,9 @@ impl Document {
     pub fn to_string(&self) -> String {
         let opts = Self::serialize_opts();
         let mut ret_val = Vec::new();
+        // Writing to a string shouldn't fail (expect on OOM), so this unwrap() should be fine
         serialize(&mut ret_val, &self.0, opts).unwrap();
+        // html5ever only supports UTF8, so this shouldn't fail
         String::from_utf8(ret_val).unwrap()
     }
 
