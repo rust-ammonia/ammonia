@@ -95,13 +95,13 @@ pub fn clean(src: &str) -> String {
 ///
 /// # Panics
 ///
-/// Running `clean` or `clean_from_reader` may cause a panic if the builder is
+/// Running [`clean`] or [`clean_from_reader`] may cause a panic if the builder is
 /// configured with any of these (contradictory) settings:
 ///
-///  * the `rel` attribute is added to `generic_attributes` or the
-///    `tag_attributes` for the `<a>` tag, and `link_rel` is not set to `None`.
+///  * the `rel` attribute is added to [`generic_attributes`] or the
+///    [`tag_attributes`] for the `<a>` tag, and [`link_rel`] is not set to `None`.
 ///
-///    For example, this is going to panic, since `link_rel` is set by default,
+///    For example, this is going to panic, since [`link_rel`] is set by default,
 ///    and it makes no sense to simultaneously say that the user is allowed to
 ///    set their own `rel` attribute while saying that every link shall be set
 ///    to `noopener noreferrer`:
@@ -110,8 +110,10 @@ pub fn clean(src: &str) -> String {
 ///    #[macro_use]
 ///    extern crate maplit;
 ///    # extern crate ammonia;
-///    # fn main() {
+///
 ///    use ammonia::Builder;
+///
+///    # fn main() {
 ///    Builder::default()
 ///        .generic_attributes(hashset!["rel"])
 ///        .clean("");
@@ -124,8 +126,10 @@ pub fn clean(src: &str) -> String {
 ///    #[macro_use]
 ///    extern crate maplit;
 ///    # extern crate ammonia;
-///    # fn main() {
+///
 ///    use ammonia::Builder;
+///
+///    # fn main() {
 ///    Builder::default()
 ///        .generic_attributes(hashset!["rel"])
 ///        .link_rel(None)
@@ -133,8 +137,8 @@ pub fn clean(src: &str) -> String {
 ///    # }
 ///    ```
 ///
-///  * the `class` attribute is in `allowed_classes` and is in the
-///    correspinding `tag_attributes` or in `generic_attributes`
+///  * the `class` attribute is in [`allowed_classes`] and is in the
+///    corresponding [`tag_attributes`] or in [`generic_attributes`]
 ///
 ///    This is done both to line up with the treatment of `rel`,
 ///    and to prevent people from accidentally allowing arbitrary
@@ -146,8 +150,10 @@ pub fn clean(src: &str) -> String {
 ///    #[macro_use]
 ///    extern crate maplit;
 ///    # extern crate ammonia;
-///    # fn main() {
+///
 ///    use ammonia::Builder;
+///
+///    # fn main() {
 ///    Builder::default()
 ///        .generic_attributes(hashset!["class"])
 ///        .allowed_classes(hashmap!["span" => hashset!["hidden"]])
@@ -161,13 +167,23 @@ pub fn clean(src: &str) -> String {
 ///    #[macro_use]
 ///    extern crate maplit;
 ///    # extern crate ammonia;
-///    # fn main() {
+///
 ///    use ammonia::Builder;
+///
+///    # fn main() {
 ///    Builder::default()
 ///        .allowed_classes(hashmap!["span" => hashset!["hidden"]])
 ///        .clean("");
 ///    # }
 ///    ```
+///
+/// [`clean`]: #method.clean
+/// [`clean_from_reader`]: #method.clean_from_reader
+/// [`generic_attributes`]: #method.generic_attributes
+/// [`tag_attributes`]: #method.tag_attributes
+/// [`generic_attributes`]: #method.generic_attributes
+/// [`link_rel`]: #method.link_rel
+/// [`allowed_classes`]: #method.allowed_classes
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Builder<'a> {
     tags: HashSet<&'a str>,
@@ -376,8 +392,8 @@ impl<'a> Builder<'a> {
     ///
     /// The values is structured as a map from tag names to a set of class names.
     ///
-    /// If the `class` attribute is not itself whitelisted for a tag, then adding entries to
-    /// this map does nothing.
+    /// If the `class` attribute is itself whitelisted for a tag, then adding entries to
+    /// this map will cause a panic.
     ///
     /// # Examples
     ///
@@ -424,7 +440,7 @@ impl<'a> Builder<'a> {
         self
     }
 
-    /// Constructs an `Ammonia` instance configured with the default options.
+    /// Constructs a [`Builder`] instance configured with the [default options].
     ///
     /// # Examples
     ///
@@ -438,6 +454,9 @@ impl<'a> Builder<'a> {
     ///         .clean(input)
     ///         .to_string();
     ///     assert_eq!(result, output);
+    ///
+    /// [default options]: fn.clean.html
+    /// [`Builder`]: struct.Builder.html
     pub fn new() -> Self {
         Self::default()
     }
@@ -465,7 +484,7 @@ impl<'a> Builder<'a> {
     /// Sanitizes an HTML fragment from a reader according to the configured options.
     ///
     /// The input should be UTF-8 encoding, otherwise the decoding is lossy, just
-    /// like when using `String::from_utf8_lossy`.
+    /// like when using [`String::from_utf8_lossy`].
     ///
     /// # Examples
     ///
@@ -479,6 +498,8 @@ impl<'a> Builder<'a> {
     ///     assert_eq!(a, "");
     ///     # Ok(()) }
     ///     # fn main() { do_main().unwrap() }
+    ///
+    /// [`String::from_utf8_lossy`]: https://doc.rust-lang.org/std/string/struct.String.html#method.from_utf8_lossy
     pub fn clean_from_reader<R>(&self, src: &mut R) -> io::Result<Document>
     where
         R: io::Read,
@@ -675,10 +696,12 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
     attr == "href" || attr == "src" || (element == "object" && attr == "data")
 }
 
-/// Policy for relative URLs, that is, URLs that do not specify the scheme in full.
+/// Policy for [relative URLs], that is, URLs that do not specify the scheme in full.
 ///
 /// This policy kicks in, if set, for any attribute named `src` or `href`,
 /// as well as the `data` attribute of an `object` tag.
+///
+/// [relative URLs]: struct.Builder.html#method.url_relative
 ///
 /// # Examples
 ///
@@ -718,14 +741,18 @@ pub enum UrlRelative<'a> {
 /// A sanitized HTML document.
 ///
 /// The `Document` type is an opaque struct representing an HTML fragment that was sanitized by
-/// `ammonia`. It can be converted to a `String` or written to a `Write` instance. This allows
-/// users to avoid buffering the serialized representation to a `String` when desired.
+/// `ammonia`. It can be converted to a [`String`] or written to a [`Write`] instance. This allows
+/// users to avoid buffering the serialized representation to a [`String`] when desired.
 ///
 /// This type is opaque to insulate the caller from breaking changes in the `html5ever` interface.
 ///
 /// Note that this type wraps an `html5ever` DOM tree. `ammonia` does not support streaming, so
 /// the complete fragment needs to be stored in memory during processing. Currently, `Document`
-/// is backed by an `html5ever::rcdom::Node` object.
+/// is backed by an [`html5ever::rcdom::Node`] object.
+///
+/// [`String`]: ../std/string/struct.String.html
+/// [`Write`]: ../std/io/trait.Write.html
+/// [`html5ever::rcdom::Node`]: ../markup5ever/rcdom/struct.Node.html
 ///
 /// # Examples
 ///
@@ -743,8 +770,10 @@ pub struct Document(Handle);
 impl Document {
     /// Serializes a `Document` instance to a `String`.
     ///
-    /// This method returns a `String` with the sanitized HTML. This is the simplest way to use
+    /// This method returns a [`String`] with the sanitized HTML. This is the simplest way to use
     /// `ammonia`.
+    ///
+    /// [`String`]: ../std/string/struct.String.html
     ///
     /// # Examples
     ///
@@ -767,10 +796,12 @@ impl Document {
 
     /// Serializes a `Document` instance to a writer.
     ///
-    /// This method writes the sanitized HTML to a `Write` instance, avoiding a buffering step.
+    /// This method writes the sanitized HTML to a [`Write`] instance, avoiding a buffering step.
     ///
     /// Note that the in-memory representation of `Document` is larger than the serialized
     /// `String`.
+    ///
+    /// [`Write`]: ../std/io/trait.Write.html
     ///
     /// # Examples
     ///
@@ -1147,6 +1178,13 @@ mod test {
         let result = Builder::new().clean_from_reader(&mut &fragment[..]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().to_string(), "an evil() example");
+    }
+    #[test]
+    fn reader_non_utf8() {
+        let fragment = b"non-utf8 \xF0\x90\x80string";
+        let result = Builder::new().clean_from_reader(&mut &fragment[..]);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().to_string(), "non-utf8 \u{fffd}string");
     }
     #[test]
     fn debug_impl() {
