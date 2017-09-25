@@ -110,8 +110,10 @@ pub fn clean(src: &str) -> String {
 ///    #[macro_use]
 ///    extern crate maplit;
 ///    # extern crate ammonia;
-///    # fn main() {
+///
 ///    use ammonia::Builder;
+///
+///    # fn main() {
 ///    Builder::default()
 ///        .generic_attributes(hashset!["rel"])
 ///        .clean("");
@@ -124,8 +126,10 @@ pub fn clean(src: &str) -> String {
 ///    #[macro_use]
 ///    extern crate maplit;
 ///    # extern crate ammonia;
-///    # fn main() {
+///
 ///    use ammonia::Builder;
+///
+///    # fn main() {
 ///    Builder::default()
 ///        .generic_attributes(hashset!["rel"])
 ///        .link_rel(None)
@@ -146,8 +150,10 @@ pub fn clean(src: &str) -> String {
 ///    #[macro_use]
 ///    extern crate maplit;
 ///    # extern crate ammonia;
-///    # fn main() {
+///
 ///    use ammonia::Builder;
+///
+///    # fn main() {
 ///    Builder::default()
 ///        .generic_attributes(hashset!["class"])
 ///        .allowed_classes(hashmap!["span" => hashset!["hidden"]])
@@ -161,8 +167,10 @@ pub fn clean(src: &str) -> String {
 ///    #[macro_use]
 ///    extern crate maplit;
 ///    # extern crate ammonia;
-///    # fn main() {
+///
 ///    use ammonia::Builder;
+///
+///    # fn main() {
 ///    Builder::default()
 ///        .allowed_classes(hashmap!["span" => hashset!["hidden"]])
 ///        .clean("");
