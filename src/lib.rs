@@ -499,7 +499,7 @@ impl<'a> Builder<'a> {
     ///     # Ok(()) }
     ///     # fn main() { do_main().unwrap() }
     ///
-    /// [`String::from_utf8_lossy`]: ../std/string/struct.String.html#method.from_utf8_lossy
+    /// [`String::from_utf8_lossy`]: https://doc.rust-lang.org/std/string/struct.String.html#method.from_utf8_lossy
     pub fn clean_from_reader<R>(&self, src: &mut R) -> io::Result<Document>
     where
         R: io::Read,
