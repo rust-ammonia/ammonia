@@ -620,6 +620,10 @@ pub enum UrlRelative<'a> {
     PassThrough,
     /// Relative URLs will be changed into absolute URLs, based on this base URL.
     RewriteWithBase(&'a str),
+    // Do not allow the user to exhaustively match on UrlRelative,
+    // because we may add new items to it later.
+    #[doc(hidden)]
+    __NonExhaustive,
 }
 
 /// A sanitized HTML document.
