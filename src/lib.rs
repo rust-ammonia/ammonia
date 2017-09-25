@@ -138,7 +138,7 @@ pub fn clean(src: &str) -> String {
 ///    ```
 ///
 ///  * the `class` attribute is in [`allowed_classes`] and is in the
-///    correspinding [`tag_attributes`] or in [`generic_attributes`]
+///    corresponding [`tag_attributes`] or in [`generic_attributes`]
 ///
 ///    This is done both to line up with the treatment of `rel`,
 ///    and to prevent people from accidentally allowing arbitrary
