@@ -1176,6 +1176,13 @@ mod test {
         assert_eq!(result.unwrap().to_string(), "an evil() example");
     }
     #[test]
+    fn reader_non_utf8() {
+        let fragment = b"non-utf8 \xF0\x90\x80string";
+        let result = Builder::new().clean_from_reader(&mut &fragment[..]);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().to_string(), "non-utf8 \u{fffd}string");
+    }
+    #[test]
     fn debug_impl() {
         let fragment = r#"a <a>link</a>"#;
         let result = Builder::new().link_rel(None).clean(fragment);
