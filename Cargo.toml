@@ -1,6 +1,6 @@
 [package]
 name = "ammonia"
-version = "0.7.0" # remember to update html_root_url
+version = "0.7.0"
 authors = ["Michael Howell <michael@notriddle.com>"]
 description = "HTML Sanitization"
 keywords = [ "sanitization", "html", "security", "xss" ]
@@ -16,3 +16,6 @@ maplit = "0.1"
 tendril = "0.4"
 url = "1.5"
 lazy_static = "0.2"
+
+[dev-dependencies]
+version-sync = "0.3"
