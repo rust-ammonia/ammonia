@@ -899,7 +899,7 @@ impl Document {
     ///
     ///     use ammonia::Builder;
     ///
-    ///     let input = "Some <div>HTML here";
+    ///     let input = "Some <style>HTML here";
     ///     let output = "Some HTML here";
     ///
     ///     let document = Builder::new()
@@ -927,7 +927,7 @@ impl Document {
     ///
     ///     use ammonia::Builder;
     ///
-    ///     let input = "Some <div>HTML here";
+    ///     let input = "Some <style>HTML here";
     ///     let expected = b"Some HTML here";
     ///
     ///     let document = Builder::new()
