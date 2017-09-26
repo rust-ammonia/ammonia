@@ -224,33 +224,57 @@ impl<'a> Default for Builder<'a> {
             "a" => hashset![
                 "href", "hreflang"
             ],
-            "img" => hashset![
-                "align", "alt", "height", "src", "width"
-            ],
-            "del" => hashset![
-                "cite", "datetime"
-            ],
-            "ins" => hashset![
-                "cite", "datetime"
-            ],
-            "q" => hashset![
-                "cite"
+            "bdo" => hashset![
+                "dir"
             ],
             "blockquote" => hashset![
                 "cite"
             ],
+            "col" => hashset![
+                "align", "char", "charoff", "span"
+            ],
+            "colgroup" => hashset![
+                "align", "char", "charoff", "span"
+            ],
+            "del" => hashset![
+                "cite", "datetime"
+            ],
+            "hr" => hashset![
+                "align", "size", "width"
+            ],
+            "img" => hashset![
+                "align", "alt", "height", "src", "width"
+            ],
+            "ins" => hashset![
+                "cite", "datetime"
+            ],
             "ol" => hashset![
                 "start"
             ],
-            "td" => hashset![
-                "colspan", "headers", "rowspan"
-            ],
-            "th" => hashset![
-                "colspan", "headers", "rowspan", "scope"
+            "q" => hashset![
+                "cite"
             ],
             "table" => hashset![
-                "summary"
-            ]
+                "align", "char", "charoff", "summary"
+            ],
+            "tbody" => hashset![
+                "align", "char", "charoff"
+            ],
+            "td" => hashset![
+                "align", "char", "charoff", "colspan", "headers", "rowspan",
+            ],
+            "tfoot" => hashset![
+                "align", "char", "charoff"
+            ],
+            "th" => hashset![
+                "align", "char", "charoff", "colspan", "headers", "rowspan",
+            ],
+            "thead" => hashset![
+                "align", "char", "charoff"
+            ],
+            "tr" => hashset![
+                "align", "char", "charoff"
+            ],
         ];
         let url_schemes = hashset![
             "bitcoin", "ftp", "ftps", "geo", "http", "https", "im", "irc",
@@ -344,24 +368,40 @@ impl<'a> Builder<'a> {
     /// ```notest
     /// a =>
     ///     href, hreflang
-    /// img =>
-    ///     align, alt, height, src, width
-    /// del =>
-    ///     cite, datetime
-    /// ins =>
-    ///     cite, datetime
-    /// q =>
-    ///     cite
+    /// bdo =>
+    ///     dir
     /// blockquote =>
     ///     cite
+    /// col =>
+    ///     align, char, charoff, span
+    /// colgroup =>
+    ///     align, char, charoff, span
+    /// del =>
+    ///     cite, datetime
+    /// hr =>
+    ///     align, size, width
+    /// img =>
+    ///     align, alt, height, src, width
+    /// ins =>
+    ///     cite, datetime
     /// ol =>
     ///     start
-    /// td =>
-    ///     colspan, headers, rowspan
-    /// th =>
-    ///     colspan, headers, rowspan, scope
+    /// q =>
+    ///     cite
     /// table =>
-    ///     summary
+    ///     align, char, charoff, summary
+    /// tbody =>
+    ///     align, char, charoff
+    /// td =>
+    ///     align, char, charoff, colspan, headers, rowspan,
+    /// tfoot =>
+    ///     align, char, charoff
+    /// th =>
+    ///     align, char, charoff, colspan, headers, rowspan,
+    /// thead =>
+    ///     align, char, charoff
+    /// tr =>
+    ///     align, char, charoff
     /// ```
     pub fn tag_attributes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
         self.tag_attributes = value;
