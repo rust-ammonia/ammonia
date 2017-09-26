@@ -295,6 +295,20 @@ impl<'a> Builder<'a> {
     ///         .to_string();
     ///     assert_eq!(a, "<my-tag></my-tag>");
     ///     # }
+    ///
+    /// # Defaults
+    ///
+    /// ```notest
+    /// a, abbr, acronym, area, article, aside, b, bdi,
+    /// bdo, blockquote, br, caption, center, cite, code,
+    /// col, colgroup, data, dd, del, details, dfn, div,
+    /// dl, dt, em, figcaption, figure, footer, h1, h2,
+    /// h3, h4, h5, h6, header, hgroup, hr, hr, i, img,
+    /// ins, kbd, kbd, li, map, mark, nav, ol, p, pre,
+    /// q, rp, rt, rtc, ruby, s, samp, small, span,
+    /// strike, strong, sub, summary, sup, table, tbody,
+    /// td, th, thead, time, tr, tt, u, ul, var, wbr
+    /// ```
     pub fn tags(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.tags = value;
         self
@@ -324,6 +338,31 @@ impl<'a> Builder<'a> {
     ///         .to_string();
     ///     assert_eq!(a, "<my-tag val=\"1\"></my-tag>");
     ///     # }
+    ///
+    /// # Defaults
+    ///
+    /// ```notest
+    /// a =>
+    ///     href, hreflang
+    /// img =>
+    ///     align, alt, height, src, width
+    /// del =>
+    ///     cite, datetime
+    /// ins =>
+    ///     cite, datetime
+    /// q =>
+    ///     cite
+    /// blockquote =>
+    ///     cite
+    /// ol =>
+    ///     start
+    /// td =>
+    ///     colspan, headers, rowspan
+    /// th =>
+    ///     colspan, headers, rowspan, scope
+    /// table =>
+    ///     summary
+    /// ```
     pub fn tag_attributes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
         self.tag_attributes = value;
         self
@@ -347,6 +386,12 @@ impl<'a> Builder<'a> {
     ///         .to_string();
     ///     assert_eq!(a, "<b data-val=\"1\"></b>");
     ///     # }
+    ///
+    /// # Defaults
+    ///
+    /// ```notest
+    /// lang, title
+    /// ```
     pub fn generic_attributes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.generic_attributes = value;
         self
@@ -375,6 +420,15 @@ impl<'a> Builder<'a> {
     ///     assert_eq!(a,
     ///       "<a href=\"magnet:?xt=urn:ed2k:31D6CFE0D16AE931B73C59D7E0C089C0&amp;xl=0&amp;dn=zero_len.fil&amp;xt=urn:bitprint:3I42H3S6NNFQ2MSVX7XZKYAYSCX5QBYJ.LWPNACQDBZRYXW3VHJVCJ64QBZNGHOHHHZWCLNQ&amp;xt=urn:md5:D41D8CD98F00B204E9800998ECF8427E\" rel=\"noopener noreferrer\">zero-length file</a>");
     ///     # }
+    ///
+    /// # Defaults
+    ///
+    /// ```notest
+    /// bitcoin, ftp, ftps, geo, http, https, im, irc,
+    /// ircs, magnet, mailto, mms, mx, news, nntp,
+    /// openpgp4fpr, sip, sms, smsto, ssh, tel, url,
+    /// webcal, wtai, xmpp
+    /// ```
     pub fn url_schemes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.url_schemes = value;
         self
@@ -395,6 +449,12 @@ impl<'a> Builder<'a> {
     ///     assert_eq!(
     ///       a,
     ///       "<a href=\"/\" rel=\"noopener noreferrer\">Home</a>");
+    ///
+    /// # Defaults
+    ///
+    /// ```notest
+    /// UrlRelative::Deny
+    /// ```
     pub fn url_relative(&mut self, value: UrlRelative<'a>) -> &mut Self {
         self.url_relative = value;
         self
@@ -403,7 +463,7 @@ impl<'a> Builder<'a> {
     /// Configures a `rel` attribute that will be added on links.
     ///
     /// If `rel` is in the generic or tag attributes, this must be set to `None`.
-    /// Common `rel` values to allow include:
+    /// Common `rel` values to include:
     ///
     /// * `noopener`: This prevents [a particular type of XSS attack],
     ///   and should usually be turned on for untrusted HTML.
@@ -411,6 +471,10 @@ impl<'a> Builder<'a> {
     ///   to the website that is linked to.
     /// * `nofollow`: This prevents search engines from [using this link for
     ///   ranking], which disincentivizes spammers.
+    ///
+    /// To turn on rel-insertion, call this function with a space-separated list.
+    /// Ammonia does not parse rel-attributes;
+    /// it just puts the given string into the attribute directly.
     ///
     /// [a particular type of XSS attack]: https://mathiasbynens.github.io/rel-noopener/
     /// [sending the source URL]: https://en.wikipedia.org/wiki/HTTP_referer
@@ -426,6 +490,12 @@ impl<'a> Builder<'a> {
     ///     assert_eq!(
     ///       a,
     ///       "<a href=\"https://rust-lang.org/\">Rust</a>");
+    ///
+    /// # Defaults
+    ///
+    /// ```notest
+    /// Some("noopener noreferrer")
+    /// ```
     pub fn link_rel(&mut self, value: Option<&'a str>) -> &mut Self {
         self.link_rel = value;
         self
@@ -458,6 +528,10 @@ impl<'a> Builder<'a> {
     ///       a,
     ///       "<code class=\"rs\">fn main() {}</code>");
     ///     # }
+    ///
+    /// # Defaults
+    ///
+    /// The set of allowed classes is empty by default.
     pub fn allowed_classes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
         self.allowed_classes = value;
         self
@@ -465,8 +539,7 @@ impl<'a> Builder<'a> {
 
     /// Configures the handling of HTML comments.
     ///
-    /// If this option is false, the comments will be kept.
-    /// It defaults to true.
+    /// If this option is false, comments will be preserved.
     ///
     /// # Examples
     ///
@@ -478,6 +551,10 @@ impl<'a> Builder<'a> {
     ///     assert_eq!(
     ///       a,
     ///       "<!-- yes -->");
+    ///
+    /// # Defaults
+    ///
+    /// `true`
     pub fn strip_comments(&mut self, value: bool) -> &mut Self {
         self.strip_comments = value;
         self
