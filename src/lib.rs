@@ -207,21 +207,57 @@ impl<'a> Default for Builder<'a> {
     fn default() -> Self {
         #[cfg_attr(rustfmt, rustfmt_skip)]
         let tags = hashset![
-            "a", "b", "blockquote", "br", "code", "dd", "del", "dl", "dt",
-            "em", "i", "h1", "h2", "h3", "hr", "img", "kbd", "li", "ol", "p",
-            "pre", "s", "strike", "strong", "sub", "sup", "table", "tbody",
-            "td", "th", "thead", "tr", "ul", "hr"
+            "a", "abbr", "acronym", "area", "article", "aside", "b", "bdi",
+            "bdo", "blockquote", "br", "caption", "center", "cite", "code",
+            "col", "colgroup", "data", "dd", "del", "details", "dfn", "div",
+            "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2",
+            "h3", "h4", "h5", "h6", "header", "hgroup", "hr", "hr", "i", "img",
+            "ins", "kbd", "kbd", "li", "map", "mark", "nav", "ol", "p", "pre",
+            "q", "rp", "rt", "rtc", "ruby", "s", "samp", "small", "span",
+            "strike", "strong", "sub", "summary", "sup", "table", "tbody",
+            "td", "th", "thead", "time", "tr", "tt", "u", "ul", "var", "wbr"
         ];
-        let generic_attributes = hashset!["title"];
+        let generic_attributes = hashset![
+            "lang", "title"
+        ];
         let tag_attributes = hashmap![
             "a" => hashset![
-                "href"
+                "href", "hreflang"
             ],
             "img" => hashset![
-                "width", "height", "src", "alt"
+                "align", "alt", "height", "src", "width"
+            ],
+            "del" => hashset![
+                "cite", "datetime"
+            ],
+            "ins" => hashset![
+                "cite", "datetime"
+            ],
+            "q" => hashset![
+                "cite"
+            ],
+            "blockquote" => hashset![
+                "cite"
+            ],
+            "ol" => hashset![
+                "start"
+            ],
+            "td" => hashset![
+                "colspan", "headers", "rowspan"
+            ],
+            "th" => hashset![
+                "colspan", "headers", "rowspan", "scope"
+            ],
+            "table" => hashset![
+                "summary"
             ]
         ];
-        let url_schemes = hashset!["http", "https", "mailto"];
+        let url_schemes = hashset![
+            "bitcoin", "ftp", "ftps", "geo", "http", "https", "im", "irc",
+            "ircs", "magnet", "mailto", "mms", "mx", "news", "nntp",
+            "openpgp4fpr", "sip", "sms", "smsto", "ssh", "tel", "url",
+            "webcal", "wtai", "xmpp"
+        ];
         let allowed_classes = hashmap![];
 
         Builder {
