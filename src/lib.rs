@@ -65,6 +65,12 @@ lazy_static! {
 ///                `<img width="" height="" src="" alt="">`
 ///  * URL schemes in links and images: `http`, `https`, `mailto`
 ///  * Relative URLs are not allowed, to prevent cross-site request forgery.
+///  * `<a>` links have `rel="noopener noreferrer"` implicitly added,
+///    since the [opener] allows a particular kind of XSS attack
+///    and the [referrer] might leak private information if it's stored in the URL.
+///
+/// [opener]: https://mathiasbynens.github.io/rel-noopener/
+/// [referrer]: https://en.wikipedia.org/wiki/HTTP_referer
 ///
 /// # Examples
 ///
@@ -101,10 +107,11 @@ pub fn clean(src: &str) -> String {
 ///  * the `rel` attribute is added to [`generic_attributes`] or the
 ///    [`tag_attributes`] for the `<a>` tag, and [`link_rel`] is not set to `None`.
 ///
-///    For example, this is going to panic, since [`link_rel`] is set by default,
+///    For example, this is going to panic, since [`link_rel`] is set  to
+///    `Some("noopener noreferrer")` by default,
 ///    and it makes no sense to simultaneously say that the user is allowed to
-///    set their own `rel` attribute while saying that every link shall be set
-///    to `noopener noreferrer`:
+///    set their own `rel` attribute while saying that every link shall be set to
+///    a particular value:
 ///
 ///    ```should_panic
 ///    #[macro_use]
