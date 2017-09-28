@@ -20,7 +20,7 @@
 //! let result = ammonia::clean(
 //!     "<b><img src='' onerror='alert(\\'hax\\')'>I'm not trying to XSS you</b>"
 //! );
-//! assert_eq!(result, "<b><img>I'm not trying to XSS you</b>");
+//! assert_eq!(result, "<b><img src=\"\">I'm not trying to XSS you</b>");
 //! ```
 //!
 //! [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
