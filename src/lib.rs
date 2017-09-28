@@ -261,13 +261,13 @@ impl<'a> Default for Builder<'a> {
                 "align", "char", "charoff"
             ],
             "td" => hashset![
-                "align", "char", "charoff", "colspan", "headers", "rowspan",
+                "align", "char", "charoff", "colspan", "headers", "rowspan"
             ],
             "tfoot" => hashset![
                 "align", "char", "charoff"
             ],
             "th" => hashset![
-                "align", "char", "charoff", "colspan", "headers", "rowspan",
+                "align", "char", "charoff", "colspan", "headers", "rowspan", "scope"
             ],
             "thead" => hashset![
                 "align", "char", "charoff"
@@ -393,11 +393,11 @@ impl<'a> Builder<'a> {
     /// tbody =>
     ///     align, char, charoff
     /// td =>
-    ///     align, char, charoff, colspan, headers, rowspan,
+    ///     align, char, charoff, colspan, headers, rowspan
     /// tfoot =>
     ///     align, char, charoff
     /// th =>
-    ///     align, char, charoff, colspan, headers, rowspan,
+    ///     align, char, charoff, colspan, headers, rowspan, scope
     /// thead =>
     ///     align, char, charoff
     /// tr =>
