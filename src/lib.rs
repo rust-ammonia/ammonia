@@ -56,18 +56,14 @@ lazy_static! {
 
 /// Clean HTML with a conservative set of defaults.
 ///
-///  * Formatting: `b`, `blockquote`, `br`, `code`, `dd`, `del`, `dl`, `dt`,
-///                `em`, `h1`, `h2`, `h3`, `hr`, `i`, `kbd`, `li`, `ol`, `p`,
-///                `pre`, `s`, `strike`, `strong`, `sub`, `sup`, `ul`
-///  * Tables: `table`, `tbody`, `td`, `th`, `thead`, `tr`
-///  * Links: `a`, `img`
-///  * Attributes: `<* title="">`, `<a href="">`,
-///                `<img width="" height="" src="" alt="">`
-///  * URL schemes in links and images: `http`, `https`, `mailto`
-///  * Relative URLs are not allowed, to prevent cross-site request forgery.
-///  * `<a>` links have `rel="noopener noreferrer"` implicitly added,
-///    since the [opener] allows a particular kind of XSS attack
-///    and the [referrer] might leak private information if it's stored in the URL.
+/// * [tags](struct.Builder.html#defaults)
+/// * [attributes on specific tags](struct.Builder.html#defaults-1)
+/// * [attributes on all tags](struct.Builder.html#defaults-2)
+/// * [url schemes](struct.Builder.html#defaults-3)
+/// * [relatives URLs are blocked by default](struct.Builder.html#defaults-4)
+/// * [links are marked `noopener noreferrer` by default](struct.Builder.html#defaults-5)
+/// * [all `class=""` settings are blocked by default](struct.Builder.html#defaults-6)
+/// * [comments are stripped by default](struct.Builder.html#defaults-7)
 ///
 /// [opener]: https://mathiasbynens.github.io/rel-noopener/
 /// [referrer]: https://en.wikipedia.org/wiki/HTTP_referer
