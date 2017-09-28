@@ -820,7 +820,7 @@ impl<'a> Builder<'a> {
                         attr.value = format_tendril!("{}", url);
                     }
                 }
-            } else if let UrlRelative::Evaluate(ref evaluate) = self.url_relative {
+            } else if let UrlRelative::Custom(ref evaluate) = self.url_relative {
                 let mut drop_attrs = Vec::new();
                 let mut attrs = attrs.borrow_mut();
                 for (i, attr) in attrs.iter_mut().enumerate() {
@@ -933,7 +933,7 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
 ///     }
 ///     fn main() {
 ///         let a = ammonia::Builder::new()
-///             .url_relative(ammonia::UrlRelative::Evaluate(Box::new(evaluate)))
+///             .url_relative(ammonia::UrlRelative::Custom(Box::new(evaluate)))
 ///             .clean("<a href=/test/path>fixed</a><a href=path>passed</a><a href=http://google.com/>skipped</a>")
 ///             .to_string();
 ///         assert_eq!(a, "<a href=\"/root/test/path\" rel=\"noopener noreferrer\">fixed</a><a href=\"path\" rel=\"noopener noreferrer\">passed</a><a href=\"http://google.com/\" rel=\"noopener noreferrer\">skipped</a>");
@@ -950,7 +950,7 @@ pub enum UrlRelative<'a> {
     /// Relative URLs will be changed into absolute URLs, based on this base URL.
     RewriteWithBase(&'a str),
     /// Rewrite URLs with a custom function.
-    Evaluate(Box<UrlRelativeEvaluate>),
+    Custom(Box<UrlRelativeEvaluate>),
     // Do not allow the user to exhaustively match on UrlRelative,
     // because we may add new items to it later.
     #[doc(hidden)]
@@ -963,7 +963,7 @@ impl<'a> fmt::Debug for UrlRelative<'a> {
             UrlRelative::Deny => write!(f, "UrlRelative::Deny"),
             UrlRelative::PassThrough => write!(f, "UrlRelative::PassThrough"),
             UrlRelative::RewriteWithBase(base) => write!(f, "UrlRelative::RewriteWithBase({})", base),
-            UrlRelative::Evaluate(_) => write!(f, "UrlRelative::Evaluate"),
+            UrlRelative::Custom(_) => write!(f, "UrlRelative::Custom"),
             UrlRelative::__NonExhaustive => unreachable!(),
         }
     }
@@ -1425,7 +1425,7 @@ mod test {
             }
         }
         let a = Builder::new()
-            .url_relative(UrlRelative::Evaluate(Box::new(evaluate)))
+            .url_relative(UrlRelative::Custom(Box::new(evaluate)))
             .clean("<a href=banned>banned</a><a href=/test/path>fixed</a><a href=path>passed</a><a href=http://google.com/>skipped</a>")
             .to_string();
         assert_eq!(a, "<a rel=\"noopener noreferrer\">banned</a><a href=\"/root/test/path\" rel=\"noopener noreferrer\">fixed</a><a href=\"path\" rel=\"noopener noreferrer\">passed</a><a href=\"http://google.com/\" rel=\"noopener noreferrer\">skipped</a>");
@@ -1452,7 +1452,7 @@ mod test {
             }
         }
         let a = Builder::new()
-            .url_relative(UrlRelative::Evaluate(Box::new(evaluate)))
+            .url_relative(UrlRelative::Custom(Box::new(evaluate)))
             .clean("<a href=banned>banned</a><a href=banned title=test>banned</a><a title=test href=banned>banned</a>")
             .to_string();
         assert_eq!(a, "<a rel=\"noopener noreferrer\">banned</a><a rel=\"noopener noreferrer\" title=\"test\">banned</a><a title=\"test\" rel=\"noopener noreferrer\">banned</a>");
