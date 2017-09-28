@@ -191,6 +191,7 @@ pub fn clean(src: &str) -> String {
 /// [`generic_attributes`]: #method.generic_attributes
 /// [`link_rel`]: #method.link_rel
 /// [`allowed_classes`]: #method.allowed_classes
+#[derive(Debug)]
 pub struct Builder<'a> {
     tags: HashSet<&'a str>,
     tag_attributes: HashMap<&'a str, HashSet<&'a str>>,
@@ -954,6 +955,18 @@ pub enum UrlRelative<'a> {
     // because we may add new items to it later.
     #[doc(hidden)]
     __NonExhaustive,
+}
+
+impl<'a> fmt::Debug for UrlRelative<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match *self {
+            UrlRelative::Deny => write!(f, "UrlRelative::Deny"),
+            UrlRelative::PassThrough => write!(f, "UrlRelative::PassThrough"),
+            UrlRelative::RewriteWithBase(base) => write!(f, "UrlRelative::RewriteWithBase({})", base),
+            UrlRelative::Evaluate(_) => write!(f, "UrlRelative::Evaluate"),
+            UrlRelative::__NonExhaustive => unreachable!(),
+        }
+    }
 }
 
 pub trait UrlRelativeEvaluate: Send + Sync {
