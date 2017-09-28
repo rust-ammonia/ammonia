@@ -60,7 +60,7 @@ lazy_static! {
 /// * [attributes on specific tags](struct.Builder.html#defaults-1)
 /// * [attributes on all tags](struct.Builder.html#defaults-2)
 /// * [url schemes](struct.Builder.html#defaults-3)
-/// * [relatives URLs are blocked by default](struct.Builder.html#defaults-4)
+/// * [relative URLs are blocked by default](struct.Builder.html#defaults-4)
 /// * [links are marked `noopener noreferrer` by default](struct.Builder.html#defaults-5)
 /// * [all `class=""` settings are blocked by default](struct.Builder.html#defaults-6)
 /// * [comments are stripped by default](struct.Builder.html#defaults-7)
