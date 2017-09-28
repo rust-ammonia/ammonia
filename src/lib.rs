@@ -60,7 +60,7 @@ lazy_static! {
 /// * [attributes on specific tags](struct.Builder.html#defaults-1)
 /// * [attributes on all tags](struct.Builder.html#defaults-2)
 /// * [url schemes](struct.Builder.html#defaults-3)
-/// * [relative URLs are blocked by default](struct.Builder.html#defaults-4)
+/// * [relative URLs are passed through, unchanged, by default](struct.Builder.html#defaults-4)
 /// * [links are marked `noopener noreferrer` by default](struct.Builder.html#defaults-5)
 /// * [all `class=""` settings are blocked by default](struct.Builder.html#defaults-6)
 /// * [comments are stripped by default](struct.Builder.html#defaults-7)
@@ -285,7 +285,7 @@ impl<'a> Default for Builder<'a> {
             tag_attributes: tag_attributes,
             generic_attributes: generic_attributes,
             url_schemes: url_schemes,
-            url_relative: UrlRelative::Deny,
+            url_relative: UrlRelative::PassThrough,
             link_rel: Some("noopener noreferrer"),
             allowed_classes: allowed_classes,
             strip_comments: true,
@@ -489,7 +489,7 @@ impl<'a> Builder<'a> {
     /// # Defaults
     ///
     /// ```notest
-    /// UrlRelative::Deny
+    /// UrlRelative::PassThrough
     /// ```
     pub fn url_relative(&mut self, value: UrlRelative<'a>) -> &mut Self {
         self.url_relative = value;
