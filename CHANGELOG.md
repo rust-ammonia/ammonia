@@ -8,6 +8,7 @@
 * Breaking change: The `Builder::clean()` method now returns a `Document` struct instead of a `String`
 * Breaking change: `keep_cleaned_elements` is changed from being an off-by-default option to the only supported behavior
 * Breaking change: Using a tag with `allowed_classes` means that the class attribute is banned from `tag_attributes` (it used to be required)
+* Breaking change: Expanded the default set of allowed elements and attributes
 * Added support for reading the input from a stream
 
 # 0.7.0
