@@ -49,6 +49,7 @@ use std::fmt;
 use std::io;
 use std::mem::replace;
 use std::rc::Rc;
+use std::str::FromStr;
 use tendril::stream::TendrilSink;
 use tendril::StrTendril;
 use url::Url;
@@ -824,7 +825,10 @@ impl<'a> Builder<'a> {
                 for (i, attr) in attrs.iter_mut().enumerate() {
                     if is_url_attr(&*name.local, &*attr.name.local) {
                         let new_value = evaluate.evaluate(&*attr.value)
-                            .map(|new| format_tendril!("{}", new));
+                            .as_ref()
+                            .map(Cow::as_ref)
+                            .map(StrTendril::from_str)
+                            .and_then(Result::ok);
                         if let Some(new_value) = new_value {
                             attr.value = new_value;
                         } else {
