@@ -33,6 +33,8 @@ extern crate lazy_static;
 #[macro_use]
 extern crate maplit;
 #[macro_use]
+extern crate matches;
+#[macro_use]
 extern crate tendril;
 extern crate url;
 
@@ -41,11 +43,13 @@ use html5ever::rcdom::{Handle, NodeData, RcDom};
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::interface::Attribute;
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io;
 use std::mem::replace;
 use std::rc::Rc;
+use std::str::FromStr;
 use tendril::stream::TendrilSink;
 use tendril::StrTendril;
 use url::Url;
@@ -187,7 +191,7 @@ pub fn clean(src: &str) -> String {
 /// [`generic_attributes`]: #method.generic_attributes
 /// [`link_rel`]: #method.link_rel
 /// [`allowed_classes`]: #method.allowed_classes
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct Builder<'a> {
     tags: HashSet<&'a str>,
     tag_attributes: HashMap<&'a str, HashSet<&'a str>>,
@@ -765,7 +769,7 @@ impl<'a> Builder<'a> {
                         if let Ok(url) = url {
                             self.url_schemes.contains(url.scheme())
                         } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
-                            self.url_relative != UrlRelative::Deny
+                            !matches!(self.url_relative, UrlRelative::Deny)
                         } else {
                             false
                         }
@@ -815,6 +819,31 @@ impl<'a> Builder<'a> {
                             .expect("invalid URLs should be stripped earlier");
                         attr.value = format_tendril!("{}", url);
                     }
+                }
+            } else if let UrlRelative::Custom(ref evaluate) = self.url_relative {
+                let mut drop_attrs = Vec::new();
+                let mut attrs = attrs.borrow_mut();
+                for (i, attr) in attrs.iter_mut().enumerate() {
+                    if is_url_attr(&*name.local, &*attr.name.local) {
+                        let new_value = evaluate.evaluate(&*attr.value)
+                            .as_ref()
+                            .map(Cow::as_ref)
+                            .map(StrTendril::from_str)
+                            .and_then(Result::ok);
+                        if let Some(new_value) = new_value {
+                            attr.value = new_value;
+                        } else {
+                            drop_attrs.push(i);
+                        }
+                    }
+                }
+                // Swap remove scrambles the vector after the current point.
+                // We will not do anything except with items before the current point.
+                // The `rev()` is, as such, necessary for correctness.
+                // We could use regular `remove(usize)` and a forward iterator,
+                // but that's slower.
+                for i in drop_attrs.into_iter().rev() {
+                    attrs.swap_remove(i);
                 }
             }
             if let Some(allowed_values) = self.allowed_classes.get(&*name.local) {
@@ -880,7 +909,39 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
 /// * `<a href="/test">` will be rewritten to `<a href="http://notriddle.com/test">`
 /// * `<a href="//example.com/test">` will be rewritten to `<a href="http://example.com/test">`
 /// * `<a href="http://example.com/test">` is an absolute URL, so it will be kept as-is
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+///
+/// ## `Evaluate`
+///
+/// Pass the relative URL to a function.
+/// If it returns `Some(string)`, then that one gets used.
+/// Otherwise, it will remove the attribute (like `Deny` does).
+///
+///     # extern crate ammonia;
+///     use std::borrow::Cow;
+///     fn is_absolute_path(url: &str) -> bool {
+///         let u = url.as_bytes();
+///         // `//a/b/c` is "protocol-relative", meaning "a" is a hostname
+///         // `/a/b/c` is an absolute path, and what we want to do stuff to.
+///         u.get(0) == Some(&b'/') && u.get(1) != Some(&b'/')
+///     }
+///     fn evaluate(url: &str) -> Option<Cow<str>> {
+///         if is_absolute_path(url) {
+///             Some(Cow::Owned(String::from("/root") + url))
+///         } else {
+///             Some(Cow::Borrowed(url))
+///         }
+///     }
+///     fn main() {
+///         let a = ammonia::Builder::new()
+///             .url_relative(ammonia::UrlRelative::Custom(Box::new(evaluate)))
+///             .clean("<a href=/test/path>fixed</a><a href=path>passed</a><a href=http://google.com/>skipped</a>")
+///             .to_string();
+///         assert_eq!(a, "<a href=\"/root/test/path\" rel=\"noopener noreferrer\">fixed</a><a href=\"path\" rel=\"noopener noreferrer\">passed</a><a href=\"http://google.com/\" rel=\"noopener noreferrer\">skipped</a>");
+///     }
+///
+/// This function is only applied to relative URLs.
+/// To filter all of the URLs,
+/// use the not-yet-implemented Content Security Policy.
 pub enum UrlRelative<'a> {
     /// Relative URLs will be completely stripped from the document.
     Deny,
@@ -888,10 +949,33 @@ pub enum UrlRelative<'a> {
     PassThrough,
     /// Relative URLs will be changed into absolute URLs, based on this base URL.
     RewriteWithBase(&'a str),
+    /// Rewrite URLs with a custom function.
+    Custom(Box<UrlRelativeEvaluate>),
     // Do not allow the user to exhaustively match on UrlRelative,
     // because we may add new items to it later.
     #[doc(hidden)]
     __NonExhaustive,
+}
+
+impl<'a> fmt::Debug for UrlRelative<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match *self {
+            UrlRelative::Deny => write!(f, "UrlRelative::Deny"),
+            UrlRelative::PassThrough => write!(f, "UrlRelative::PassThrough"),
+            UrlRelative::RewriteWithBase(base) => write!(f, "UrlRelative::RewriteWithBase({})", base),
+            UrlRelative::Custom(_) => write!(f, "UrlRelative::Custom"),
+            UrlRelative::__NonExhaustive => unreachable!(),
+        }
+    }
+}
+
+pub trait UrlRelativeEvaluate: Send + Sync {
+    fn evaluate<'a>(&self, &'a str) -> Option<Cow<'a, str>>;
+}
+impl<T> UrlRelativeEvaluate for T where T: Fn(&str) -> Option<Cow<str>> + Send + Sync {
+    fn evaluate<'a>(&self, url: &'a str) -> Option<Cow<'a, str>> {
+        self(url)
+    }
 }
 
 /// A sanitized HTML document.
@@ -1318,6 +1402,60 @@ mod test {
             result.to_string(),
             "<a rel=\"noopener noreferrer\">Click me!</a>"
         );
+    }
+    #[test]
+    fn remove_relative_url_evaluate() {
+        fn is_absolute_path(url: &str) -> bool {
+            let u = url.as_bytes();
+            // `//a/b/c` is "protocol-relative", meaning "a" is a hostname
+            // `/a/b/c` is an absolute path, and what we want to do stuff to.
+            u.get(0) == Some(&b'/') && u.get(1) != Some(&b'/')
+        }
+        fn is_banned(url: &str) -> bool {
+            let u = url.as_bytes();
+            u.get(0) == Some(&b'b') && u.get(1) == Some(&b'a')
+        }
+        fn evaluate(url: &str) -> Option<Cow<str>> {
+            if is_absolute_path(url) {
+                Some(Cow::Owned(String::from("/root") + url))
+            } else if is_banned(url) {
+                None
+            } else {
+                Some(Cow::Borrowed(url))
+            }
+        }
+        let a = Builder::new()
+            .url_relative(UrlRelative::Custom(Box::new(evaluate)))
+            .clean("<a href=banned>banned</a><a href=/test/path>fixed</a><a href=path>passed</a><a href=http://google.com/>skipped</a>")
+            .to_string();
+        assert_eq!(a, "<a rel=\"noopener noreferrer\">banned</a><a href=\"/root/test/path\" rel=\"noopener noreferrer\">fixed</a><a href=\"path\" rel=\"noopener noreferrer\">passed</a><a href=\"http://google.com/\" rel=\"noopener noreferrer\">skipped</a>");
+    }
+    #[test]
+    fn remove_relative_url_evaluate_b() {
+        fn is_absolute_path(url: &str) -> bool {
+            let u = url.as_bytes();
+            // `//a/b/c` is "protocol-relative", meaning "a" is a hostname
+            // `/a/b/c` is an absolute path, and what we want to do stuff to.
+            u.get(0) == Some(&b'/') && u.get(1) != Some(&b'/')
+        }
+        fn is_banned(url: &str) -> bool {
+            let u = url.as_bytes();
+            u.get(0) == Some(&b'b') && u.get(1) == Some(&b'a')
+        }
+        fn evaluate(url: &str) -> Option<Cow<str>> {
+            if is_absolute_path(url) {
+                Some(Cow::Owned(String::from("/root") + url))
+            } else if is_banned(url) {
+                None
+            } else {
+                Some(Cow::Borrowed(url))
+            }
+        }
+        let a = Builder::new()
+            .url_relative(UrlRelative::Custom(Box::new(evaluate)))
+            .clean("<a href=banned>banned</a><a href=banned title=test>banned</a><a title=test href=banned>banned</a>")
+            .to_string();
+        assert_eq!(a, "<a rel=\"noopener noreferrer\">banned</a><a rel=\"noopener noreferrer\" title=\"test\">banned</a><a title=\"test\" rel=\"noopener noreferrer\">banned</a>");
     }
     #[test]
     fn clean_children_of_bad_element() {

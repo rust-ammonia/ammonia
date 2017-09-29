@@ -13,6 +13,7 @@ categories = [ "web-programming", "text-processing" ]
 [dependencies]
 html5ever = "0.20"
 maplit = "0.1"
+matches = "0.1.6"
 tendril = "0.4"
 url = "1.5"
 lazy_static = "0.2"
