@@ -335,6 +335,38 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Add additonal whitelisted tags without overwriting old ones.
+    ///
+    /// Does nothing if the tag is already there.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_tags(std::iter::once("my-tag"))
+    ///         .clean("<my-tag>test</my-tag> <span>mess</span>").to_string();
+    ///     assert_eq!("<my-tag>test</my-tag> <span>mess</span>", a);
+    pub fn add_tags<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
+        self.tags.extend(it);
+        self
+    }
+
+    /// Remove already-whitelisted tags.
+    ///
+    /// Does nothing if the tags is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .rm_tags(std::iter::once("span"))
+    ///         .clean("<span></span>").to_string();
+    ///     assert_eq!("", a);
+    pub fn rm_tags<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+        for i in it {
+            self.tags.remove(i);
+        }
+        self
+    }
+
     /// Sets the HTML attributes that are allowed on specific tags.
     ///
     /// The value is structured as a map from tag names to a set of attribute names.
@@ -405,6 +437,39 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Add additonal whitelisted tag-specific attributes without overwriting old ones.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_tags(std::iter::once("my-tag"))
+    ///         .add_tag_attributes("my-tag", std::iter::once("my-attr"))
+    ///         .clean("<my-tag my-attr>test</my-tag> <span>mess</span>").to_string();
+    ///     assert_eq!("<my-tag my-attr=\"\">test</my-tag> <span>mess</span>", a);
+    pub fn add_tag_attributes<I: Iterator<Item=&'a str>>(&mut self, tag: &'a str, it: I) -> &mut Self {
+        self.tag_attributes.entry(tag).or_insert_with(|| HashSet::new()).extend(it);
+        self
+    }
+
+    /// Remove already-whitelisted tag-specific attributes.
+    ///
+    /// Does nothing if the attribute is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .rm_tag_attributes("a", std::iter::once("href"))
+    ///         .clean("<a href=\"/\"></a>").to_string();
+    ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
+    pub fn rm_tag_attributes<'b, 'c, I: Iterator<Item=&'b str>>(&mut self, tag: &'c str, it: I) -> &mut Self {
+        if let Some(tag) = self.tag_attributes.get_mut(tag) {
+            for i in it {
+                tag.remove(i);
+            }
+        }
+        self
+    }
+
     /// Sets the attributes that are allowed on any tag.
     ///
     /// # Examples
@@ -431,6 +496,36 @@ impl<'a> Builder<'a> {
     /// ```
     pub fn generic_attributes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.generic_attributes = value;
+        self
+    }
+
+    /// Add additonal whitelisted attributes without overwriting old ones.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_generic_attributes(std::iter::once("my-attr"))
+    ///         .clean("<span my-attr>mess</span>").to_string();
+    ///     assert_eq!("<span my-attr=\"\">mess</span>", a);
+    pub fn add_generic_attributes<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
+        self.generic_attributes.extend(it);
+        self
+    }
+
+    /// Remove already-whitelisted attributes.
+    ///
+    /// Does nothing if the attribute is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .rm_generic_attributes(std::iter::once("title"))
+    ///         .clean("<span title=\"cool\"></span>").to_string();
+    ///     assert_eq!("<span></span>", a);
+    pub fn rm_generic_attributes<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+        for i in it {
+            self.generic_attributes.remove(i);
+        }
         self
     }
 
@@ -468,6 +563,36 @@ impl<'a> Builder<'a> {
     /// ```
     pub fn url_schemes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.url_schemes = value;
+        self
+    }
+
+    /// Add additonal whitelisted URL schemes without overwriting old ones.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_url_schemes(std::iter::once("my-scheme"))
+    ///         .clean("<a href=my-scheme:home>mess</span>").to_string();
+    ///     assert_eq!("<a href=\"my-scheme:home\" rel=\"noopener noreferrer\">mess</a>", a);
+    pub fn add_url_schemes<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
+        self.url_schemes.extend(it);
+        self
+    }
+
+    /// Remove already-whitelisted attributes.
+    ///
+    /// Does nothing if the attribute is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .rm_url_schemes(std::iter::once("ftp"))
+    ///         .clean("<a href=\"ftp://ftp.mozilla.org/\"></a>").to_string();
+    ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
+    pub fn rm_url_schemes<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+        for i in it {
+            self.url_schemes.remove(i);
+        }
         self
     }
 
@@ -571,6 +696,39 @@ impl<'a> Builder<'a> {
     /// The set of allowed classes is empty by default.
     pub fn allowed_classes(&mut self, value: HashMap<&'a str, HashSet<&'a str>>) -> &mut Self {
         self.allowed_classes = value;
+        self
+    }
+
+    /// Add additonal whitelisted classes without overwriting old ones.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_allowed_classes("a", std::iter::once("onebox"))
+    ///         .clean("<a href=/ class=onebox>mess</span>").to_string();
+    ///     assert_eq!("<a href=\"/\" class=\"onebox\" rel=\"noopener noreferrer\">mess</a>", a);
+    pub fn add_allowed_classes<I: Iterator<Item=&'a str>>(&mut self, tag: &'a str, it: I) -> &mut Self {
+        self.allowed_classes.entry(tag).or_insert_with(|| HashSet::new()).extend(it);
+        self
+    }
+
+    /// Remove already-whitelisted attributes.
+    ///
+    /// Does nothing if the attribute is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_allowed_classes("span", std::iter::once("active"))
+    ///         .rm_allowed_classes("span", std::iter::once("active"))
+    ///         .clean("<span class=active>").to_string();
+    ///     assert_eq!("<span class=\"\"></span>", a);
+    pub fn rm_allowed_classes<'b, 'c, I: Iterator<Item=&'b str>>(&mut self, tag: &'c str, it: I) -> &mut Self {
+        if let Some(tag) = self.allowed_classes.get_mut(tag) {
+            for i in it {
+                tag.remove(i);
+            }
+        }
         self
     }
 
