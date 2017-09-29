@@ -300,9 +300,6 @@ impl<'a> Default for Builder<'a> {
 impl<'a> Builder<'a> {
     /// Sets the tags that are allowed.
     ///
-    /// Note that this only whitelists the tag; by default elements will still be stripped
-    /// if they have unlisted attributes.
-    ///
     /// # Examples
     ///
     ///     #[macro_use]
