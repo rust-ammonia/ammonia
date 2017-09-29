@@ -367,6 +367,18 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Returns a copy of the set of whitelisted tags.
+    ///
+    /// # Examples
+    ///
+    ///     let tags = ["my-tag-1", "my-tag-2"].into_iter().cloned().collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.tags(Clone::clone(&tags));
+    ///     assert_eq!(tags, b.clone_tags());
+    pub fn clone_tags(&self) -> HashSet<&'a str> {
+        self.tags.clone()
+    }
+
     /// Sets the HTML attributes that are allowed on specific tags.
     ///
     /// The value is structured as a map from tag names to a set of attribute names.
@@ -470,6 +482,20 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Returns a copy of the set of whitelisted tag-specific attributes.
+    ///
+    /// # Examples
+    ///
+    ///     let tag_attributes = std::iter::once(
+    ///         ("my-tag", ["my-attr-1", "my-attr-2"].into_iter().cloned().collect())
+    ///     ).collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.tag_attributes(Clone::clone(&tag_attributes));
+    ///     assert_eq!(tag_attributes, b.clone_tag_attributes());
+    pub fn clone_tag_attributes(&self) -> HashMap<&'a str, HashSet<&'a str>> {
+        self.tag_attributes.clone()
+    }
+
     /// Sets the attributes that are allowed on any tag.
     ///
     /// # Examples
@@ -527,6 +553,18 @@ impl<'a> Builder<'a> {
             self.generic_attributes.remove(i);
         }
         self
+    }
+
+    /// Returns a copy of the set of whitelisted attributes.
+    ///
+    /// # Examples
+    ///
+    ///     let generic_attributes = ["my-attr-1", "my-attr-2"].into_iter().cloned().collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.generic_attributes(Clone::clone(&generic_attributes));
+    ///     assert_eq!(generic_attributes, b.clone_generic_attributes());
+    pub fn clone_generic_attributes(&self) -> HashSet<&'a str> {
+        self.generic_attributes.clone()
     }
 
     /// Sets the URL schemes permitted on `href` and `src` attributes.
@@ -596,6 +634,18 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Returns a copy of the set of whitelisted URL schemes.
+    ///
+    /// # Examples
+    ///
+    ///     let url_schemes = ["my-scheme-1", "my-scheme-2"].into_iter().cloned().collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.url_schemes(Clone::clone(&url_schemes));
+    ///     assert_eq!(url_schemes, b.clone_url_schemes());
+    pub fn clone_url_schemes(&self) -> HashSet<&'a str> {
+        self.url_schemes.clone()
+    }
+
     /// Configures the behavior for relative URLs: pass-through, resolve-with-base, or deny.
     ///
     /// # Examples
@@ -620,6 +670,55 @@ impl<'a> Builder<'a> {
     pub fn url_relative(&mut self, value: UrlRelative<'a>) -> &mut Self {
         self.url_relative = value;
         self
+    }
+
+    /// Returns `true` if the relative URL resolver is set to `Deny`.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::{Builder, UrlRelative};
+    ///     let mut a = Builder::default();
+    ///     a.url_relative(UrlRelative::Deny);
+    ///     assert!(a.is_url_relative_deny());
+    ///     a.url_relative(UrlRelative::PassThrough);
+    ///     assert!(!a.is_url_relative_deny());
+    pub fn is_url_relative_deny(&self) -> bool {
+        matches!(self.url_relative, UrlRelative::Deny)
+    }
+
+    /// Returns `true` if the relative URL resolver is set to `PassThrough`.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::{Builder, UrlRelative};
+    ///     let mut a = Builder::default();
+    ///     a.url_relative(UrlRelative::Deny);
+    ///     assert!(!a.is_url_relative_pass_through());
+    ///     a.url_relative(UrlRelative::PassThrough);
+    ///     assert!(a.is_url_relative_pass_through());
+    pub fn is_url_relative_pass_through(&self) -> bool {
+        matches!(self.url_relative, UrlRelative::PassThrough)
+    }
+
+    /// Returns `true` if the relative URL resolver is set to `Custom`.
+    ///
+    /// # Examples
+    ///
+    ///     # extern crate ammonia;
+    ///     use ammonia::{Builder, UrlRelative};
+    ///     use std::borrow::Cow;
+    ///     fn test(a: &str) -> Option<Cow<str>> { None }
+    ///     # fn main() {
+    ///     let mut a = Builder::default();
+    ///     a.url_relative(UrlRelative::Custom(Box::new(test)));
+    ///     assert!(a.is_url_relative_custom());
+    ///     a.url_relative(UrlRelative::PassThrough);
+    ///     assert!(!a.is_url_relative_custom());
+    ///     a.url_relative(UrlRelative::Deny);
+    ///     assert!(!a.is_url_relative_custom());
+    ///     # }
+    pub fn is_url_relative_custom(&self) -> bool {
+        matches!(self.url_relative, UrlRelative::Custom(_))
     }
 
     /// Configures a `rel` attribute that will be added on links.
@@ -661,6 +760,18 @@ impl<'a> Builder<'a> {
     pub fn link_rel(&mut self, value: Option<&'a str>) -> &mut Self {
         self.link_rel = value;
         self
+    }
+
+    /// Returns the settings for links' `rel` attribute, if one is set.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::{Builder, UrlRelative};
+    ///     let mut a = Builder::default();
+    ///     a.link_rel(Some("a b"));
+    ///     assert_eq!(a.get_link_rel(), Some("a b"));
+    pub fn get_link_rel(&self) -> Option<&str> {
+        self.link_rel.clone()
     }
 
     /// Sets the CSS classes that are allowed on specific tags.
@@ -732,6 +843,20 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Returns a copy of the set of whitelisted class attributes.
+    ///
+    /// # Examples
+    ///
+    ///     let allowed_classes = std::iter::once(
+    ///         ("my-tag", ["my-class-1", "my-class-2"].into_iter().cloned().collect())
+    ///     ).collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.allowed_classes(Clone::clone(&allowed_classes));
+    ///     assert_eq!(allowed_classes, b.clone_allowed_classes());
+    pub fn clone_allowed_classes(&self) -> HashMap<&'a str, HashSet<&'a str>> {
+        self.allowed_classes.clone()
+    }
+
     /// Configures the handling of HTML comments.
     ///
     /// If this option is false, comments will be preserved.
@@ -753,6 +878,19 @@ impl<'a> Builder<'a> {
     pub fn strip_comments(&mut self, value: bool) -> &mut Self {
         self.strip_comments = value;
         self
+    }
+
+    /// Returns `true` if comment stripping is turned on.
+    ///
+    /// # Examples
+    ///
+    ///     let mut a = ammonia::Builder::new();
+    ///     a.strip_comments(true);
+    ///     assert!(a.will_strip_comments());
+    ///     a.strip_comments(false);
+    ///     assert!(!a.will_strip_comments());
+    pub fn will_strip_comments(&self) -> bool {
+        self.strip_comments
     }
 
     /// Constructs a [`Builder`] instance configured with the [default options].
