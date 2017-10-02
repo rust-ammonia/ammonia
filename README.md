@@ -65,6 +65,17 @@ However, it takes about fifty times longer to sanitize an HTML string using
     2910792.875289917 nanoseconds to clean up the intro to the Ammonia docs.
 
 
+License
+------
+
+Licensed under either of these:
+
+ * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
+   http://www.apache.org/licenses/LICENSE-2.0)
+ * MIT license ([LICENSE-MIT](LICENSE-MIT) or
+   http://opensource.org/licenses/MIT)
+
+
 Thanks
 ------
 
