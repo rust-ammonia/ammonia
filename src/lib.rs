@@ -191,6 +191,7 @@ pub fn clean(src: &str) -> String {
 /// [`generic_attributes`]: #method.generic_attributes
 /// [`link_rel`]: #method.link_rel
 /// [`allowed_classes`]: #method.allowed_classes
+/// [`id_prefix`]: #method.id_prefix
 #[derive(Debug)]
 pub struct Builder<'a> {
     tags: HashSet<&'a str>,
@@ -201,6 +202,7 @@ pub struct Builder<'a> {
     link_rel: Option<&'a str>,
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     strip_comments: bool,
+    id_prefix: Option<&'a str>,
 }
 
 impl<'a> Default for Builder<'a> {
@@ -293,6 +295,7 @@ impl<'a> Default for Builder<'a> {
             link_rel: Some("noopener noreferrer"),
             allowed_classes: allowed_classes,
             strip_comments: true,
+            id_prefix: None,
         }
     }
 }
@@ -893,6 +896,36 @@ impl<'a> Builder<'a> {
         self.strip_comments
     }
 
+    /// Prefixes all "id" attribute values with a given string.  Note that the tag and
+    /// attribute themselves must still be whitelisted.
+    ///
+    /// # Examples
+    ///
+    ///     #[macro_use]
+    ///     extern crate maplit;
+    ///     # extern crate ammonia;
+    ///
+    ///     use ammonia::Builder;
+    ///
+    ///     # fn main() {
+    ///     let attributes = hashset!["id"];
+    ///     let a = Builder::new()
+    ///         .generic_attributes(attributes)
+    ///         .id_prefix(Some("safe-"))
+    ///         .clean("<b id=42>")
+    ///         .to_string();
+    ///     assert_eq!(a, "<b id=\"safe-42\"></b>");
+    ///     # }
+
+    ///
+    /// # Defaults
+    ///
+    /// `None`
+    pub fn id_prefix(&mut self, value: Option<&'a str>) -> &mut Self {
+        self.id_prefix = value;
+        self
+    }
+
     /// Constructs a [`Builder`] instance configured with the [default options].
     ///
     /// # Examples
@@ -1011,7 +1044,7 @@ impl<'a> Builder<'a> {
                 .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
             let pass = self.clean_child(&mut node);
             if pass {
-                self.adjust_node_attributes(&mut node, &link_rel, &url_base);
+                self.adjust_node_attributes(&mut node, &link_rel, &url_base, &self.id_prefix);
                 dom.append(&parent.clone(), NodeOrText::AppendNode(node.clone()));
             } else {
                 for sub in node.children.borrow_mut().iter_mut() {
@@ -1090,6 +1123,7 @@ impl<'a> Builder<'a> {
         child: &mut Handle,
         link_rel: &Option<StrTendril>,
         url_base: &Option<Url>,
+        id_prefix: &Option<&'a str>,
     ) {
         if let NodeData::Element {
             ref name,
@@ -1103,6 +1137,15 @@ impl<'a> Builder<'a> {
                         name: QualName::new(None, ns!(), local_name!("rel")),
                         value: link_rel.clone(),
                     })
+                }
+            }
+            if let Some(ref id_prefix) = *id_prefix {
+                for attr in &mut *attrs.borrow_mut() {
+                    if &attr.name.local == "id" {
+                        if !attr.value.starts_with(id_prefix) {
+                            attr.value = format_tendril!("{}{}", id_prefix, attr.value);
+                        }
+                    }
                 }
             }
             if let Some(ref base) = *url_base {
@@ -1203,7 +1246,7 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
 /// * `<a href="//example.com/test">` will be rewritten to `<a href="http://example.com/test">`
 /// * `<a href="http://example.com/test">` is an absolute URL, so it will be kept as-is
 ///
-/// ## `Evaluate`
+/// ## `Custom`
 ///
 /// Pass the relative URL to a function.
 /// If it returns `Some(string)`, then that one gets used.
@@ -1795,5 +1838,21 @@ mod test {
     fn require_sync_and_send() {
         require_sync(Builder::new());
         require_send(Builder::new());
+    }
+    #[test]
+    fn id_prefixed() {
+        let fragment = "<a id=\"hello\"></a><b id=\"hello\"></a>";
+        let result = String::from(Builder::new().tag_attributes(hashmap![
+            "a" => hashset!["id"],
+        ]).id_prefix(Some("prefix-")).clean(fragment));
+        assert_eq!(result.to_string(), "<a id=\"prefix-hello\" rel=\"noopener noreferrer\"></a><b></b>");
+    }
+    #[test]
+    fn id_already_prefixed() {
+        let fragment = "<a id=\"prefix-hello\"></a>";
+        let result = String::from(Builder::new().tag_attributes(hashmap![
+            "a" => hashset!["id"],
+        ]).id_prefix(Some("prefix-")).clean(fragment));
+        assert_eq!(result.to_string(), "<a id=\"prefix-hello\" rel=\"noopener noreferrer\"></a>");
     }
 }

@@ -10,6 +10,7 @@
 * Breaking change: Using a tag with `allowed_classes` means that the class attribute is banned from `tag_attributes` (it used to be required)
 * Breaking change: Expanded the default set of allowed elements and attributes
 * Added support for reading the input from a stream
+* Add `UrlRelative::Custom`, allowing you to write your own relative URL resolver
 
 # 0.7.0
 

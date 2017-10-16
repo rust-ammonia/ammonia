@@ -1,6 +1,7 @@
 HTML Sanitization
 =================
 
+[![Join the chat at https://gitter.im/rust-ammonia/Lobby](https://badges.gitter.im/rust-ammonia/Lobby.svg)](https://gitter.im/rust-ammonia/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.org/notriddle/ammonia.svg?branch=master)](https://travis-ci.org/notriddle/ammonia)
 [![Crates.IO](https://img.shields.io/crates/v/ammonia.svg)](https://crates.io/crates/ammonia)
 [![Docs.RS](https://docs.rs/ammonia/badge.svg)](https://docs.rs/ammonia/)
@@ -62,6 +63,17 @@ However, it takes about fifty times longer to sanitize an HTML string using
     56829 nanoseconds to clean up the intro to the Ammonia docs.
     $ python3 bleach_bench.py
     2910792.875289917 nanoseconds to clean up the intro to the Ammonia docs.
+
+
+License
+------
+
+Licensed under either of these:
+
+ * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
+   http://www.apache.org/licenses/LICENSE-2.0)
+ * MIT license ([LICENSE-MIT](LICENSE-MIT) or
+   http://opensource.org/licenses/MIT)
 
 
 Thanks
