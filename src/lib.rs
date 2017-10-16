@@ -711,8 +711,6 @@ impl<'a> Builder<'a> {
         let mut stack = Vec::new();
         let link_rel = self.link_rel
             .map(|link_rel| format_tendril!("{}", link_rel));
-        let id_prefix = self.id_prefix
-            .map(|id_prefix| format_tendril!("{}", id_prefix));
         if link_rel.is_some() {
             assert!(self.generic_attributes.get("rel").is_none());
             assert!(
@@ -753,7 +751,7 @@ impl<'a> Builder<'a> {
                 .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
             let pass = self.clean_child(&mut node);
             if pass {
-                self.adjust_node_attributes(&mut node, &link_rel, &url_base, &id_prefix);
+                self.adjust_node_attributes(&mut node, &link_rel, &url_base, &self.id_prefix);
                 dom.append(&parent.clone(), NodeOrText::AppendNode(node.clone()));
             } else {
                 for sub in node.children.borrow_mut().iter_mut() {
@@ -832,7 +830,7 @@ impl<'a> Builder<'a> {
         child: &mut Handle,
         link_rel: &Option<StrTendril>,
         url_base: &Option<Url>,
-        id_prefix: &Option<StrTendril>,
+        id_prefix: &Option<&'a str>,
     ) {
         if let NodeData::Element {
             ref name,
@@ -851,7 +849,9 @@ impl<'a> Builder<'a> {
             if let Some(ref id_prefix) = *id_prefix {
                 for attr in &mut *attrs.borrow_mut() {
                     if &attr.name.local == "id" {
-                        attr.value = format_tendril!("{}{}", id_prefix, attr.value);
+                        if !attr.value.starts_with(id_prefix) {
+                            attr.value = format_tendril!("{}{}", id_prefix, attr.value);
+                        }
                     }
                 }
             }
@@ -1553,5 +1553,13 @@ mod test {
             "a" => hashset!["id"],
         ]).id_prefix(Some("prefix-")).clean(fragment));
         assert_eq!(result.to_string(), "<a id=\"prefix-hello\" rel=\"noopener noreferrer\"></a><b></b>");
+    }
+    #[test]
+    fn id_already_prefixed() {
+        let fragment = "<a id=\"prefix-hello\"></a>";
+        let result = String::from(Builder::new().tag_attributes(hashmap![
+            "a" => hashset!["id"],
+        ]).id_prefix(Some("prefix-")).clean(fragment));
+        assert_eq!(result.to_string(), "<a id=\"prefix-hello\" rel=\"noopener noreferrer\"></a>");
     }
 }
