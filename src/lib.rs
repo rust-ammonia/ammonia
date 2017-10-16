@@ -303,9 +303,6 @@ impl<'a> Default for Builder<'a> {
 impl<'a> Builder<'a> {
     /// Sets the tags that are allowed.
     ///
-    /// Note that this only whitelists the tag; by default elements will still be stripped
-    /// if they have unlisted attributes.
-    ///
     /// # Examples
     ///
     ///     #[macro_use]
@@ -339,6 +336,50 @@ impl<'a> Builder<'a> {
     pub fn tags(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.tags = value;
         self
+    }
+
+    /// Add additonal whitelisted tags without overwriting old ones.
+    ///
+    /// Does nothing if the tag is already there.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_tags(std::iter::once("my-tag"))
+    ///         .clean("<my-tag>test</my-tag> <span>mess</span>").to_string();
+    ///     assert_eq!("<my-tag>test</my-tag> <span>mess</span>", a);
+    pub fn add_tags<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
+        self.tags.extend(it);
+        self
+    }
+
+    /// Remove already-whitelisted tags.
+    ///
+    /// Does nothing if the tags is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .rm_tags(std::iter::once("span"))
+    ///         .clean("<span></span>").to_string();
+    ///     assert_eq!("", a);
+    pub fn rm_tags<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+        for i in it {
+            self.tags.remove(i);
+        }
+        self
+    }
+
+    /// Returns a copy of the set of whitelisted tags.
+    ///
+    /// # Examples
+    ///
+    ///     let tags = ["my-tag-1", "my-tag-2"].into_iter().cloned().collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.tags(Clone::clone(&tags));
+    ///     assert_eq!(tags, b.clone_tags());
+    pub fn clone_tags(&self) -> HashSet<&'a str> {
+        self.tags.clone()
     }
 
     /// Sets the HTML attributes that are allowed on specific tags.
@@ -411,6 +452,53 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Add additonal whitelisted tag-specific attributes without overwriting old ones.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_tags(std::iter::once("my-tag"))
+    ///         .add_tag_attributes("my-tag", std::iter::once("my-attr"))
+    ///         .clean("<my-tag my-attr>test</my-tag> <span>mess</span>").to_string();
+    ///     assert_eq!("<my-tag my-attr=\"\">test</my-tag> <span>mess</span>", a);
+    pub fn add_tag_attributes<I: Iterator<Item=&'a str>>(&mut self, tag: &'a str, it: I) -> &mut Self {
+        self.tag_attributes.entry(tag).or_insert_with(|| HashSet::new()).extend(it);
+        self
+    }
+
+    /// Remove already-whitelisted tag-specific attributes.
+    ///
+    /// Does nothing if the attribute is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .rm_tag_attributes("a", std::iter::once("href"))
+    ///         .clean("<a href=\"/\"></a>").to_string();
+    ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
+    pub fn rm_tag_attributes<'b, 'c, I: Iterator<Item=&'b str>>(&mut self, tag: &'c str, it: I) -> &mut Self {
+        if let Some(tag) = self.tag_attributes.get_mut(tag) {
+            for i in it {
+                tag.remove(i);
+            }
+        }
+        self
+    }
+
+    /// Returns a copy of the set of whitelisted tag-specific attributes.
+    ///
+    /// # Examples
+    ///
+    ///     let tag_attributes = std::iter::once(
+    ///         ("my-tag", ["my-attr-1", "my-attr-2"].into_iter().cloned().collect())
+    ///     ).collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.tag_attributes(Clone::clone(&tag_attributes));
+    ///     assert_eq!(tag_attributes, b.clone_tag_attributes());
+    pub fn clone_tag_attributes(&self) -> HashMap<&'a str, HashSet<&'a str>> {
+        self.tag_attributes.clone()
+    }
+
     /// Sets the attributes that are allowed on any tag.
     ///
     /// # Examples
@@ -438,6 +526,48 @@ impl<'a> Builder<'a> {
     pub fn generic_attributes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.generic_attributes = value;
         self
+    }
+
+    /// Add additonal whitelisted attributes without overwriting old ones.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_generic_attributes(std::iter::once("my-attr"))
+    ///         .clean("<span my-attr>mess</span>").to_string();
+    ///     assert_eq!("<span my-attr=\"\">mess</span>", a);
+    pub fn add_generic_attributes<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
+        self.generic_attributes.extend(it);
+        self
+    }
+
+    /// Remove already-whitelisted attributes.
+    ///
+    /// Does nothing if the attribute is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .rm_generic_attributes(std::iter::once("title"))
+    ///         .clean("<span title=\"cool\"></span>").to_string();
+    ///     assert_eq!("<span></span>", a);
+    pub fn rm_generic_attributes<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+        for i in it {
+            self.generic_attributes.remove(i);
+        }
+        self
+    }
+
+    /// Returns a copy of the set of whitelisted attributes.
+    ///
+    /// # Examples
+    ///
+    ///     let generic_attributes = ["my-attr-1", "my-attr-2"].into_iter().cloned().collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.generic_attributes(Clone::clone(&generic_attributes));
+    ///     assert_eq!(generic_attributes, b.clone_generic_attributes());
+    pub fn clone_generic_attributes(&self) -> HashSet<&'a str> {
+        self.generic_attributes.clone()
     }
 
     /// Sets the URL schemes permitted on `href` and `src` attributes.
@@ -477,6 +607,48 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Add additonal whitelisted URL schemes without overwriting old ones.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_url_schemes(std::iter::once("my-scheme"))
+    ///         .clean("<a href=my-scheme:home>mess</span>").to_string();
+    ///     assert_eq!("<a href=\"my-scheme:home\" rel=\"noopener noreferrer\">mess</a>", a);
+    pub fn add_url_schemes<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
+        self.url_schemes.extend(it);
+        self
+    }
+
+    /// Remove already-whitelisted attributes.
+    ///
+    /// Does nothing if the attribute is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .rm_url_schemes(std::iter::once("ftp"))
+    ///         .clean("<a href=\"ftp://ftp.mozilla.org/\"></a>").to_string();
+    ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
+    pub fn rm_url_schemes<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+        for i in it {
+            self.url_schemes.remove(i);
+        }
+        self
+    }
+
+    /// Returns a copy of the set of whitelisted URL schemes.
+    ///
+    /// # Examples
+    ///
+    ///     let url_schemes = ["my-scheme-1", "my-scheme-2"].into_iter().cloned().collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.url_schemes(Clone::clone(&url_schemes));
+    ///     assert_eq!(url_schemes, b.clone_url_schemes());
+    pub fn clone_url_schemes(&self) -> HashSet<&'a str> {
+        self.url_schemes.clone()
+    }
+
     /// Configures the behavior for relative URLs: pass-through, resolve-with-base, or deny.
     ///
     /// # Examples
@@ -501,6 +673,55 @@ impl<'a> Builder<'a> {
     pub fn url_relative(&mut self, value: UrlRelative<'a>) -> &mut Self {
         self.url_relative = value;
         self
+    }
+
+    /// Returns `true` if the relative URL resolver is set to `Deny`.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::{Builder, UrlRelative};
+    ///     let mut a = Builder::default();
+    ///     a.url_relative(UrlRelative::Deny);
+    ///     assert!(a.is_url_relative_deny());
+    ///     a.url_relative(UrlRelative::PassThrough);
+    ///     assert!(!a.is_url_relative_deny());
+    pub fn is_url_relative_deny(&self) -> bool {
+        matches!(self.url_relative, UrlRelative::Deny)
+    }
+
+    /// Returns `true` if the relative URL resolver is set to `PassThrough`.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::{Builder, UrlRelative};
+    ///     let mut a = Builder::default();
+    ///     a.url_relative(UrlRelative::Deny);
+    ///     assert!(!a.is_url_relative_pass_through());
+    ///     a.url_relative(UrlRelative::PassThrough);
+    ///     assert!(a.is_url_relative_pass_through());
+    pub fn is_url_relative_pass_through(&self) -> bool {
+        matches!(self.url_relative, UrlRelative::PassThrough)
+    }
+
+    /// Returns `true` if the relative URL resolver is set to `Custom`.
+    ///
+    /// # Examples
+    ///
+    ///     # extern crate ammonia;
+    ///     use ammonia::{Builder, UrlRelative};
+    ///     use std::borrow::Cow;
+    ///     fn test(a: &str) -> Option<Cow<str>> { None }
+    ///     # fn main() {
+    ///     let mut a = Builder::default();
+    ///     a.url_relative(UrlRelative::Custom(Box::new(test)));
+    ///     assert!(a.is_url_relative_custom());
+    ///     a.url_relative(UrlRelative::PassThrough);
+    ///     assert!(!a.is_url_relative_custom());
+    ///     a.url_relative(UrlRelative::Deny);
+    ///     assert!(!a.is_url_relative_custom());
+    ///     # }
+    pub fn is_url_relative_custom(&self) -> bool {
+        matches!(self.url_relative, UrlRelative::Custom(_))
     }
 
     /// Configures a `rel` attribute that will be added on links.
@@ -544,6 +765,18 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Returns the settings for links' `rel` attribute, if one is set.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::{Builder, UrlRelative};
+    ///     let mut a = Builder::default();
+    ///     a.link_rel(Some("a b"));
+    ///     assert_eq!(a.get_link_rel(), Some("a b"));
+    pub fn get_link_rel(&self) -> Option<&str> {
+        self.link_rel.clone()
+    }
+
     /// Sets the CSS classes that are allowed on specific tags.
     ///
     /// The values is structured as a map from tag names to a set of class names.
@@ -580,6 +813,53 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Add additonal whitelisted classes without overwriting old ones.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_allowed_classes("a", std::iter::once("onebox"))
+    ///         .clean("<a href=/ class=onebox>mess</span>").to_string();
+    ///     assert_eq!("<a href=\"/\" class=\"onebox\" rel=\"noopener noreferrer\">mess</a>", a);
+    pub fn add_allowed_classes<I: Iterator<Item=&'a str>>(&mut self, tag: &'a str, it: I) -> &mut Self {
+        self.allowed_classes.entry(tag).or_insert_with(|| HashSet::new()).extend(it);
+        self
+    }
+
+    /// Remove already-whitelisted attributes.
+    ///
+    /// Does nothing if the attribute is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_allowed_classes("span", std::iter::once("active"))
+    ///         .rm_allowed_classes("span", std::iter::once("active"))
+    ///         .clean("<span class=active>").to_string();
+    ///     assert_eq!("<span class=\"\"></span>", a);
+    pub fn rm_allowed_classes<'b, 'c, I: Iterator<Item=&'b str>>(&mut self, tag: &'c str, it: I) -> &mut Self {
+        if let Some(tag) = self.allowed_classes.get_mut(tag) {
+            for i in it {
+                tag.remove(i);
+            }
+        }
+        self
+    }
+
+    /// Returns a copy of the set of whitelisted class attributes.
+    ///
+    /// # Examples
+    ///
+    ///     let allowed_classes = std::iter::once(
+    ///         ("my-tag", ["my-class-1", "my-class-2"].into_iter().cloned().collect())
+    ///     ).collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.allowed_classes(Clone::clone(&allowed_classes));
+    ///     assert_eq!(allowed_classes, b.clone_allowed_classes());
+    pub fn clone_allowed_classes(&self) -> HashMap<&'a str, HashSet<&'a str>> {
+        self.allowed_classes.clone()
+    }
+
     /// Configures the handling of HTML comments.
     ///
     /// If this option is false, comments will be preserved.
@@ -601,6 +881,19 @@ impl<'a> Builder<'a> {
     pub fn strip_comments(&mut self, value: bool) -> &mut Self {
         self.strip_comments = value;
         self
+    }
+
+    /// Returns `true` if comment stripping is turned on.
+    ///
+    /// # Examples
+    ///
+    ///     let mut a = ammonia::Builder::new();
+    ///     a.strip_comments(true);
+    ///     assert!(a.will_strip_comments());
+    ///     a.strip_comments(false);
+    ///     assert!(!a.will_strip_comments());
+    pub fn will_strip_comments(&self) -> bool {
+        self.strip_comments
     }
 
     /// Prefixes all "id" attribute values with a given string.  Note that the tag and
