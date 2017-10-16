@@ -953,7 +953,7 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
 /// * `<a href="//example.com/test">` will be rewritten to `<a href="http://example.com/test">`
 /// * `<a href="http://example.com/test">` is an absolute URL, so it will be kept as-is
 ///
-/// ## `Evaluate`
+/// ## `Custom`
 ///
 /// Pass the relative URL to a function.
 /// If it returns `Some(string)`, then that one gets used.
