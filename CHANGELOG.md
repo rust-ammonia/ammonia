@@ -11,6 +11,7 @@
 * Breaking change: Expanded the default set of allowed elements and attributes
 * Added support for reading the input from a stream
 * Add `UrlRelative::Custom`, allowing you to write your own relative URL resolver
+* Make `UrlRelative::RewriteWithBase` take a custom URL. Also makes the `url` crate a public dependency.
 
 # 0.7.0
 
