@@ -982,7 +982,7 @@ impl<'a> Builder<'a> {
 
     /// Sanitizes an HTML fragment from a reader according to the configured options.
     ///
-    /// The input should be UTF-8 encoding, otherwise the decoding is lossy, just
+    /// The input should be in UTF-8 encoding, otherwise the decoding is lossy, just
     /// like when using [`String::from_utf8_lossy`].
     ///
     /// # Examples
@@ -1338,8 +1338,8 @@ impl<T> UrlRelativeEvaluate for T where T: Fn(&str) -> Option<Cow<str>> + Send +
 /// the complete fragment needs to be stored in memory during processing. Currently, `Document`
 /// is backed by an [`html5ever::rcdom::Node`] object.
 ///
-/// [`String`]: ../std/string/struct.String.html
-/// [`Write`]: ../std/io/trait.Write.html
+/// [`String`]: https://doc.rust-lang.org/nightly/std/string/struct.String.html
+/// [`Write`]: https://doc.rust-lang.org/nightly/std/io/trait.Write.html
 /// [`html5ever::rcdom::Node`]: ../markup5ever/rcdom/struct.Node.html
 ///
 /// # Examples
@@ -1361,7 +1361,7 @@ impl Document {
     /// This method returns a [`String`] with the sanitized HTML. This is the simplest way to use
     /// `ammonia`.
     ///
-    /// [`String`]: ../std/string/struct.String.html
+    /// [`String`]: https://doc.rust-lang.org/nightly/std/string/struct.String.html
     ///
     /// # Examples
     ///
@@ -1389,7 +1389,7 @@ impl Document {
     /// Note that the in-memory representation of `Document` is larger than the serialized
     /// `String`.
     ///
-    /// [`Write`]: ../std/io/trait.Write.html
+    /// [`Write`]: https://doc.rust-lang.org/nightly/std/io/trait.Write.html
     ///
     /// # Examples
     ///
