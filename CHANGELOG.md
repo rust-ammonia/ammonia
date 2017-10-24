@@ -13,6 +13,8 @@
 * Add `UrlRelative::Custom`, allowing you to write your own relative URL resolver
 * Make `UrlRelative::RewriteWithBase` take a custom URL. Also makes the `url` crate a public dependency.
 * Add `id_prefix`, a setting that allows users to specify an ID attribute that cannot collide with page-wide IDs
+* Add property getters to `Builder`, to see what everything is currently set to
+* Add property modifiers, to change the existing whitelist (instead of completely replacing it)
 
 # 0.7.0
 
