@@ -12,6 +12,7 @@
 * Added support for reading the input from a stream
 * Add `UrlRelative::Custom`, allowing you to write your own relative URL resolver
 * Make `UrlRelative::RewriteWithBase` take a custom URL. Also makes the `url` crate a public dependency.
+* Add `id_prefix`, a setting that allows users to specify an ID attribute that cannot collide with page-wide IDs
 
 # 0.7.0
 
