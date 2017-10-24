@@ -82,7 +82,8 @@ Thanks
 Thanks to the other sanitizer libraries, particularly [Bleach] for Python and [sanitize-html] for Node,
 which we blatantly copied most of our API from.
 
-Thanks to ChALkeR, whos [Improper Markup Sanitization] document helped us find high-level semantic holes in Ammonia.
+Thanks to ChALkeR, whos [Improper Markup Sanitization] document helped us find high-level semantic holes in Ammonia,
+and to [ssokolow](https://github.com/ssokolow), whos review and experience were also very helpful.
 
 And finally, thanks to [the contributors].
 
