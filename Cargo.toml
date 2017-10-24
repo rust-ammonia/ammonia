@@ -11,7 +11,7 @@ repository = "https://github.com/notriddle/ammonia"
 categories = [ "web-programming", "text-processing" ]
 
 [dependencies]
-html5ever = "0.20"
+html5ever = "0.21"
 maplit = "0.1"
 matches = "0.1.6"
 tendril = "0.4"
