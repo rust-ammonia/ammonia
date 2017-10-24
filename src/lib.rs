@@ -36,7 +36,8 @@ extern crate maplit;
 extern crate matches;
 #[macro_use]
 extern crate tendril;
-extern crate url;
+
+pub extern crate url;
 
 use html5ever::{driver as html, QualName};
 use html5ever::rcdom::{Handle, NodeData, RcDom};
@@ -52,7 +53,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use tendril::stream::TendrilSink;
 use tendril::StrTendril;
-use url::Url;
+pub use url::Url;
 
 lazy_static! {
     static ref AMMONIA: Builder<'static> = Builder::default();
@@ -198,7 +199,7 @@ pub struct Builder<'a> {
     tag_attributes: HashMap<&'a str, HashSet<&'a str>>,
     generic_attributes: HashSet<&'a str>,
     url_schemes: HashSet<&'a str>,
-    url_relative: UrlRelative<'a>,
+    url_relative: UrlRelative,
     link_rel: Option<&'a str>,
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     strip_comments: bool,
@@ -670,7 +671,7 @@ impl<'a> Builder<'a> {
     /// ```notest
     /// UrlRelative::PassThrough
     /// ```
-    pub fn url_relative(&mut self, value: UrlRelative<'a>) -> &mut Self {
+    pub fn url_relative(&mut self, value: UrlRelative) -> &mut Self {
         self.url_relative = value;
         self
     }
@@ -930,16 +931,22 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::{Builder, UrlRelative};
+    ///     # extern crate ammonia;
+    ///     use ammonia::{Builder, Url, UrlRelative};
+    ///     # use std::error::Error;
     ///
+    ///     # fn do_main() -> Result<(), Box<Error>> {
     ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
     ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
     ///
     ///     let result = Builder::new() // <--
-    ///         .url_relative(UrlRelative::RewriteWithBase("https://docs.rs/ammonia/1.0/ammonia/"))
+    ///         .url_relative(UrlRelative::RewriteWithBase(Url::parse("https://docs.rs/ammonia/1.0/ammonia/")?))
     ///         .clean(input)
     ///         .to_string();
     ///     assert_eq!(result, output);
+    ///     # Ok(())
+    ///     # }
+    ///     # fn main() { do_main().unwrap() }
     ///
     /// [default options]: fn.clean.html
     /// [`Builder`]: struct.Builder.html
@@ -951,16 +958,22 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use ammonia::{Builder, UrlRelative};
+    ///     # extern crate ammonia;
+    ///     use ammonia::{Builder, Url, UrlRelative};
+    ///     # use std::error::Error;
     ///
+    ///     # fn do_main() -> Result<(), Box<Error>> {
     ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
     ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
     ///
     ///     let result = Builder::new()
-    ///         .url_relative(UrlRelative::RewriteWithBase("https://docs.rs/ammonia/1.0/ammonia/"))
+    ///         .url_relative(UrlRelative::RewriteWithBase(Url::parse("https://docs.rs/ammonia/1.0/ammonia/")?))
     ///         .clean(input)
     ///         .to_string(); // <--
     ///     assert_eq!(result, output);
+    ///     # Ok(())
+    ///     # }
+    ///     # fn main() { do_main().unwrap() }
     pub fn clean(&self, src: &'a str) -> Document {
         let parser = Self::make_parser();
         let dom = parser.one(src);
@@ -974,6 +987,7 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
+    ///     # extern crate ammonia;
     ///     use ammonia::Builder;
     ///     # use std::error::Error;
     ///
@@ -1022,10 +1036,8 @@ impl<'a> Builder<'a> {
                     .is_none()
             );
         }
-        let url_base = if let UrlRelative::RewriteWithBase(base) = self.url_relative {
-            Some(
-                Url::parse(base).expect("RewriteWithBase(base) should have a valid URL for base"),
-            )
+        let url_base = if let UrlRelative::RewriteWithBase(ref base) = self.url_relative {
+            Some(base)
         } else {
             None
         };
@@ -1044,7 +1056,7 @@ impl<'a> Builder<'a> {
                 .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
             let pass = self.clean_child(&mut node);
             if pass {
-                self.adjust_node_attributes(&mut node, &link_rel, &url_base, &self.id_prefix);
+                self.adjust_node_attributes(&mut node, &link_rel, url_base, self.id_prefix);
                 dom.append(&parent.clone(), NodeOrText::AppendNode(node.clone()));
             } else {
                 for sub in node.children.borrow_mut().iter_mut() {
@@ -1122,8 +1134,8 @@ impl<'a> Builder<'a> {
         &self,
         child: &mut Handle,
         link_rel: &Option<StrTendril>,
-        url_base: &Option<Url>,
-        id_prefix: &Option<&'a str>,
+        url_base: Option<&Url>,
+        id_prefix: Option<&'a str>,
     ) {
         if let NodeData::Element {
             ref name,
@@ -1139,7 +1151,7 @@ impl<'a> Builder<'a> {
                     })
                 }
             }
-            if let Some(ref id_prefix) = *id_prefix {
+            if let Some(ref id_prefix) = id_prefix {
                 for attr in &mut *attrs.borrow_mut() {
                     if &attr.name.local == "id" {
                         if !attr.value.starts_with(id_prefix) {
@@ -1148,7 +1160,7 @@ impl<'a> Builder<'a> {
                     }
                 }
             }
-            if let Some(ref base) = *url_base {
+            if let Some(ref base) = url_base {
                 for attr in &mut *attrs.borrow_mut() {
                     if is_url_attr(&*name.local, &*attr.name.local) {
                         let url = base.join(&*attr.value)
@@ -1278,13 +1290,13 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
 /// This function is only applied to relative URLs.
 /// To filter all of the URLs,
 /// use the not-yet-implemented Content Security Policy.
-pub enum UrlRelative<'a> {
+pub enum UrlRelative {
     /// Relative URLs will be completely stripped from the document.
     Deny,
     /// Relative URLs will be passed through unchanged.
     PassThrough,
     /// Relative URLs will be changed into absolute URLs, based on this base URL.
-    RewriteWithBase(&'a str),
+    RewriteWithBase(Url),
     /// Rewrite URLs with a custom function.
     Custom(Box<UrlRelativeEvaluate>),
     // Do not allow the user to exhaustively match on UrlRelative,
@@ -1293,12 +1305,12 @@ pub enum UrlRelative<'a> {
     __NonExhaustive,
 }
 
-impl<'a> fmt::Debug for UrlRelative<'a> {
+impl fmt::Debug for UrlRelative {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
             UrlRelative::Deny => write!(f, "UrlRelative::Deny"),
             UrlRelative::PassThrough => write!(f, "UrlRelative::PassThrough"),
-            UrlRelative::RewriteWithBase(base) => write!(f, "UrlRelative::RewriteWithBase({})", base),
+            UrlRelative::RewriteWithBase(ref base) => write!(f, "UrlRelative::RewriteWithBase({})", base),
             UrlRelative::Custom(_) => write!(f, "UrlRelative::Custom"),
             UrlRelative::__NonExhaustive => unreachable!(),
         }
@@ -1542,7 +1554,7 @@ mod test {
     fn rewrite_url_relative() {
         let fragment = "<a href=test>Test</a>";
         let result = Builder::new()
-            .url_relative(UrlRelative::RewriteWithBase("http://example.com/"))
+            .url_relative(UrlRelative::RewriteWithBase(Url::parse("http://example.com/").unwrap()))
             .clean(fragment)
             .to_string();
         assert_eq!(
@@ -1554,7 +1566,7 @@ mod test {
     fn rewrite_url_relative_no_rel() {
         let fragment = "<a href=test>Test</a>";
         let result = Builder::new()
-            .url_relative(UrlRelative::RewriteWithBase("http://example.com/"))
+            .url_relative(UrlRelative::RewriteWithBase(Url::parse("http://example.com/").unwrap()))
             .link_rel(None)
             .clean(fragment)
             .to_string();
