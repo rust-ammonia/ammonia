@@ -1806,6 +1806,18 @@ mod test {
         assert_eq!(a, "<a rel=\"noopener noreferrer\">banned</a><a rel=\"noopener noreferrer\" title=\"test\">banned</a><a title=\"test\" rel=\"noopener noreferrer\">banned</a>");
     }
     #[test]
+    fn remove_relative_url_evaluate_c() {
+        // Don't run on absolute URLs.
+        fn evaluate(_: &str) -> Option<Cow<str>> {
+            return Some(Cow::Owned(String::from("invalid")));
+        }
+        let a = Builder::new()
+            .url_relative(UrlRelative::Custom(Box::new(evaluate)))
+            .clean("<a href=\"https://www.google.com/\">google</a>")
+            .to_string();
+        assert_eq!(a, "<a href=\"https://www.google.com/\">google</a>");
+    }
+    #[test]
     fn clean_children_of_bad_element() {
         let fragment = "<bad><evil>a</evil>b</bad>";
         let result = Builder::new().clean(fragment);
