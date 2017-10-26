@@ -1172,7 +1172,7 @@ impl<'a> Builder<'a> {
                 let mut drop_attrs = Vec::new();
                 let mut attrs = attrs.borrow_mut();
                 for (i, attr) in attrs.iter_mut().enumerate() {
-                    if is_url_attr(&*name.local, &*attr.name.local) {
+                    if is_url_attr(&*name.local, &*attr.name.local) && is_url_relative(&*attr.value) {
                         let new_value = evaluate.evaluate(&*attr.value)
                             .as_ref()
                             .map(Cow::as_ref)
@@ -1227,6 +1227,10 @@ impl<'a> Builder<'a> {
 /// Given an element name and attribute name, determine if the given attribute contains a URL.
 fn is_url_attr(element: &str, attr: &str) -> bool {
     attr == "href" || attr == "src" || (element == "object" && attr == "data")
+}
+
+fn is_url_relative(url: &str) -> bool {
+    matches!(Url::parse(url), Err(url::ParseError::RelativeUrlWithoutBase))
 }
 
 /// Policy for [relative URLs], that is, URLs that do not specify the scheme in full.
@@ -1804,6 +1808,18 @@ mod test {
             .clean("<a href=banned>banned</a><a href=banned title=test>banned</a><a title=test href=banned>banned</a>")
             .to_string();
         assert_eq!(a, "<a rel=\"noopener noreferrer\">banned</a><a rel=\"noopener noreferrer\" title=\"test\">banned</a><a title=\"test\" rel=\"noopener noreferrer\">banned</a>");
+    }
+    #[test]
+    fn remove_relative_url_evaluate_c() {
+        // Don't run on absolute URLs.
+        fn evaluate(_: &str) -> Option<Cow<str>> {
+            return Some(Cow::Owned(String::from("invalid")));
+        }
+        let a = Builder::new()
+            .url_relative(UrlRelative::Custom(Box::new(evaluate)))
+            .clean("<a href=\"https://www.google.com/\">google</a>")
+            .to_string();
+        assert_eq!(a, "<a href=\"https://www.google.com/\" rel=\"noopener noreferrer\">google</a>");
     }
     #[test]
     fn clean_children_of_bad_element() {
