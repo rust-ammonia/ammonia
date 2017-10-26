@@ -1,11 +1,14 @@
 HTML Sanitization
 =================
 
-[![Join the chat at https://gitter.im/rust-ammonia/Lobby](https://badges.gitter.im/rust-ammonia/Lobby.svg)](https://gitter.im/rust-ammonia/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.org/notriddle/ammonia.svg?branch=master)](https://travis-ci.org/notriddle/ammonia)
 [![Crates.IO](https://img.shields.io/crates/v/ammonia.svg)](https://crates.io/crates/ammonia)
 [![Docs.RS](https://docs.rs/ammonia/badge.svg)](https://docs.rs/ammonia/)
 
+Chat: [Gitter], [Matrix]
+
+[Gitter]: https://gitter.im/rust-ammonia/Lobby
+[Matrix]: https://matrix.to/#/#rust-ammonia:gpmatrix.com
 
 Ammonia is a whitelist-based HTML sanitization library. It is designed to
 prevent cross-site scripting, layout breaking, and clickjacking caused
@@ -82,7 +85,8 @@ Thanks
 Thanks to the other sanitizer libraries, particularly [Bleach] for Python and [sanitize-html] for Node,
 which we blatantly copied most of our API from.
 
-Thanks to ChALkeR, whos [Improper Markup Sanitization] document helped us find high-level semantic holes in Ammonia.
+Thanks to ChALkeR, whose [Improper Markup Sanitization] document helped us find high-level semantic holes in Ammonia,
+and to [ssokolow](https://github.com/ssokolow), whose review and experience were also very helpful.
 
 And finally, thanks to [the contributors].
 
