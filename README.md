@@ -28,7 +28,7 @@ If you want that, use a markup processor before running the sanitizer, like [pul
 Installation
 -----------
 
-To use `ammonia`, add this to your `[dependencies]` section:
+To use `ammonia`, add it to your project's `Cargo.toml` file:
 
 ```toml
 [dependencies]
