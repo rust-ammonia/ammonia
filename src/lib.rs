@@ -974,7 +974,7 @@ impl<'a> Builder<'a> {
     ///     # Ok(())
     ///     # }
     ///     # fn main() { do_main().unwrap() }
-    pub fn clean(&self, src: &'a str) -> Document {
+    pub fn clean(&self, src: &str) -> Document {
         let parser = Self::make_parser();
         let dom = parser.one(src);
         self.clean_dom(dom)
