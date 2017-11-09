@@ -983,6 +983,8 @@ impl<'a> Builder<'a> {
     /// The input should be in UTF-8 encoding, otherwise the decoding is lossy, just
     /// like when using [`String::from_utf8_lossy`].
     ///
+    /// To avoid consuming the reader, a mutable reference can be passed to this method.
+    ///
     /// # Examples
     ///
     ///     # extern crate ammonia;
@@ -991,19 +993,19 @@ impl<'a> Builder<'a> {
     ///
     ///     # fn do_main() -> Result<(), Box<Error>> {
     ///     let a = Builder::new()
-    ///         .clean_from_reader(&mut (b"<!-- no -->" as &[u8]))? // notice the `b`
+    ///         .clean_from_reader(&b"<!-- no -->"[..])? // notice the `b`
     ///         .to_string();
     ///     assert_eq!(a, "");
     ///     # Ok(()) }
     ///     # fn main() { do_main().unwrap() }
     ///
     /// [`String::from_utf8_lossy`]: https://doc.rust-lang.org/std/string/struct.String.html#method.from_utf8_lossy
-    pub fn clean_from_reader<R>(&self, src: &mut R) -> io::Result<Document>
+    pub fn clean_from_reader<R>(&self, mut src: R) -> io::Result<Document>
     where
         R: io::Read,
     {
         let parser = Self::make_parser().from_utf8();
-        let dom = parser.read_from(src)?;
+        let dom = parser.read_from(&mut src)?;
         Ok(self.clean_dom(dom))
     }
 
@@ -1253,7 +1255,7 @@ fn is_url_relative(url: &str) -> bool {
 ///
 /// ## `RewriteWithBase`
 ///
-/// If the base is set to "http://notriddle.com/some-directory/some-file"
+/// If the base is set to `http://notriddle.com/some-directory/some-file`
 ///
 /// * `<a href="test">` will be rewritten to `<a href="http://notriddle.com/some-directory/test">`
 /// * `<a href="/test">` will be rewritten to `<a href="http://notriddle.com/test">`
@@ -1388,6 +1390,8 @@ impl Document {
     ///
     /// This method writes the sanitized HTML to a [`Write`] instance, avoiding a buffering step.
     ///
+    /// To avoid consuming the writer, a mutable reference can be passed, like in the example below.
+    ///
     /// Note that the in-memory representation of `Document` is larger than the serialized
     /// `String`.
     ///
@@ -1407,7 +1411,7 @@ impl Document {
     ///     document.write_to(&mut sanitized)
     ///         .expect("Writing to a string should not fail (except on OOM)");
     ///     assert_eq!(sanitized, expected);
-    pub fn write_to<W>(&self, writer: &mut W) -> io::Result<()>
+    pub fn write_to<W>(&self, writer: W) -> io::Result<()>
     where
         W: io::Write,
     {
@@ -1828,14 +1832,14 @@ mod test {
     #[test]
     fn reader_input() {
         let fragment = b"an <script>evil()</script> example";
-        let result = Builder::new().clean_from_reader(&mut &fragment[..]);
+        let result = Builder::new().clean_from_reader(&fragment[..]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().to_string(), "an evil() example");
     }
     #[test]
     fn reader_non_utf8() {
         let fragment = b"non-utf8 \xF0\x90\x80string";
-        let result = Builder::new().clean_from_reader(&mut &fragment[..]);
+        let result = Builder::new().clean_from_reader(&fragment[..]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().to_string(), "non-utf8 \u{fffd}string");
     }
