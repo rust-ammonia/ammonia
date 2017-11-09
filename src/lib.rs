@@ -1255,7 +1255,7 @@ fn is_url_relative(url: &str) -> bool {
 ///
 /// ## `RewriteWithBase`
 ///
-/// If the base is set to "http://notriddle.com/some-directory/some-file"
+/// If the base is set to `http://notriddle.com/some-directory/some-file`
 ///
 /// * `<a href="test">` will be rewritten to `<a href="http://notriddle.com/some-directory/test">`
 /// * `<a href="/test">` will be rewritten to `<a href="http://notriddle.com/test">`
