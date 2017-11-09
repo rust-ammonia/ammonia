@@ -12,11 +12,11 @@ categories = [ "web-programming", "text-processing" ]
 
 [dependencies]
 html5ever = "0.21"
-maplit = "0.1"
+maplit = "1.0"
 matches = "0.1.6"
 tendril = "0.4"
-url = "1.5"
+url = "1.6"
 lazy_static = "0.2"
 
 [dev-dependencies]
-version-sync = "0.3"
+version-sync = "0.4"
