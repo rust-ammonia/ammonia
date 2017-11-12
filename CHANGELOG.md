@@ -5,16 +5,16 @@
 # 1.0.0
 
 * Breaking change: The `Ammonia` struct is now called `Builder` and uses that pattern for better forward compatibility
-* Breaking change: The `Builder::clean()` method now returns a `Document` struct instead of a `String`
-* Breaking change: `keep_cleaned_elements` is changed from being an off-by-default option to the only supported behavior
+* Breaking change: The `Builder::clean()` method now returns a `Document` struct instead of a `String`. You can use the `Document::to_string` method to obtain a `String`.
+* Breaking change: `keep_cleaned_elements` has changed from being an off-by-default option to the only supported behavior
 * Breaking change: Using a tag with `allowed_classes` means that the class attribute is banned from `tag_attributes` (it used to be required)
-* Breaking change: Expanded the default set of allowed elements and attributes
+* Breaking change: The default set of allowed elements and attributes was expanded
 * Added support for reading the input from a stream
-* Add `UrlRelative::Custom`, allowing you to write your own relative URL resolver
-* Make `UrlRelative::RewriteWithBase` take a custom URL. Also makes the `url` crate a public dependency.
-* Add `id_prefix`, a setting that allows users to specify an ID attribute that cannot collide with page-wide IDs
-* Add property getters to `Builder`, to see what everything is currently set to
-* Add property modifiers, to change the existing whitelist (instead of completely replacing it)
+* Added `UrlRelative::Custom`, allowing you to write your own relative URL resolver
+* Changed `UrlRelative::RewriteWithBase` take a custom URL. This made the `url` crate a public dependency.
+* Added `id_prefix`, which can be used to avoid element `id` collisions with the rest of the page
+* Added property getters to `Builder`, to see what everything is currently set to
+* Added property modifiers, to change the existing whitelist (instead of completely replacing it)
 
 # 0.7.0
 
