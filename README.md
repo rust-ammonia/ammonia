@@ -68,15 +68,15 @@ Ammonia builds a DOM, traverses it (replacing unwanted nodes along the way),
 and serializes it again. It could be faster for what it does, and if you don't
 want to allow any HTML it is possible to be even faster than that.
 
-However, it takes about fifty times longer to sanitize an HTML string using
-[Bleach] than it does using Ammonia.
+However, it takes about fifteen times longer to sanitize an HTML string using
+[bleach]-2.0.0 with html5lib-0.999999999 than it does using Ammonia 1.0.
 
     $ cd benchmarks
     $ cargo run --release
         Running `target/release/ammonia_bench`
-    56829 nanoseconds to clean up the intro to the Ammonia docs.
-    $ python3 bleach_bench.py
-    2910792.875289917 nanoseconds to clean up the intro to the Ammonia docs.
+    87539 nanoseconds to clean up the intro to the Ammonia docs.
+    $ python bleach_bench.py
+    (1498800.015449524, 'nanoseconds to clean up the intro to the Ammonia docs.')
 
 
 License
@@ -103,6 +103,6 @@ And finally, thanks to [the contributors].
 
 
 [sanitize-html]: https://www.npmjs.com/package/sanitize-html
-[Bleach]: https://github.com/jsocol/bleach
+[Bleach]: https://bleach.readthedocs.io/
 [Improper Markup Sanitization]: https://github.com/ChALkeR/notes/blob/master/Improper-markup-sanitization.md
 [the contributors]: https://github.com/notriddle/ammonia/graphs/contributors
