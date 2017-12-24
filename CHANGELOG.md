@@ -2,6 +2,10 @@
 
 *
 
+# 1.0.1
+
+* Update dependencies
+
 # 1.0.0
 
 * Breaking change: The `Ammonia` struct is now called `Builder` and uses that pattern for better forward compatibility
