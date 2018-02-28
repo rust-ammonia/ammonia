@@ -194,6 +194,7 @@ pub fn clean(src: &str) -> String {
 #[derive(Debug)]
 pub struct Builder<'a> {
     tags: HashSet<&'a str>,
+    clean_content_tags: HashSet<&'a str>,
     tag_attributes: HashMap<&'a str, HashSet<&'a str>>,
     generic_attributes: HashSet<&'a str>,
     url_schemes: HashSet<&'a str>,
@@ -218,6 +219,7 @@ impl<'a> Default for Builder<'a> {
             "strike", "strong", "sub", "summary", "sup", "table", "tbody",
             "td", "th", "thead", "time", "tr", "tt", "u", "ul", "var", "wbr"
         ];
+        let clean_content_tags = hashset![];
         let generic_attributes = hashset![
             "lang", "title"
         ];
@@ -287,6 +289,7 @@ impl<'a> Default for Builder<'a> {
 
         Builder {
             tags: tags,
+            clean_content_tags: clean_content_tags,
             tag_attributes: tag_attributes,
             generic_attributes: generic_attributes,
             url_schemes: url_schemes,
@@ -379,6 +382,86 @@ impl<'a> Builder<'a> {
     ///     assert_eq!(tags, b.clone_tags());
     pub fn clone_tags(&self) -> HashSet<&'a str> {
         self.tags.clone()
+    }
+
+    /// Sets the tags whose contents will be completely removed from the output.
+    ///
+    /// # Examples
+    ///
+    ///     #[macro_use]
+    ///     extern crate maplit;
+    ///     # extern crate ammonia;
+    ///
+    ///     use ammonia::Builder;
+    ///
+    ///     # fn main() {
+    ///     let tag_blacklist = hashset!["script"];
+    ///     let a = Builder::new()
+    ///         .clean_content_tags(tag_blacklist)
+    ///         .clean("<script>alert('hello')</script>")
+    ///         .to_string();
+    ///     assert_eq!(a, "");
+    ///     # }
+    ///
+    /// # Defaults
+    /// 
+    /// No tags have content removed by default.
+    pub fn clean_content_tags(&mut self, value: HashSet<&'a str>) -> &mut Self {
+        self.clean_content_tags = value;
+        self
+    }
+
+    /// Add additonal blacklisted clean-content tags without overwriting old ones.
+    ///
+    /// Does nothing if the tag is already there.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_clean_content_tags(std::iter::once("my-tag"))
+    ///         .clean("<my-tag>test</my-tag><span>mess</span>").to_string();
+    ///     assert_eq!("<span>mess</span>", a);
+    pub fn add_clean_content_tags<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
+        self.clean_content_tags.extend(it);
+        self
+    }
+
+    /// Remove already-blacklisted clean-content tags.
+    ///
+    /// Does nothing if the tags aren't blacklisted.
+    ///
+    /// # Examples
+    ///     #[macro_use]
+    ///     extern crate maplit;
+    ///     # extern crate ammonia;
+    ///
+    ///     use ammonia::Builder;
+    ///
+    ///     # fn main() {
+    ///     let tag_blacklist = hashset!["script"];
+    ///     let a = ammonia::Builder::default()
+    ///         .clean_content_tags(tag_blacklist)
+    ///         .rm_clean_content_tags(std::iter::once("script"))
+    ///         .clean("<script>XSS</script>").to_string();
+    ///     assert_eq!("XSS", a);
+    ///     # }
+    pub fn rm_clean_content_tags<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+        for i in it {
+            self.clean_content_tags.remove(i);
+        }
+        self
+    }
+
+    /// Returns a copy of the set of blacklisted clean-content tags.
+    ///
+    /// # Examples
+    ///
+    ///     let tags = ["my-tag-1", "my-tag-2"].into_iter().cloned().collect();
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.clean_content_tags(Clone::clone(&tags));
+    ///     assert_eq!(tags, b.clone_clean_content_tags());
+    pub fn clone_clean_content_tags(&self) -> HashSet<&'a str> {
+        self.clean_content_tags.clone()
     }
 
     /// Sets the HTML attributes that are allowed on specific tags.
@@ -1054,6 +1137,9 @@ impl<'a> Builder<'a> {
             let parent = node.parent
                 .replace(None).expect("a node in the DOM will have a parent, except the root, which is not processed")
                 .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
+            if self.clean_node_content(&node) {
+                continue;
+            }
             let pass = self.clean_child(&mut node);
             if pass {
                 self.adjust_node_attributes(&mut node, &link_rel, url_base, self.id_prefix);
@@ -1070,6 +1156,18 @@ impl<'a> Builder<'a> {
             );
         }
         Document(body)
+    }
+
+    /// Returns `true` if a node and all its content should be removed.
+    fn clean_node_content(&self, node: &Handle) -> bool {
+        match node.data {
+            NodeData::Text { .. } |
+            NodeData::Comment { .. } |
+            NodeData::Doctype { .. } |
+            NodeData::Document |
+            NodeData::ProcessingInstruction { .. } => false,
+            NodeData::Element { ref name, .. } => self.clean_content_tags.contains(&*name.local)
+        }
     }
 
     /// Remove unwanted attributes, and check if the node should be kept or not.
@@ -1884,5 +1982,21 @@ mod test {
             "a" => hashset!["id"],
         ]).id_prefix(Some("prefix-")).clean(fragment));
         assert_eq!(result.to_string(), "<a id=\"prefix-hello\" rel=\"noopener noreferrer\"></a>");
+    }
+    #[test]
+    fn clean_content_tags() {
+        let fragment = "<script type=\"text/javascript\"><a>Hello!</a></script>";
+        let result = String::from(Builder::new()
+            .clean_content_tags(hashset!["script"])
+            .clean(fragment));
+        assert_eq!(result.to_string(), "");
+    }
+    #[test]
+    fn only_clean_content_tags() {
+        let fragment = "<div><em>Hello</em> <a>world!</a></div>";
+        let result = String::from(Builder::new()
+            .clean_content_tags(hashset!["a"])
+            .clean(fragment));
+        assert_eq!(result.to_string(), "<div><em>Hello</em> </div>");
     }
 }
