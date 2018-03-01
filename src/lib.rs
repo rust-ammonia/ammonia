@@ -2053,6 +2053,16 @@ mod test {
         assert_eq!(result.to_string(), "<em>This is</em><p>still here!</p>");
     }
     #[test]
+    fn clean_removed_default_tag() {
+        let fragment = "<em>This is</em><script><a>Hello!</a></script><p>still here!</p>";
+        let result = String::from(Builder::new()
+            .rm_tags(std::iter::once("a"))
+            .rm_tag_attributes("a", ::std::iter::once("href").chain(::std::iter::once("hreflang")))
+            .clean_content_tags(hashset!["script"])
+            .clean(fragment));
+        assert_eq!(result.to_string(), "<em>This is</em><p>still here!</p>");
+    }
+    #[test]
     #[should_panic]
     fn panic_on_clean_content_tag_attribute() {
         Builder::new()
