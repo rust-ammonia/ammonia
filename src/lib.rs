@@ -103,7 +103,7 @@ pub fn clean(src: &str) -> String {
 /// Running [`clean`] or [`clean_from_reader`] may cause a panic if the builder is
 /// configured with any of these (contradictory) settings:
 ///
-///  * the `rel` attribute is added to [`generic_attributes`] or the
+///  * The `rel` attribute is added to [`generic_attributes`] or the
 ///    [`tag_attributes`] for the `<a>` tag, and [`link_rel`] is not set to `None`.
 ///
 ///    For example, this is going to panic, since [`link_rel`] is set  to
@@ -143,8 +143,8 @@ pub fn clean(src: &str) -> String {
 ///    # }
 ///    ```
 ///
-///  * the `class` attribute is in [`allowed_classes`] and is in the
-///    corresponding [`tag_attributes`] or in [`generic_attributes`]
+///  * The `class` attribute is in [`allowed_classes`] and is in the
+///    corresponding [`tag_attributes`] or in [`generic_attributes`].
 ///
 ///    This is done both to line up with the treatment of `rel`,
 ///    and to prevent people from accidentally allowing arbitrary
@@ -182,6 +182,47 @@ pub fn clean(src: &str) -> String {
 ///        .clean("");
 ///    # }
 ///    ```
+/// 
+///  * A tag is in either [`tags`] or [`tag_attributes`] while also
+///    being in [`clean_content_tags`].
+/// 
+///    Both [`tags`] and [`tag_attributes`] are whitelists but
+///    [`clean_content_tags`] is a blacklist, so it doesn't make sense
+///    to have the same tag in both.
+/// 
+///    For example, this will panic, since the `aside` tag is in
+///    [`tags`] by default:
+/// 
+///    ```should_panic
+///    #[macro_use]
+///    extern crate maplit;
+///    # extern crate ammonia;
+///    
+///    use ammonia::Builder;
+///    
+///    # fn main() {
+///    Builder::default()
+///        .clean_content_tags(hashset!["aside"])
+///        .clean("");
+///    # }
+///    ```
+/// 
+///    This, however, is valid:
+/// 
+///    ```
+///    #[macro_use]
+///    extern crate maplit;
+///    # extern crate ammonia;
+///    
+///    use ammonia::Builder;
+///    
+///    # fn main() {
+///    Builder::default()
+///        .rm_tags(std::iter::once("aside"))
+///        .clean_content_tags(hashset!["aside"])
+///        .clean("");
+///    # }
+///    ```
 ///
 /// [`clean`]: #method.clean
 /// [`clean_from_reader`]: #method.clean_from_reader
@@ -191,6 +232,8 @@ pub fn clean(src: &str) -> String {
 /// [`link_rel`]: #method.link_rel
 /// [`allowed_classes`]: #method.allowed_classes
 /// [`id_prefix`]: #method.id_prefix
+/// [`tags`]: #method.tags
+/// [`clean_content_tags`]: #method.clean_content_tags
 #[derive(Debug)]
 pub struct Builder<'a> {
     tags: HashSet<&'a str>,
@@ -386,6 +429,9 @@ impl<'a> Builder<'a> {
 
     /// Sets the tags whose contents will be completely removed from the output.
     ///
+    /// Adding tags which are whitelisted in `tags` or `tag_attributes` will cause
+    /// a panic.
+    /// 
     /// # Examples
     ///
     ///     #[macro_use]
@@ -395,10 +441,10 @@ impl<'a> Builder<'a> {
     ///     use ammonia::Builder;
     ///
     ///     # fn main() {
-    ///     let tag_blacklist = hashset!["script"];
+    ///     let tag_blacklist = hashset!["script", "style"];
     ///     let a = Builder::new()
     ///         .clean_content_tags(tag_blacklist)
-    ///         .clean("<script>alert('hello')</script>")
+    ///         .clean("<script>alert('hello')</script><style>a { background: #fff }</style>")
     ///         .to_string();
     ///     assert_eq!(a, "");
     ///     # }
@@ -414,6 +460,9 @@ impl<'a> Builder<'a> {
     /// Add additonal blacklisted clean-content tags without overwriting old ones.
     ///
     /// Does nothing if the tag is already there.
+    /// 
+    /// Adding tags which are whitelisted in `tags` or `tag_attributes` will cause
+    /// a panic.
     ///
     /// # Examples
     ///
@@ -1118,6 +1167,10 @@ impl<'a> Builder<'a> {
                     .and_then(|a| a.get("class"))
                     .is_none()
             );
+        }
+        for tag_name in &self.clean_content_tags {
+            assert!(!self.tags.contains(tag_name));
+            assert!(!self.tag_attributes.contains_key(tag_name));
         }
         let url_base = if let UrlRelative::RewriteWithBase(ref base) = self.url_relative {
             Some(base)
@@ -1993,10 +2046,25 @@ mod test {
     }
     #[test]
     fn only_clean_content_tags() {
-        let fragment = "<div><em>Hello</em> <a>world!</a></div>";
+        let fragment = "<em>This is</em><script><a>Hello!</a></script><p>still here!</p>";
         let result = String::from(Builder::new()
-            .clean_content_tags(hashset!["a"])
+            .clean_content_tags(hashset!["script"])
             .clean(fragment));
-        assert_eq!(result.to_string(), "<div><em>Hello</em> </div>");
+        assert_eq!(result.to_string(), "<em>This is</em><p>still here!</p>");
+    }
+    #[test]
+    #[should_panic]
+    fn panic_on_clean_content_tag_attribute() {
+        Builder::new()
+            .rm_tags(std::iter::once("a"))
+            .clean_content_tags(hashset!["a"])
+            .clean("");
+    }
+    #[test]
+    #[should_panic]
+    fn panic_on_clean_content_tag() {
+        Builder::new()
+            .clean_content_tags(hashset!["a"])
+            .clean("");
     }
 }
