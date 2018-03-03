@@ -2,6 +2,10 @@
 
 *
 
+# 1.1.0
+
+* Add `Builder::clean_content_tags()` which allows elements to be removed entirely instead of just having the tags removed
+
 # 1.0.1
 
 * Update dependencies
