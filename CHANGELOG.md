@@ -4,7 +4,9 @@
 
 # 1.1.0
 
-* Add `Builder::clean_content_tags()` which allows elements to be removed entirely instead of just having the tags removed
+* Add [`Builder::clean_content_tags`] which allows elements to be removed entirely instead of just having the tags removed
+
+[`Builder::clean_content_tags`]: https://docs.rs/ammonia/1.1/ammonia/struct.Builder.html#method.clean_content_tags
 
 # 1.0.1
 
