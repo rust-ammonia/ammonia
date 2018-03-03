@@ -3,7 +3,7 @@ How to make a release of ammonia
 
 * Make a pull request with all these changes, wait until it's approved:
 
-  * Bump the version in Cargo.toml and the `html_root_url` of src/lib.rs
+  * Bump the version in Cargo.toml
 
   * Check if all the dependencies are up-to-date
 
