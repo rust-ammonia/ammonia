@@ -1,6 +1,8 @@
 # Unreleased
 
-*
+* Add [`Builder::attr_post_process`] which allows arbitrary tweaks to attributes, like adding camo links and such
+
+[`Builder::attr_post_process`]: https://docs.rs/ammonia/1.2/ammonia/struct.Builder.html#method.attr_post_process
 
 # 1.1.0
 
