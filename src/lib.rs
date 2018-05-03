@@ -242,6 +242,7 @@ pub struct Builder<'a> {
     generic_attributes: HashSet<&'a str>,
     url_schemes: HashSet<&'a str>,
     url_relative: UrlRelative,
+    attr_post_process: Option<BoxAttrPostProcess>,
     link_rel: Option<&'a str>,
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     strip_comments: bool,
@@ -337,6 +338,7 @@ impl<'a> Default for Builder<'a> {
             generic_attributes: generic_attributes,
             url_schemes: url_schemes,
             url_relative: UrlRelative::PassThrough,
+            attr_post_process: None,
             link_rel: Some("noopener noreferrer"),
             allowed_classes: allowed_classes,
             strip_comments: true,
@@ -1056,6 +1058,57 @@ impl<'a> Builder<'a> {
         self.id_prefix = value;
         self
     }
+    
+    /// Apply a custom conversion function to all attributes.
+    ///
+    /// This function is run after all of the other processing.
+    /// This includes relative URL evaluation, adding ID prefixes,
+    /// and removing disallowed attributes.
+    ///
+    /// ```
+    /// # extern crate ammonia;
+    ///
+    /// use ammonia::Builder;
+    /// use std::borrow::Cow;
+    ///
+    /// fn my_camo(base: &str) -> String {
+    ///     let mut result = "https://camo.mysite.com/".to_owned();
+    ///     result.push_str(base);
+    ///     result
+    /// }
+    ///
+    /// fn maybe_my_camo<'a, 'b>(tag: &'a str, attr: &'a str, value: &'b str) -> Option<Cow<'b, str>> {
+    ///     Some(match (tag, attr) {
+    ///         ("img", "src") => Cow::Owned(my_camo(value)),
+    ///         _ => Cow::Borrowed(value),
+    ///     })
+    /// }
+    ///
+    /// # fn main() {
+    /// let result = Builder::default()
+    ///     .attr_post_process(Box::new(maybe_my_camo))
+    ///     .clean("<a href=my_source><img src=my_source></a>")
+    ///     .to_string();
+    /// assert_eq!("<a href=\"my_source\" rel=\"noopener noreferrer\"><img src=\"https://camo.mysite.com/my_source\"></a>", result);
+    /// # }
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// If this function is called more than once, it will panic.
+    /// Call `rm_attr_post_process` to reset it.
+    pub fn attr_post_process(&mut self, cb: Box<AttrPostProcess>) -> &mut Self {
+        assert!(!self.attr_post_process.is_some());
+        self.attr_post_process = Some(BoxAttrPostProcess(cb));
+        self
+    }
+    
+    /// Clear out the custom attribute conversion function.
+    /// This function will not panic if it is already cleared.
+    pub fn rm_attr_post_process(&mut self) -> &mut Self {
+        self.attr_post_process = None;
+        self
+    }
 
     /// Constructs a [`Builder`] instance configured with the [default options].
     ///
@@ -1358,6 +1411,34 @@ impl<'a> Builder<'a> {
                     }
                 }
             }
+            if let &Some(ref attr_post_process) = &self.attr_post_process {
+                let mut drop_attrs = Vec::new();
+                let mut attrs = attrs.borrow_mut();
+                for (i, attr) in attrs.iter_mut().enumerate() {
+                    let new_value = attr_post_process.post_process(
+                        &*name.local,
+                        &*attr.name.local,
+                        &*attr.value
+                    )
+                        .as_ref()
+                        .map(Cow::as_ref)
+                        .map(StrTendril::from_str)
+                        .and_then(Result::ok);
+                    if let Some(new_value) = new_value {
+                        attr.value = new_value;
+                    } else {
+                        drop_attrs.push(i);
+                    }
+                }
+                // Swap remove scrambles the vector after the current point.
+                // We will not do anything except with items before the current point.
+                // The `rev()` is, as such, necessary for correctness.
+                // We could use regular `remove(usize)` and a forward iterator,
+                // but that's slower.
+                for i in drop_attrs.into_iter().rev() {
+                    attrs.swap_remove(i);
+                }
+            }
         }
     }
 
@@ -1478,6 +1559,29 @@ pub trait UrlRelativeEvaluate: Send + Sync {
 impl<T> UrlRelativeEvaluate for T where T: Fn(&str) -> Option<Cow<str>> + Send + Sync {
     fn evaluate<'a>(&self, url: &'a str) -> Option<Cow<'a, str>> {
         self(url)
+    }
+}
+
+struct BoxAttrPostProcess(Box<AttrPostProcess>);
+
+impl BoxAttrPostProcess {
+    fn post_process<'attr, 'value>(&self, tag_name: &'attr str, attr_name: &'attr str, attr_value: &'value str) -> Option<Cow<'value, str>> {
+        self.0.post_process(tag_name, attr_name, attr_value)
+    }
+}
+
+impl fmt::Debug for BoxAttrPostProcess {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "_")
+    }
+}
+
+pub trait AttrPostProcess: Send + Sync {
+    fn post_process<'attr, 'value>(&self, tag_name: &'attr str, attr_name: &'attr str, attr_value: &'value str) -> Option<Cow<'value, str>>;
+}
+impl<T> AttrPostProcess for T where T: for<'attr, 'value> Fn(&'attr str, &'attr str, &'value str) -> Option<Cow<'value, str>> + Send + Sync {
+    fn post_process<'attr, 'value>(&self, tag_name: &'attr str, attr_name: &'attr str, attr_value: &'value str) -> Option<Cow<'value, str>> {
+        self(tag_name, attr_name, attr_value)
     }
 }
 
@@ -2076,5 +2180,34 @@ mod test {
         Builder::new()
             .clean_content_tags(hashset!["a"])
             .clean("");
+    }
+    #[test]
+    #[should_panic]
+    fn panic_on_double_attr_post_process() {
+        fn pp<'a, 'b>(_: &'a str, _: &'a str, _: &'b str) -> Option<Cow<'b, str>> { unimplemented!() }
+        Builder::new()
+            .attr_post_process(Box::new(pp))
+            .attr_post_process(Box::new(pp));
+    }
+    #[test]
+    fn rm_attr_post_process() {
+        fn pp<'a, 'b>(_: &'a str, _: &'a str, c: &'b str) -> Option<Cow<'b, str>> { Some(Cow::Borrowed(c)) }
+        fn pp2<'a, 'b>(_: &'a str, _: &'a str, _: &'b str) -> Option<Cow<'b, str>> { Some(Cow::Borrowed("d")) }
+        let result = Builder::new()
+            .attr_post_process(Box::new(pp))
+            .rm_attr_post_process()
+            .attr_post_process(Box::new(pp2))
+            .clean("<b title=\"x\"></b>").to_string();
+        assert_eq!("<b title=\"d\"></b>", result);
+    }
+    #[test]
+    fn post_process_after_url_relative() {
+        fn pp<'a, 'b>(_: &'a str, _: &'a str, _: &'b str) -> Option<Cow<'b, str>> { Some(Cow::Borrowed("p")) }
+        fn ur<'a>(_: &'a str) -> Option<Cow<'a, str>> { Some(Cow::Borrowed("u")) }
+        let result = Builder::new()
+            .attr_post_process(Box::new(pp))
+            .url_relative(UrlRelative::Custom(Box::new(ur)))
+            .clean("<a href=\"x\"></a>").to_string();
+        assert_eq!("<a href=\"p\" rel=\"p\"></a>", result);
     }
 }
