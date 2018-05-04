@@ -182,40 +182,40 @@ pub fn clean(src: &str) -> String {
 ///        .clean("");
 ///    # }
 ///    ```
-/// 
+///
 ///  * A tag is in either [`tags`] or [`tag_attributes`] while also
 ///    being in [`clean_content_tags`].
-/// 
+///
 ///    Both [`tags`] and [`tag_attributes`] are whitelists but
 ///    [`clean_content_tags`] is a blacklist, so it doesn't make sense
 ///    to have the same tag in both.
-/// 
+///
 ///    For example, this will panic, since the `aside` tag is in
 ///    [`tags`] by default:
-/// 
+///
 ///    ```should_panic
 ///    #[macro_use]
 ///    extern crate maplit;
 ///    # extern crate ammonia;
-///    
+///
 ///    use ammonia::Builder;
-///    
+///
 ///    # fn main() {
 ///    Builder::default()
 ///        .clean_content_tags(hashset!["aside"])
 ///        .clean("");
 ///    # }
 ///    ```
-/// 
+///
 ///    This, however, is valid:
-/// 
+///
 ///    ```
 ///    #[macro_use]
 ///    extern crate maplit;
 ///    # extern crate ammonia;
-///    
+///
 ///    use ammonia::Builder;
-///    
+///
 ///    # fn main() {
 ///    Builder::default()
 ///        .rm_tags(std::iter::once("aside"))
@@ -242,6 +242,7 @@ pub struct Builder<'a> {
     generic_attributes: HashSet<&'a str>,
     url_schemes: HashSet<&'a str>,
     url_relative: UrlRelative,
+    attribute_filter: Option<Box<AttributeFilter>>,
     link_rel: Option<&'a str>,
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     strip_comments: bool,
@@ -337,6 +338,7 @@ impl<'a> Default for Builder<'a> {
             generic_attributes: generic_attributes,
             url_schemes: url_schemes,
             url_relative: UrlRelative::PassThrough,
+            attribute_filter: None,
             link_rel: Some("noopener noreferrer"),
             allowed_classes: allowed_classes,
             strip_comments: true,
@@ -431,7 +433,7 @@ impl<'a> Builder<'a> {
     ///
     /// Adding tags which are whitelisted in `tags` or `tag_attributes` will cause
     /// a panic.
-    /// 
+    ///
     /// # Examples
     ///
     ///     #[macro_use]
@@ -450,7 +452,7 @@ impl<'a> Builder<'a> {
     ///     # }
     ///
     /// # Defaults
-    /// 
+    ///
     /// No tags have content removed by default.
     pub fn clean_content_tags(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.clean_content_tags = value;
@@ -460,7 +462,7 @@ impl<'a> Builder<'a> {
     /// Add additonal blacklisted clean-content tags without overwriting old ones.
     ///
     /// Does nothing if the tag is already there.
-    /// 
+    ///
     /// Adding tags which are whitelisted in `tags` or `tag_attributes` will cause
     /// a panic.
     ///
@@ -803,6 +805,42 @@ impl<'a> Builder<'a> {
     /// ```
     pub fn url_relative(&mut self, value: UrlRelative) -> &mut Self {
         self.url_relative = value;
+        self
+    }
+
+    /// Allows rewriting of all attributes using a callback.
+    ///
+    /// The callback takes name of the element, attribute and its value.
+    /// Returns `None` to remove the attribute, or a value to use.
+    ///
+    /// Rewriting of attributes with URLs is done before `url_relative()`.
+    ///
+    /// # Panics
+    ///
+    /// If more than one callback is set.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ammonia::Builder;
+    /// let a = Builder::new()
+    ///     .attribute_filter(|element, attribute, value| {
+    ///         match (element, attribute) {
+    ///             ("img", "src") => None,
+    ///             _ => Some(value.into())
+    ///         }
+    ///     })
+    ///     .link_rel(None)
+    ///     .clean("<a href=/><img alt=Home src=foo></a>")
+    ///     .to_string();
+    /// assert_eq!(a,
+    ///     r#"<a href="/"><img alt="Home"></a>"#);
+    /// ```
+    pub fn attribute_filter<'cb, CallbackFn>(&mut self, callback: CallbackFn) -> &mut Self
+        where CallbackFn: for<'u> Fn(&str, &str, &'u str) -> Option<Cow<'u, str>> + Send + Sync + 'static
+    {
+        assert!(self.attribute_filter.is_none(), "attribute_filter can be set only once");
+        self.attribute_filter = Some(Box::new(callback));
         self
     }
 
@@ -1311,6 +1349,28 @@ impl<'a> Builder<'a> {
                     }
                 }
             }
+            if let Some(ref attr_filter) = self.attribute_filter {
+                let mut drop_attrs = Vec::new();
+                let mut attrs = attrs.borrow_mut();
+                for (i, attr) in &mut attrs.iter_mut().enumerate() {
+                    let replace_with = if let Some(new) = attr_filter.filter(&*name.local, &*attr.name.local, &*attr.value) {
+                        if *new != *attr.value {
+                            Some(format_tendril!("{}", new))
+                        } else {
+                            None // no need to replace the attr if filter returned the same value
+                        }
+                    } else {
+                        drop_attrs.push(i);
+                        None
+                    };
+                    if let Some(replace_with) = replace_with {
+                        attr.value = replace_with;
+                    }
+                }
+                for i in drop_attrs.into_iter().rev() {
+                    attrs.swap_remove(i);
+                }
+            }
             if let Some(ref base) = url_base {
                 for attr in &mut *attrs.borrow_mut() {
                     if is_url_attr(&*name.local, &*attr.name.local) {
@@ -1461,7 +1521,7 @@ pub enum UrlRelative {
 }
 
 impl fmt::Debug for UrlRelative {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             UrlRelative::Deny => write!(f, "UrlRelative::Deny"),
             UrlRelative::PassThrough => write!(f, "UrlRelative::PassThrough"),
@@ -1481,6 +1541,21 @@ impl<T> UrlRelativeEvaluate for T where T: Fn(&str) -> Option<Cow<str>> + Send +
     }
 }
 
+impl fmt::Debug for AttributeFilter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("AttributeFilter")
+    }
+}
+
+pub trait AttributeFilter: Send + Sync {
+    fn filter<'a>(&self, &str, &str, &'a str) -> Option<Cow<'a, str>>;
+}
+
+impl<T> AttributeFilter for T where T: for<'a> Fn(&str, &str, &'a str) -> Option<Cow<'a, str>> + Send + Sync + 'static {
+    fn filter<'a>(&self, element: &str, attribute: &str, value: &'a str) -> Option<Cow<'a, str>> {
+        self(element, attribute, value)
+    }
+}
 /// A sanitized HTML document.
 ///
 /// The `Document` type is an opaque struct representing an HTML fragment that was sanitized by
@@ -1640,7 +1715,7 @@ impl Document {
 }
 
 impl fmt::Debug for Document {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Document({})", self.to_string())
     }
 }
@@ -1719,6 +1794,89 @@ mod test {
             "<a href=\"http://example.com/test\" rel=\"noopener noreferrer\">Test</a>"
         );
     }
+    #[test]
+    fn attribute_filter_nop() {
+        let fragment = "<a href=test>Test</a>";
+        let result = Builder::new()
+            .attribute_filter(|elem, attr, value| {
+                assert_eq!("a", elem);
+                assert!(match (attr, value) {
+                    ("href", "test") => true,
+                    ("rel", "noopener noreferrer") => true,
+                    _ => false,
+                }, value.to_string());
+                Some(value.into())
+            })
+            .clean(fragment)
+            .to_string();
+        assert_eq!(
+            result,
+            "<a href=\"test\" rel=\"noopener noreferrer\">Test</a>"
+        );
+    }
+
+    #[test]
+    fn attribute_filter_drop() {
+        let fragment = "Test<img alt=test src=imgtest>";
+        let result = Builder::new()
+            .attribute_filter(|elem, attr, value| {
+                assert_eq!("img", elem);
+                match (attr, value) {
+                    ("src", "imgtest") => None,
+                    ("alt", "test") => Some(value.into()),
+                    _ => panic!("unexpected"),
+                }
+            })
+            .clean(fragment)
+            .to_string();
+        assert_eq!(
+            result,
+            r#"Test<img alt="test">"#
+        );
+    }
+
+    #[test]
+    fn url_filter_absolute() {
+        let fragment = "Test<img alt=test src=imgtest>";
+        let result = Builder::new()
+            .attribute_filter(|elem, attr, value| {
+                assert_eq!("img", elem);
+                match (attr, value) {
+                    ("src", "imgtest") => Some(format!("https://example.com/images/{}", value).into()),
+                    ("alt", "test") => None,
+                    _ => panic!("unexpected"),
+                }
+            })
+            .url_relative(UrlRelative::RewriteWithBase(Url::parse("http://wrong.invalid/").unwrap()))
+            .clean(fragment)
+            .to_string();
+        assert_eq!(
+            result,
+            r#"Test<img src="https://example.com/images/imgtest">"#
+        );
+    }
+
+    #[test]
+    fn url_filter_relative() {
+        let fragment = "Test<img alt=test src=imgtest>";
+        let result = Builder::new()
+            .attribute_filter(|elem, attr, value| {
+                assert_eq!("img", elem);
+                match (attr, value) {
+                    ("src", "imgtest") => Some("rewrite".into()),
+                    ("alt", "test") => Some("altalt".into()),
+                    _ => panic!("unexpected"),
+                }
+            })
+            .url_relative(UrlRelative::RewriteWithBase(Url::parse("https://example.com/base/#").unwrap()))
+            .clean(fragment)
+            .to_string();
+        assert_eq!(
+            result,
+            r#"Test<img alt="altalt" src="https://example.com/base/rewrite">"#
+        );
+    }
+
     #[test]
     fn rewrite_url_relative_no_rel() {
         let fragment = "<a href=test>Test</a>";
