@@ -1437,7 +1437,12 @@ impl<'a> Builder<'a> {
 
 /// Given an element name and attribute name, determine if the given attribute contains a URL.
 fn is_url_attr(element: &str, attr: &str) -> bool {
-    attr == "href" || attr == "src" || (element == "object" && attr == "data")
+    attr == "href" || attr == "src"
+    || (element == "form" && attr == "action")
+    || (element == "object" && attr == "data")
+    || ((element == "button" || element == "input") && attr == "formaction")
+    || (element == "a" && attr == "ping")
+    || (element == "video" && attr == "poster")
 }
 
 fn is_url_relative(url: &str) -> bool {
