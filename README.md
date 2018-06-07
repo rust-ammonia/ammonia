@@ -2,8 +2,7 @@ HTML Sanitization
 =================
 
 [![Build Status](https://travis-ci.org/notriddle/ammonia.svg?branch=master)](https://travis-ci.org/notriddle/ammonia)
-[![Crates.IO](https://img.shields.io/crates/v/ammonia.svg)](https://crates.io/crates/ammonia)
-[![Docs.RS](https://docs.rs/ammonia/badge.svg)](https://docs.rs/ammonia/)
+[![Crates.IO](https://img.shields.io/crates/v/ammonia.svg)](https://crates.rs/crates/ammonia)
 
 Chat: [Gitter], [Matrix]
 
