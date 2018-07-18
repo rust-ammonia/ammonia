@@ -2,6 +2,13 @@
 
 *
 
+# 1.2.0
+
+* Recognize `action`, `formaction` and `ping` as [URL attributes](https://html.spec.whatwg.org/multipage/indices.html#attributes-3) for scheme and origin filtering
+* Add [`Builder::url_filter_map`] which allows URLs, both relative and absolute, to be pre-filtered
+
+[`Builder::url_filter_map`]: https://docs.rs/ammonia/1.1/ammonia/struct.Builder.html#method.url_filter_map
+
 # 1.1.0
 
 * Add [`Builder::clean_content_tags`] which allows elements to be removed entirely instead of just having the tags removed
