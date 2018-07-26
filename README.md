@@ -3,7 +3,7 @@ HTML Sanitization
 
 [![Build Status](https://travis-ci.org/notriddle/ammonia.svg?branch=master)](https://travis-ci.org/notriddle/ammonia)
 [![Crates.IO](https://img.shields.io/crates/v/ammonia.svg)](https://crates.rs/crates/ammonia)
-![Requires rustc 1.24.0](https://img.shields.io/badge/rustc-1.24.0+-yellow.svg)
+![Requires rustc 1.24.0](https://img.shields.io/badge/rustc-1.24.0+-green.svg)
 
 Chat: [Gitter], [Matrix]
 
