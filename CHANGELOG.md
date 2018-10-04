@@ -2,6 +2,12 @@
 
 *
 
+# 2.0.0
+
+* Add "script" and "style" to the default set of [clean content tags]
+
+[clean content tags]: https://docs.rs/ammonia/1.2.0/ammonia/struct.Builder.html#method.clean_content_tags
+
 # 1.2.0
 
 * Recognize `action`, `formaction` and `ping` as [URL attributes] for scheme and origin filtering
