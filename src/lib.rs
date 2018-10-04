@@ -1721,6 +1721,12 @@ impl Document {
     }
 }
 
+impl fmt::Display for Document {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
 impl fmt::Debug for Document {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Document({})", self.to_string())
@@ -2158,6 +2164,12 @@ mod test {
         let result = Builder::new().clean_from_reader(&fragment[..]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().to_string(), "non-utf8 \u{fffd}string");
+    }
+    #[test]
+    fn display_impl() {
+        let fragment = r#"a <a>link</a>"#;
+        let result = Builder::new().link_rel(None).clean(fragment);
+        assert_eq!(format!("{}", result), "a <a>link</a>");
     }
     #[test]
     fn debug_impl() {
