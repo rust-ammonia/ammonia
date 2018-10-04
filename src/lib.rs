@@ -73,7 +73,7 @@ lazy_static! {
 ///
 /// # Examples
 ///
-///     assert_eq!(ammonia::clean("<script>XSS</script>"), "XSS")
+///     assert_eq!(ammonia::clean("XSS<script>attack</script>"), "XSS")
 pub fn clean(src: &str) -> String {
     AMMONIA.clean(src).to_string()
 }
@@ -263,7 +263,9 @@ impl<'a> Default for Builder<'a> {
             "strike", "strong", "sub", "summary", "sup", "table", "tbody",
             "td", "th", "thead", "time", "tr", "tt", "u", "ul", "var", "wbr"
         ];
-        let clean_content_tags = hashset![];
+        let clean_content_tags = hashset![
+            "script", "style"
+        ];
         let generic_attributes = hashset![
             "lang", "title"
         ];
@@ -1602,7 +1604,7 @@ impl Document {
     ///
     ///     use ammonia::Builder;
     ///
-    ///     let input = "Some <style>HTML here";
+    ///     let input = "Some <style></style>HTML here";
     ///     let output = "Some HTML here";
     ///
     ///     let document = Builder::new()
@@ -1632,7 +1634,7 @@ impl Document {
     ///
     ///     use ammonia::Builder;
     ///
-    ///     let input = "Some <style>HTML here";
+    ///     let input = "Some <style></style>HTML here";
     ///     let expected = b"Some HTML here";
     ///
     ///     let document = Builder::new()
@@ -1744,7 +1746,7 @@ mod test {
     fn remove_script() {
         let fragment = "an <script>evil()</script> example";
         let result = clean(fragment);
-        assert_eq!(result, "an evil() example");
+        assert_eq!(result, "an  example");
     }
     #[test]
     fn ignore_link() {
@@ -2148,7 +2150,7 @@ mod test {
         let fragment = b"an <script>evil()</script> example";
         let result = Builder::new().clean_from_reader(&fragment[..]);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().to_string(), "an evil() example");
+        assert_eq!(result.unwrap().to_string(), "an  example");
     }
     #[test]
     fn reader_non_utf8() {
