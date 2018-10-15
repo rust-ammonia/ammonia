@@ -239,6 +239,7 @@ pub struct Builder<'a> {
     tags: HashSet<&'a str>,
     clean_content_tags: HashSet<&'a str>,
     tag_attributes: HashMap<&'a str, HashSet<&'a str>>,
+    tag_attribute_values: HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>,
     generic_attributes: HashSet<&'a str>,
     url_schemes: HashSet<&'a str>,
     url_relative: UrlRelative,
@@ -325,6 +326,7 @@ impl<'a> Default for Builder<'a> {
                 "align", "char", "charoff"
             ],
         ];
+        let tag_attribute_values = hashmap![];
         let url_schemes = hashset![
             "bitcoin", "ftp", "ftps", "geo", "http", "https", "im", "irc",
             "ircs", "magnet", "mailto", "mms", "mx", "news", "nntp",
@@ -337,6 +339,7 @@ impl<'a> Default for Builder<'a> {
             tags: tags,
             clean_content_tags: clean_content_tags,
             tag_attributes: tag_attributes,
+            tag_attribute_values: tag_attribute_values,
             generic_attributes: generic_attributes,
             url_schemes: url_schemes,
             url_relative: UrlRelative::PassThrough,
@@ -632,6 +635,103 @@ impl<'a> Builder<'a> {
     ///     assert_eq!(tag_attributes, b.clone_tag_attributes());
     pub fn clone_tag_attributes(&self) -> HashMap<&'a str, HashSet<&'a str>> {
         self.tag_attributes.clone()
+    }
+
+    /// Sets the values of HTML attributes that are allowed on specific tags.
+    ///
+    /// The value is structured as a map from tag names to a map from attribute names to a set of
+    /// attribute values.
+    ///
+    /// If a tag is not itself whitelisted, adding entries to this map will do nothing.
+    ///
+    /// # Examples
+    ///
+    ///     #[macro_use]
+    ///     extern crate maplit;
+    ///     # extern crate ammonia;
+    ///
+    ///     use ammonia::Builder;
+    ///
+    ///     # fn main() {
+    ///     let tags = hashset!["my-tag"];
+    ///     let tag_attribute_values = hashmap![
+    ///         "my-tag" => hashmap![
+    ///             "my-attr" => hashset!["val"],
+    ///         ],
+    ///     ];
+    ///     let a = Builder::new().tags(tags).tag_attribute_values(tag_attribute_values)
+    ///         .clean("<my-tag my-attr=val>")
+    ///         .to_string();
+    ///     assert_eq!(a, "<my-tag my-attr=\"val\"></my-tag>");
+    ///     # }
+    ///
+    /// # Defaults
+    ///
+    /// None.
+    pub fn tag_attribute_values(&mut self, value: HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>) -> &mut Self {
+        self.tag_attribute_values = value;
+        self
+    }
+
+    /// Add additonal whitelisted tag-specific attribute values without overwriting old ones.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_tags(std::iter::once("my-tag"))
+    ///         .add_tag_attribute_values("my-tag", "my-attr", std::iter::once(""))
+    ///         .clean("<my-tag my-attr>test</my-tag> <span>mess</span>").to_string();
+    ///     assert_eq!("<my-tag my-attr=\"\">test</my-tag> <span>mess</span>", a);
+    pub fn add_tag_attribute_values<I: Iterator<Item=&'a str>>(&mut self, tag: &'a str, attribute: &'a str, it: I) -> &mut Self {
+        self.tag_attribute_values
+            .entry(tag)
+            .or_insert_with(HashMap::new)
+            .entry(attribute)
+            .or_insert_with(HashSet::new)
+            .extend(it);
+
+        self
+    }
+
+    /// Remove already-whitelisted tag-specific attribute values.
+    ///
+    /// Does nothing if the attribute or the value is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .rm_tag_attributes("a", std::iter::once("href"))
+    ///         .add_tag_attribute_values("a", "href", std::iter::once("/"))
+    ///         .rm_tag_attribute_values("a", "href", std::iter::once("/"))
+    ///         .clean("<a href=\"/\"></a>").to_string();
+    ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
+    pub fn rm_tag_attribute_values<'b, 'c, I: Iterator<Item=&'b str>>(&mut self, tag: &'c str, attribute: &'c str, it: I) -> &mut Self {
+        if let Some(attrs) = self.tag_attribute_values.get_mut(tag).and_then(|map| map.get_mut(attribute)) {
+            for i in it {
+                attrs.remove(i);
+            }
+        }
+        self
+    }
+
+    /// Returns a copy of the set of whitelisted tag-specific attribute values.
+    ///
+    /// # Examples
+    ///
+    ///     use std::collections::{HashMap, HashSet};
+    ///
+    ///     let mut attribute_values = HashMap::with_capacity(2);
+    ///     attribute_values.insert("my-attr-1", std::iter::once("foo").collect());
+    ///     attribute_values.insert("my-attr-2", vec!["baz", "bar"].into_iter().collect());
+    ///
+    ///     let mut tag_attribute_values = HashMap::with_capacity(1);
+    ///     tag_attribute_values.insert("my-tag", attribute_values);
+
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.tag_attribute_values(Clone::clone(&tag_attribute_values));
+    ///     assert_eq!(tag_attribute_values, b.clone_tag_attribute_values());
+    pub fn clone_tag_attribute_values(&self) -> HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>> {
+        self.tag_attribute_values.clone()
     }
 
     /// Sets the attributes that are allowed on any tag.
@@ -1285,6 +1385,11 @@ impl<'a> Builder<'a> {
                         self.tag_attributes
                             .get(&*name.local)
                             .map(|ta| ta.contains(&*attr.name.local)) ==
+                            Some(true) ||
+                        self.tag_attribute_values
+                            .get(&*name.local)
+                            .and_then(|tav| tav.get(&*attr.name.local))
+                            .map(|v| v.contains(&*attr.value)) ==
                             Some(true);
                     if !whitelisted {
                         // If the class attribute is not whitelisted,
@@ -2067,6 +2172,42 @@ mod test {
         assert_eq!(
             result.to_string(),
             "<p class=\"foo bar\"><a class=\"baz\">Hey</a></p>"
+        );
+    }
+    #[test]
+    fn remove_non_allowed_attributes_with_tag_attribute_values() {
+        let fragment = "<p data-label=\"baz\" name=\"foo\"></p>";
+        let result = Builder::new()
+            .tag_attribute_values(hashmap![
+                "p" => hashmap![
+                    "data-label" => hashset!["bar"],
+                ],
+            ])
+            .tag_attributes(hashmap![
+                "p" => hashset!["name"],
+            ])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<p name=\"foo\"></p>",
+        );
+    }
+    #[test]
+    fn keep_allowed_attributes_with_tag_attribute_values() {
+        let fragment = "<p data-label=\"bar\" name=\"foo\"></p>";
+        let result = Builder::new()
+            .tag_attribute_values(hashmap![
+                "p" => hashmap![
+                    "data-label" => hashset!["bar"],
+                ],
+            ])
+            .tag_attributes(hashmap![
+                "p" => hashset!["name"],
+            ])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<p data-label=\"bar\" name=\"foo\"></p>",
         );
     }
     #[test]
