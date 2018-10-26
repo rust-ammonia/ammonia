@@ -1389,7 +1389,7 @@ impl<'a> Builder<'a> {
                         self.tag_attribute_values
                             .get(&*name.local)
                             .and_then(|tav| tav.get(&*attr.name.local))
-                            .map(|v| v.contains(&*attr.value)) ==
+                            .map(|vs| vs.iter().any(|v| v.to_lowercase() == attr.value.to_lowercase())) ==
                             Some(true);
                     if !whitelisted {
                         // If the class attribute is not whitelisted,
@@ -2208,6 +2208,25 @@ mod test {
         assert_eq!(
             result.to_string(),
             "<p data-label=\"bar\" name=\"foo\"></p>",
+        );
+    }
+    #[test]
+    fn tag_attribute_values_case_insensitive() {
+        let fragment = "<input type=\"CHECKBOX\" name=\"foo\">";
+        let result = Builder::new()
+            .tags(hashset!["input"])
+            .tag_attribute_values(hashmap![
+                "input" => hashmap![
+                    "type" => hashset!["checkbox"],
+                ],
+            ])
+            .tag_attributes(hashmap![
+                "input" => hashset!["name"],
+            ])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<input type=\"CHECKBOX\" name=\"foo\">",
         );
     }
     #[test]
