@@ -1389,7 +1389,10 @@ impl<'a> Builder<'a> {
                         self.tag_attribute_values
                             .get(&*name.local)
                             .and_then(|tav| tav.get(&*attr.name.local))
-                            .map(|vs| vs.iter().any(|v| v.to_lowercase() == attr.value.to_lowercase())) ==
+                            .map(|vs| {
+                                let attr_val = attr.value.to_lowercase();
+                                vs.iter().any(|v| v.to_lowercase() == attr_val)
+                            }) ==
                             Some(true);
                     if !whitelisted {
                         // If the class attribute is not whitelisted,
