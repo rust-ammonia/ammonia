@@ -19,4 +19,4 @@ url = "1"
 lazy_static = "1"
 
 [dev-dependencies]
-version-sync = "0.5"
+version-sync = "0.6"
