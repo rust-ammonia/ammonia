@@ -42,10 +42,11 @@ use html5ever::rcdom::{Handle, NodeData, RcDom};
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::interface::Attribute;
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io;
+use std::iter::IntoIterator as IntoIter;
 use std::mem::replace;
 use std::rc::Rc;
 use std::str::FromStr;
@@ -218,7 +219,7 @@ pub fn clean(src: &str) -> String {
 ///
 ///    # fn main() {
 ///    Builder::default()
-///        .rm_tags(std::iter::once("aside"))
+///        .rm_tags(&["aside"])
 ///        .clean_content_tags(hashset!["aside"])
 ///        .clean("");
 ///    # }
@@ -397,11 +398,11 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .add_tags(std::iter::once("my-tag"))
+    ///         .add_tags(&["my-tag"])
     ///         .clean("<my-tag>test</my-tag> <span>mess</span>").to_string();
     ///     assert_eq!("<my-tag>test</my-tag> <span>mess</span>", a);
-    pub fn add_tags<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
-        self.tags.extend(it);
+    pub fn add_tags<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, it: I) -> &mut Self {
+        self.tags.extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
@@ -412,12 +413,12 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .rm_tags(std::iter::once("span"))
+    ///         .rm_tags(&["span"])
     ///         .clean("<span></span>").to_string();
     ///     assert_eq!("", a);
-    pub fn rm_tags<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+    pub fn rm_tags<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, it: I) -> &mut Self {
         for i in it {
-            self.tags.remove(i);
+            self.tags.remove(i.borrow());
         }
         self
     }
@@ -474,11 +475,11 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .add_clean_content_tags(std::iter::once("my-tag"))
+    ///         .add_clean_content_tags(&["my-tag"])
     ///         .clean("<my-tag>test</my-tag><span>mess</span>").to_string();
     ///     assert_eq!("<span>mess</span>", a);
-    pub fn add_clean_content_tags<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
-        self.clean_content_tags.extend(it);
+    pub fn add_clean_content_tags<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, it: I) -> &mut Self {
+        self.clean_content_tags.extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
@@ -497,13 +498,13 @@ impl<'a> Builder<'a> {
     ///     let tag_blacklist = hashset!["script"];
     ///     let a = ammonia::Builder::default()
     ///         .clean_content_tags(tag_blacklist)
-    ///         .rm_clean_content_tags(std::iter::once("script"))
+    ///         .rm_clean_content_tags(&["script"])
     ///         .clean("<script>XSS</script>").to_string();
     ///     assert_eq!("XSS", a);
     ///     # }
-    pub fn rm_clean_content_tags<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+    pub fn rm_clean_content_tags<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, it: I) -> &mut Self {
         for i in it {
-            self.clean_content_tags.remove(i);
+            self.clean_content_tags.remove(i.borrow());
         }
         self
     }
@@ -595,12 +596,12 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .add_tags(std::iter::once("my-tag"))
-    ///         .add_tag_attributes("my-tag", std::iter::once("my-attr"))
+    ///         .add_tags(&["my-tag"])
+    ///         .add_tag_attributes("my-tag", &["my-attr"])
     ///         .clean("<my-tag my-attr>test</my-tag> <span>mess</span>").to_string();
     ///     assert_eq!("<my-tag my-attr=\"\">test</my-tag> <span>mess</span>", a);
-    pub fn add_tag_attributes<I: Iterator<Item=&'a str>>(&mut self, tag: &'a str, it: I) -> &mut Self {
-        self.tag_attributes.entry(tag).or_insert_with(|| HashSet::new()).extend(it);
+    pub fn add_tag_attributes<T: 'a + ?Sized + Borrow<str>, U: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, tag: &'a U, it: I) -> &mut Self {
+        self.tag_attributes.entry(tag.borrow()).or_insert_with(|| HashSet::new()).extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
@@ -611,13 +612,13 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .rm_tag_attributes("a", std::iter::once("href"))
+    ///         .rm_tag_attributes("a", &["href"])
     ///         .clean("<a href=\"/\"></a>").to_string();
     ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
-    pub fn rm_tag_attributes<'b, 'c, I: Iterator<Item=&'b str>>(&mut self, tag: &'c str, it: I) -> &mut Self {
-        if let Some(tag) = self.tag_attributes.get_mut(tag) {
+    pub fn rm_tag_attributes<'b, 'c, T: 'b + ?Sized + Borrow<str>, U: 'c + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, tag: &'c U, it: I) -> &mut Self {
+        if let Some(tag) = self.tag_attributes.get_mut(tag.borrow()) {
             for i in it {
-                tag.remove(i);
+                tag.remove(i.borrow());
             }
         }
         self
@@ -678,17 +679,17 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .add_tags(std::iter::once("my-tag"))
-    ///         .add_tag_attribute_values("my-tag", "my-attr", std::iter::once(""))
+    ///         .add_tags(&["my-tag"])
+    ///         .add_tag_attribute_values("my-tag", "my-attr", &[""])
     ///         .clean("<my-tag my-attr>test</my-tag> <span>mess</span>").to_string();
     ///     assert_eq!("<my-tag my-attr=\"\">test</my-tag> <span>mess</span>", a);
-    pub fn add_tag_attribute_values<I: Iterator<Item=&'a str>>(&mut self, tag: &'a str, attribute: &'a str, it: I) -> &mut Self {
+    pub fn add_tag_attribute_values<T: 'a + ?Sized + Borrow<str>, U: 'a + ?Sized + Borrow<str>, V: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, tag: &'a U, attribute: &'a V, it: I) -> &mut Self {
         self.tag_attribute_values
-            .entry(tag)
+            .entry(tag.borrow())
             .or_insert_with(HashMap::new)
-            .entry(attribute)
+            .entry(attribute.borrow())
             .or_insert_with(HashSet::new)
-            .extend(it);
+            .extend(it.into_iter().map(Borrow::borrow));
 
         self
     }
@@ -700,15 +701,15 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .rm_tag_attributes("a", std::iter::once("href"))
-    ///         .add_tag_attribute_values("a", "href", std::iter::once("/"))
-    ///         .rm_tag_attribute_values("a", "href", std::iter::once("/"))
+    ///         .rm_tag_attributes("a", &["href"])
+    ///         .add_tag_attribute_values("a", "href", &["/"])
+    ///         .rm_tag_attribute_values("a", "href", &["/"])
     ///         .clean("<a href=\"/\"></a>").to_string();
     ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
-    pub fn rm_tag_attribute_values<'b, 'c, I: Iterator<Item=&'b str>>(&mut self, tag: &'c str, attribute: &'c str, it: I) -> &mut Self {
-        if let Some(attrs) = self.tag_attribute_values.get_mut(tag).and_then(|map| map.get_mut(attribute)) {
+    pub fn rm_tag_attribute_values<'b, 'c, T: 'b + ?Sized + Borrow<str>, U: 'c + ?Sized + Borrow<str>, V: 'c + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, tag: &'c U, attribute: &'c V, it: I) -> &mut Self {
+        if let Some(attrs) = self.tag_attribute_values.get_mut(tag.borrow()).and_then(|map| map.get_mut(attribute.borrow())) {
             for i in it {
-                attrs.remove(i);
+                attrs.remove(i.borrow());
             }
         }
         self
@@ -768,11 +769,11 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .add_generic_attributes(std::iter::once("my-attr"))
+    ///         .add_generic_attributes(&["my-attr"])
     ///         .clean("<span my-attr>mess</span>").to_string();
     ///     assert_eq!("<span my-attr=\"\">mess</span>", a);
-    pub fn add_generic_attributes<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
-        self.generic_attributes.extend(it);
+    pub fn add_generic_attributes<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, it: I) -> &mut Self {
+        self.generic_attributes.extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
@@ -783,12 +784,12 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .rm_generic_attributes(std::iter::once("title"))
+    ///         .rm_generic_attributes(&["title"])
     ///         .clean("<span title=\"cool\"></span>").to_string();
     ///     assert_eq!("<span></span>", a);
-    pub fn rm_generic_attributes<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+    pub fn rm_generic_attributes<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, it: I) -> &mut Self {
         for i in it {
-            self.generic_attributes.remove(i);
+            self.generic_attributes.remove(i.borrow());
         }
         self
     }
@@ -847,11 +848,11 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .add_url_schemes(std::iter::once("my-scheme"))
+    ///         .add_url_schemes(&["my-scheme"])
     ///         .clean("<a href=my-scheme:home>mess</span>").to_string();
     ///     assert_eq!("<a href=\"my-scheme:home\" rel=\"noopener noreferrer\">mess</a>", a);
-    pub fn add_url_schemes<I: Iterator<Item=&'a str>>(&mut self, it: I) -> &mut Self {
-        self.url_schemes.extend(it);
+    pub fn add_url_schemes<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, it: I) -> &mut Self {
+        self.url_schemes.extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
@@ -862,12 +863,12 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .rm_url_schemes(std::iter::once("ftp"))
+    ///         .rm_url_schemes(&["ftp"])
     ///         .clean("<a href=\"ftp://ftp.mozilla.org/\"></a>").to_string();
     ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
-    pub fn rm_url_schemes<'b, I: Iterator<Item=&'b str>>(&mut self, it: I) -> &mut Self {
+    pub fn rm_url_schemes<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, it: I) -> &mut Self {
         for i in it {
-            self.url_schemes.remove(i);
+            self.url_schemes.remove(i.borrow());
         }
         self
     }
@@ -1089,11 +1090,11 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .add_allowed_classes("a", std::iter::once("onebox"))
+    ///         .add_allowed_classes("a", &["onebox"])
     ///         .clean("<a href=/ class=onebox>mess</span>").to_string();
     ///     assert_eq!("<a href=\"/\" class=\"onebox\" rel=\"noopener noreferrer\">mess</a>", a);
-    pub fn add_allowed_classes<I: Iterator<Item=&'a str>>(&mut self, tag: &'a str, it: I) -> &mut Self {
-        self.allowed_classes.entry(tag).or_insert_with(|| HashSet::new()).extend(it);
+    pub fn add_allowed_classes<T: 'a + ?Sized + Borrow<str>, U: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, tag: &'a U, it: I) -> &mut Self {
+        self.allowed_classes.entry(tag.borrow()).or_insert_with(|| HashSet::new()).extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
@@ -1104,14 +1105,14 @@ impl<'a> Builder<'a> {
     /// # Examples
     ///
     ///     let a = ammonia::Builder::default()
-    ///         .add_allowed_classes("span", std::iter::once("active"))
-    ///         .rm_allowed_classes("span", std::iter::once("active"))
+    ///         .add_allowed_classes("span", &["active"])
+    ///         .rm_allowed_classes("span", &["active"])
     ///         .clean("<span class=active>").to_string();
     ///     assert_eq!("<span class=\"\"></span>", a);
-    pub fn rm_allowed_classes<'b, 'c, I: Iterator<Item=&'b str>>(&mut self, tag: &'c str, it: I) -> &mut Self {
-        if let Some(tag) = self.allowed_classes.get_mut(tag) {
+    pub fn rm_allowed_classes<'b, 'c, T: 'b + ?Sized + Borrow<str>, U: 'c + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, tag: &'c U, it: I) -> &mut Self {
+        if let Some(tag) = self.allowed_classes.get_mut(tag.borrow()) {
             for i in it {
-                tag.remove(i);
+                tag.remove(i.borrow());
             }
         }
         self
