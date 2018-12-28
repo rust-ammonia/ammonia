@@ -5,6 +5,7 @@
 # 2.0.0
 
 * Add "script" and "style" to the default set of [clean content tags]
+* Make all iterator-accepting APIs use `IntoIterator` and `Borrow`, so that you can pass slices directly to them.
 
 [clean content tags]: https://docs.rs/ammonia/1.2.0/ammonia/struct.Builder.html#method.clean_content_tags
 
