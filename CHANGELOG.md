@@ -15,7 +15,7 @@
 * Add [`Builder::url_filter_map`] which allows URLs, both relative and absolute, to be pre-filtered
 
 [URL attributes]: https://html.spec.whatwg.org/multipage/indices.html#attributes-3
-[`Builder::url_filter_map`]: https://docs.rs/ammonia/1.1/ammonia/struct.Builder.html#method.url_filter_map
+[`Builder::url_filter_map`]: https://docs.rs/ammonia/1.2/ammonia/struct.Builder.html#method.url_filter_map
 
 # 1.1.0
 
