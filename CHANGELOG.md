@@ -2,13 +2,20 @@
 
 *
 
+# 2.0.0
+
+* Add "script" and "style" to the default set of [clean content tags]
+* Make all iterator-accepting APIs use `IntoIterator` and `Borrow`, so that you can pass slices directly to them.
+
+[clean content tags]: https://docs.rs/ammonia/2.0.0/ammonia/struct.Builder.html#method.clean_content_tags
+
 # 1.2.0
 
 * Recognize `action`, `formaction` and `ping` as [URL attributes] for scheme and origin filtering
 * Add [`Builder::url_filter_map`] which allows URLs, both relative and absolute, to be pre-filtered
 
 [URL attributes]: https://html.spec.whatwg.org/multipage/indices.html#attributes-3
-[`Builder::url_filter_map`]: https://docs.rs/ammonia/1.1/ammonia/struct.Builder.html#method.url_filter_map
+[`Builder::url_filter_map`]: https://docs.rs/ammonia/1.2/ammonia/struct.Builder.html#method.url_filter_map
 
 # 1.1.0
 
