@@ -1,6 +1,9 @@
 // Copyright (C) Michael Howell and others
 // this library is released under the same terms as Rust itself.
 
+#![forbid(unsafe_code)]
+#![forbid(missing_docs)]
+
 //! Ammonia is a whitelist-based HTML sanitization library. It is designed to
 //! prevent cross-site scripting, layout breaking, and clickjacking caused
 //! by untrusted user-provided HTML being mixed into a larger web page.
@@ -1648,7 +1651,15 @@ impl fmt::Debug for UrlRelative {
     }
 }
 
+/// Types that implement this trait can be used to convert a relative URL into an absolute URL.
+///
+/// This evaluator is only called when the URL is relative; absolute URLs are not evaluated.
+///
+/// See [`url_relative`][url_relative] for more details.
+///
+/// [url_relative]: struct.Builder.html#method.url_relative
 pub trait UrlRelativeEvaluate: Send + Sync {
+    /// Return `None` to remove the attribute. Return `Some(str)` to replace it with a new string.
     fn evaluate<'a>(&self, &'a str) -> Option<Cow<'a, str>>;
 }
 impl<T> UrlRelativeEvaluate for T where T: Fn(&str) -> Option<Cow<str>> + Send + Sync {
@@ -1663,7 +1674,13 @@ impl fmt::Debug for AttributeFilter {
     }
 }
 
+/// Types that implement this trait can be used to remove or rewrite arbitrary attributes.
+///
+/// See [`attribute_filter`][attribute_filter] for more details.
+///
+/// [attribute_filter]: struct.Builder.html#method.attribute_filter
 pub trait AttributeFilter: Send + Sync {
+    /// Return `None` to remove the attribute. Return `Some(str)` to replace it with a new string.
     fn filter<'a>(&self, &str, &str, &'a str) -> Option<Cow<'a, str>>;
 }
 
@@ -1672,6 +1689,7 @@ impl<T> AttributeFilter for T where T: for<'a> Fn(&str, &str, &'a str) -> Option
         self(element, attribute, value)
     }
 }
+
 /// A sanitized HTML document.
 ///
 /// The `Document` type is an opaque struct representing an HTML fragment that was sanitized by
