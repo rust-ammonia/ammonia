@@ -2,12 +2,7 @@ HTML Sanitization
 =================
 
 [![Crates.IO](https://img.shields.io/crates/v/ammonia.svg)](https://crates.rs/crates/ammonia)
-![Requires rustc 1.24.0](https://img.shields.io/badge/rustc-1.24.0+-green.svg)
-
-Chat: [Gitter], [Matrix]
-
-[Gitter]: https://gitter.im/rust-ammonia/Lobby
-[Matrix]: https://matrix.to/#/#rust-ammonia:gpmatrix.com
+![Requires rustc 1.30.0](https://img.shields.io/badge/rustc-1.30.0+-green.svg)
 
 Ammonia is a whitelist-based HTML sanitization library. It is designed to
 prevent cross-site scripting, layout breaking, and clickjacking caused

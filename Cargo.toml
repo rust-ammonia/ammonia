@@ -7,7 +7,7 @@ keywords = [ "sanitization", "html", "security", "xss" ]
 license = "MIT / Apache-2.0"
 readme = "README.md"
 documentation = "https://docs.rs/ammonia/"
-repository = "https://github.com/notriddle/ammonia"
+repository = "https://github.com/rust-ammonia/ammonia"
 categories = [ "web-programming", "text-processing" ]
 
 [dependencies]
@@ -16,7 +16,7 @@ maplit = "1.0"
 matches = "0.1.6"
 tendril = "0.4"
 url = "1"
-lazy_static = "1"
+lazy_static = "1.2"
 
 [dev-dependencies]
-version-sync = "0.6"
+version-sync = "0.7"

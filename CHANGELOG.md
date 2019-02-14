@@ -1,6 +1,6 @@
 # Unreleased
 
-*
+* Bump minimum supported Rust version to 1.30.
 
 # 2.0.0
 
