@@ -1,6 +1,6 @@
 [package]
 name = "ammonia"
-version = "2.0.0"
+version = "2.1.0"
 authors = ["Michael Howell <michael@notriddle.com>"]
 description = "HTML Sanitization"
 keywords = [ "sanitization", "html", "security", "xss" ]
@@ -11,7 +11,7 @@ repository = "https://github.com/rust-ammonia/ammonia"
 categories = [ "web-programming", "text-processing" ]
 
 [dependencies]
-html5ever = "0.22"
+html5ever = "0.22.8"
 maplit = "1.0"
 matches = "0.1.6"
 tendril = "0.4"
