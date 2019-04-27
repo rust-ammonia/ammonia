@@ -1292,6 +1292,7 @@ impl<'a> Builder<'a> {
     /// without having to break Ammonia's API.
     fn clean_dom(&self, mut dom: RcDom) -> Document {
         let mut stack = Vec::new();
+        let mut removed = Vec::new();
         let link_rel = self.link_rel
             .map(|link_rel| format_tendril!("{}", link_rel));
         if link_rel.is_some() {
@@ -1330,11 +1331,16 @@ impl<'a> Builder<'a> {
                 .into_iter()
                 .rev(),
         );
+        // This design approach is used to prevent pathological content from producing
+        // a stack overflow. The `stack` contains to-be-cleaned nodes, while `remove`,
+        // of course, contains nodes that need to be dropped (we can't just drop them,
+        // because they could have a very deep child tree).
         while let Some(mut node) = stack.pop() {
             let parent = node.parent
                 .replace(None).expect("a node in the DOM will have a parent, except the root, which is not processed")
                 .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
             if self.clean_node_content(&node) {
+                removed.push(node);
                 continue;
             }
             let pass = self.clean_child(&mut node);
@@ -1351,8 +1357,19 @@ impl<'a> Builder<'a> {
                     .into_iter()
                     .rev(),
             );
+            if !pass {
+                removed.push(node);
+            }
         }
-        Document(body)
+        // Now, imperatively clean up all of the child nodes.
+        // Otherwise, we could wind up with a DoS, either caused by a memory leak,
+        // or caused by a stack overflow.
+        while let Some(node) = stack.pop() {
+            removed.extend_from_slice(
+                &replace(&mut *node.children.borrow_mut(), Vec::new())[..]
+            );
+        }
+        Document(dom)
     }
 
     /// Returns `true` if a node and all its content should be removed.
@@ -1716,8 +1733,7 @@ impl<T> AttributeFilter for T where T: for<'a> Fn(&str, &str, &'a str) -> Option
 ///     let document = Builder::new()
 ///         .clean(input);
 ///     assert_eq!(document.to_string(), output);
-#[derive(Clone)]
-pub struct Document(Handle);
+pub struct Document(RcDom);
 
 impl Document {
     /// Serializes a `Document` instance to a `String`.
@@ -1740,7 +1756,7 @@ impl Document {
     pub fn to_string(&self) -> String {
         let opts = Self::serialize_opts();
         let mut ret_val = Vec::new();
-        serialize(&mut ret_val, &self.0, opts)
+        serialize(&mut ret_val, &self.0.document.children.borrow()[0], opts)
             .expect("Writing to a string shouldn't fail (expect on OOM)");
         String::from_utf8(ret_val)
             .expect("html5ever only supports UTF8")
@@ -1776,7 +1792,7 @@ impl Document {
         W: io::Write,
     {
         let opts = Self::serialize_opts();
-        serialize(writer, &self.0, opts)
+        serialize(writer, &self.0.document.children.borrow()[0], opts)
     }
 
     /// Exposes the `Document` instance as an [`html5ever::rcdom::Handle`][h].
@@ -1840,11 +1856,19 @@ impl Document {
     ///     # fn main() { do_main().unwrap() }
     #[cfg(ammonia_unstable)]
     pub fn to_dom_node(&self) -> Handle {
-        self.0.clone()
+        self.0.document.children.borrow()[0].clone()
     }
 
     fn serialize_opts() -> SerializeOpts {
         SerializeOpts::default()
+    }
+}
+
+impl Clone for Document {
+    fn clone(&self) -> Self {
+        let parser = Builder::make_parser();
+        let dom = parser.one(&self.to_string()[..]);
+        Document(dom)
     }
 }
 
@@ -1869,6 +1893,18 @@ impl From<Document> for String {
 #[cfg(test)]
 mod test {
     use super::*;
+    #[test]
+    fn deeply_nested_whitelisted() {
+        clean(&"<b>".repeat(60_000));
+    }
+    #[test]
+    fn deeply_nested_blacklisted() {
+        clean(&"<b-b>".repeat(60_000));
+    }
+    #[test]
+    fn deeply_nested_alternating() {
+        clean(&"<b-b>".repeat(35_000));
+    }
     #[test]
     fn included_angles() {
         let fragment = "1 < 2";

@@ -1,6 +1,9 @@
 # Unreleased
 
+# 2.1.0
+
 * Bump minimum supported Rust version to 1.30.
+* Fix a potential DoS attack from pathologically nested input.
 
 # 2.0.0
 
