@@ -1,5 +1,9 @@
 # Unreleased
 
+# 2.1.1
+
+* Update dependencies
+
 # 2.1.0
 
 * Bump minimum supported Rust version to 1.30.
