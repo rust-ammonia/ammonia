@@ -1,6 +1,6 @@
 [package]
 name = "ammonia"
-version = "2.1.0"
+version = "2.1.1"
 authors = ["Michael Howell <michael@notriddle.com>"]
 description = "HTML Sanitization"
 keywords = [ "sanitization", "html", "security", "xss" ]
@@ -16,7 +16,7 @@ maplit = "1.0"
 matches = "0.1.6"
 tendril = "0.4"
 url = "1"
-lazy_static = "1.2"
+lazy_static = "1.3"
 
 [dev-dependencies]
 version-sync = "0.7"
