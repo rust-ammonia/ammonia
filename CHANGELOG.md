@@ -1,5 +1,9 @@
 # Unreleased
 
+# 2.1.2
+
+* Fix a memory leak caused by certain node types.
+
 # 2.1.1
 
 * Update dependencies
