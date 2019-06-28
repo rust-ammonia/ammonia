@@ -1364,7 +1364,7 @@ impl<'a> Builder<'a> {
         // Now, imperatively clean up all of the child nodes.
         // Otherwise, we could wind up with a DoS, either caused by a memory leak,
         // or caused by a stack overflow.
-        while let Some(node) = stack.pop() {
+        while let Some(node) = removed.pop() {
             removed.extend_from_slice(
                 &replace(&mut *node.children.borrow_mut(), Vec::new())[..]
             );
