@@ -9,6 +9,7 @@ readme = "README.md"
 documentation = "https://docs.rs/ammonia/"
 repository = "https://github.com/rust-ammonia/ammonia"
 categories = [ "web-programming", "text-processing" ]
+edition = "2018"
 
 [dependencies]
 html5ever = "0.24"
