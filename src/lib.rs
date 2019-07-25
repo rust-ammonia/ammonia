@@ -38,7 +38,7 @@ extern crate matches;
 #[macro_use]
 extern crate tendril;
 
-pub extern crate url;
+pub use url;
 
 use html5ever::{driver as html, QualName};
 use html5ever::rcdom::{Handle, NodeData, RcDom};
@@ -1705,7 +1705,7 @@ pub enum UrlRelative {
 }
 
 impl fmt::Debug for UrlRelative {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             UrlRelative::Deny => write!(f, "UrlRelative::Deny"),
             UrlRelative::PassThrough => write!(f, "UrlRelative::PassThrough"),
@@ -1727,14 +1727,14 @@ pub trait UrlRelativeEvaluate: Send + Sync {
     /// Return `None` to remove the attribute. Return `Some(str)` to replace it with a new string.
     fn evaluate<'a>(&self, _: &'a str) -> Option<Cow<'a, str>>;
 }
-impl<T> UrlRelativeEvaluate for T where T: Fn(&str) -> Option<Cow<str>> + Send + Sync {
+impl<T> UrlRelativeEvaluate for T where T: Fn(&str) -> Option<Cow<'_, str>> + Send + Sync {
     fn evaluate<'a>(&self, url: &'a str) -> Option<Cow<'a, str>> {
         self(url)
     }
 }
 
 impl fmt::Debug for dyn AttributeFilter {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("AttributeFilter")
     }
 }
@@ -1921,13 +1921,13 @@ impl Clone for Document {
 }
 
 impl fmt::Display for Document {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_string())
     }
 }
 
 impl fmt::Debug for Document {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Document({})", self.to_string())
     }
 }
@@ -2357,7 +2357,7 @@ mod test {
             let u = url.as_bytes();
             u.get(0) == Some(&b'b') && u.get(1) == Some(&b'a')
         }
-        fn evaluate(url: &str) -> Option<Cow<str>> {
+        fn evaluate(url: &str) -> Option<Cow<'_, str>> {
             if is_absolute_path(url) {
                 Some(Cow::Owned(String::from("/root") + url))
             } else if is_banned(url) {
@@ -2384,7 +2384,7 @@ mod test {
             let u = url.as_bytes();
             u.get(0) == Some(&b'b') && u.get(1) == Some(&b'a')
         }
-        fn evaluate(url: &str) -> Option<Cow<str>> {
+        fn evaluate(url: &str) -> Option<Cow<'_, str>> {
             if is_absolute_path(url) {
                 Some(Cow::Owned(String::from("/root") + url))
             } else if is_banned(url) {
@@ -2402,7 +2402,7 @@ mod test {
     #[test]
     fn remove_relative_url_evaluate_c() {
         // Don't run on absolute URLs.
-        fn evaluate(_: &str) -> Option<Cow<str>> {
+        fn evaluate(_: &str) -> Option<Cow<'_, str>> {
             return Some(Cow::Owned(String::from("invalid")));
         }
         let a = Builder::new()

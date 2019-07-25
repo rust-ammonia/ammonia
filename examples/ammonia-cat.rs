@@ -1,5 +1,3 @@
-extern crate ammonia;
-
 use ammonia::Builder;
 use std::fs::File;
 use std::env;
