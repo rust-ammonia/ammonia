@@ -1725,7 +1725,7 @@ impl fmt::Debug for UrlRelative {
 /// [url_relative]: struct.Builder.html#method.url_relative
 pub trait UrlRelativeEvaluate: Send + Sync {
     /// Return `None` to remove the attribute. Return `Some(str)` to replace it with a new string.
-    fn evaluate<'a>(&self, &'a str) -> Option<Cow<'a, str>>;
+    fn evaluate<'a>(&self, _: &'a str) -> Option<Cow<'a, str>>;
 }
 impl<T> UrlRelativeEvaluate for T where T: Fn(&str) -> Option<Cow<str>> + Send + Sync {
     fn evaluate<'a>(&self, url: &'a str) -> Option<Cow<'a, str>> {
@@ -1746,7 +1746,7 @@ impl fmt::Debug for dyn AttributeFilter {
 /// [attribute_filter]: struct.Builder.html#method.attribute_filter
 pub trait AttributeFilter: Send + Sync {
     /// Return `None` to remove the attribute. Return `Some(str)` to replace it with a new string.
-    fn filter<'a>(&self, &str, &str, &'a str) -> Option<Cow<'a, str>>;
+    fn filter<'a>(&self, _: &str, _: &str, _: &'a str) -> Option<Cow<'a, str>>;
 }
 
 impl<T> AttributeFilter for T where T: for<'a> Fn(&str, &str, &'a str) -> Option<Cow<'a, str>> + Send + Sync + 'static {
