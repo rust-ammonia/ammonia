@@ -4,6 +4,7 @@
 
 * Add [`clean_text`] function.
 * Updated to [rust-url 2.0].
+* Updated to the 2018 edition.
 
 [`clean_text`]: https://docs.rs/ammonia/3.0.0/ammonia/fn.clean_text.html
 [rust-url 2.0]: https://docs.rs/url/2.0.0/url/
