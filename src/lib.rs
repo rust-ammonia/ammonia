@@ -27,25 +27,16 @@
 //! [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
 //! [pulldown-cmark]: https://github.com/google/pulldown-cmark "CommonMark parser"
 
-#[macro_use]
-extern crate html5ever;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate maplit;
-#[macro_use]
-extern crate matches;
-#[macro_use]
-extern crate tendril;
-
-pub use url;
-
-use html5ever::{driver as html, QualName};
+use html5ever::interface::Attribute;
 use html5ever::rcdom::{Handle, NodeData, RcDom};
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
-use html5ever::interface::Attribute;
+use html5ever::{driver as html, local_name, namespace_url, ns, QualName};
+use lazy_static::lazy_static;
+use maplit::{hashmap, hashset};
+use matches::matches;
 use std::borrow::{Borrow, Cow};
+use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io;
@@ -53,10 +44,12 @@ use std::iter::IntoIterator as IntoIter;
 use std::mem::replace;
 use std::rc::Rc;
 use std::str::FromStr;
+use tendril::format_tendril;
 use tendril::stream::TendrilSink;
 use tendril::StrTendril;
 pub use url::Url;
-use std::cmp::max;
+
+pub use url;
 
 lazy_static! {
     static ref AMMONIA: Builder<'static> = Builder::default();
