@@ -383,16 +383,16 @@ impl<'a> Default for Builder<'a> {
         let allowed_classes = hashmap![];
 
         Builder {
-            tags: tags,
-            clean_content_tags: clean_content_tags,
-            tag_attributes: tag_attributes,
-            tag_attribute_values: tag_attribute_values,
-            generic_attributes: generic_attributes,
-            url_schemes: url_schemes,
+            tags,
+            clean_content_tags,
+            tag_attributes,
+            tag_attribute_values,
+            generic_attributes,
+            url_schemes,
             url_relative: UrlRelative::PassThrough,
             attribute_filter: None,
             link_rel: Some("noopener noreferrer"),
-            allowed_classes: allowed_classes,
+            allowed_classes,
             strip_comments: true,
             id_prefix: None,
         }
