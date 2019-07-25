@@ -116,7 +116,10 @@ pub fn clean_text(src: &str) -> String {
             // a spec-compliant browser will perform this replacement anyway, but the middleware might not
             '\0' => "&#65533;",
             // ALL OTHER CHARACTERS ARE PASSED THROUGH VERBATIM
-            _ => { ret_val.push(c); continue; },
+            _ => {
+                ret_val.push(c);
+                continue;
+            }
         };
         ret_val.push_str(replacement);
     }
@@ -291,12 +294,8 @@ impl<'a> Default for Builder<'a> {
             "strike", "strong", "sub", "summary", "sup", "table", "tbody",
             "td", "th", "thead", "time", "tr", "tt", "u", "ul", "var", "wbr"
         ];
-        let clean_content_tags = hashset![
-            "script", "style"
-        ];
-        let generic_attributes = hashset![
-            "lang", "title"
-        ];
+        let clean_content_tags = hashset!["script", "style"];
+        let generic_attributes = hashset!["lang", "title"];
         let tag_attributes = hashmap![
             "a" => hashset![
                 "href", "hreflang"
@@ -355,10 +354,31 @@ impl<'a> Default for Builder<'a> {
         ];
         let tag_attribute_values = hashmap![];
         let url_schemes = hashset![
-            "bitcoin", "ftp", "ftps", "geo", "http", "https", "im", "irc",
-            "ircs", "magnet", "mailto", "mms", "mx", "news", "nntp",
-            "openpgp4fpr", "sip", "sms", "smsto", "ssh", "tel", "url",
-            "webcal", "wtai", "xmpp"
+            "bitcoin",
+            "ftp",
+            "ftps",
+            "geo",
+            "http",
+            "https",
+            "im",
+            "irc",
+            "ircs",
+            "magnet",
+            "mailto",
+            "mms",
+            "mx",
+            "news",
+            "nntp",
+            "openpgp4fpr",
+            "sip",
+            "sms",
+            "smsto",
+            "ssh",
+            "tel",
+            "url",
+            "webcal",
+            "wtai",
+            "xmpp"
         ];
         let allowed_classes = hashmap![];
 
@@ -424,7 +444,10 @@ impl<'a> Builder<'a> {
     ///         .add_tags(&["my-tag"])
     ///         .clean("<my-tag>test</my-tag> <span>mess</span>").to_string();
     ///     assert_eq!("<my-tag>test</my-tag> <span>mess</span>", a);
-    pub fn add_tags<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, it: I) -> &mut Self {
+    pub fn add_tags<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item = &'a T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
         self.tags.extend(it.into_iter().map(Borrow::borrow));
         self
     }
@@ -439,7 +462,10 @@ impl<'a> Builder<'a> {
     ///         .rm_tags(&["span"])
     ///         .clean("<span></span>").to_string();
     ///     assert_eq!("", a);
-    pub fn rm_tags<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, it: I) -> &mut Self {
+    pub fn rm_tags<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
         for i in it {
             self.tags.remove(i.borrow());
         }
@@ -501,8 +527,12 @@ impl<'a> Builder<'a> {
     ///         .add_clean_content_tags(&["my-tag"])
     ///         .clean("<my-tag>test</my-tag><span>mess</span>").to_string();
     ///     assert_eq!("<span>mess</span>", a);
-    pub fn add_clean_content_tags<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, it: I) -> &mut Self {
-        self.clean_content_tags.extend(it.into_iter().map(Borrow::borrow));
+    pub fn add_clean_content_tags<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item = &'a T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
+        self.clean_content_tags
+            .extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
@@ -522,7 +552,10 @@ impl<'a> Builder<'a> {
     ///         .clean("<script>XSS</script>").to_string();
     ///     assert_eq!("XSS", a);
     ///     # }
-    pub fn rm_clean_content_tags<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, it: I) -> &mut Self {
+    pub fn rm_clean_content_tags<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
         for i in it {
             self.clean_content_tags.remove(i.borrow());
         }
@@ -619,8 +652,19 @@ impl<'a> Builder<'a> {
     ///         .add_tag_attributes("my-tag", &["my-attr"])
     ///         .clean("<my-tag my-attr>test</my-tag> <span>mess</span>").to_string();
     ///     assert_eq!("<my-tag my-attr=\"\">test</my-tag> <span>mess</span>", a);
-    pub fn add_tag_attributes<T: 'a + ?Sized + Borrow<str>, U: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, tag: &'a U, it: I) -> &mut Self {
-        self.tag_attributes.entry(tag.borrow()).or_insert_with(|| HashSet::new()).extend(it.into_iter().map(Borrow::borrow));
+    pub fn add_tag_attributes<
+        T: 'a + ?Sized + Borrow<str>,
+        U: 'a + ?Sized + Borrow<str>,
+        I: IntoIter<Item = &'a T>,
+    >(
+        &mut self,
+        tag: &'a U,
+        it: I,
+    ) -> &mut Self {
+        self.tag_attributes
+            .entry(tag.borrow())
+            .or_insert_with(|| HashSet::new())
+            .extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
@@ -634,7 +678,17 @@ impl<'a> Builder<'a> {
     ///         .rm_tag_attributes("a", &["href"])
     ///         .clean("<a href=\"/\"></a>").to_string();
     ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
-    pub fn rm_tag_attributes<'b, 'c, T: 'b + ?Sized + Borrow<str>, U: 'c + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, tag: &'c U, it: I) -> &mut Self {
+    pub fn rm_tag_attributes<
+        'b,
+        'c,
+        T: 'b + ?Sized + Borrow<str>,
+        U: 'c + ?Sized + Borrow<str>,
+        I: IntoIter<Item = &'b T>,
+    >(
+        &mut self,
+        tag: &'c U,
+        it: I,
+    ) -> &mut Self {
         if let Some(tag) = self.tag_attributes.get_mut(tag.borrow()) {
             for i in it {
                 tag.remove(i.borrow());
@@ -687,7 +741,10 @@ impl<'a> Builder<'a> {
     /// # Defaults
     ///
     /// None.
-    pub fn tag_attribute_values(&mut self, value: HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>) -> &mut Self {
+    pub fn tag_attribute_values(
+        &mut self,
+        value: HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>,
+    ) -> &mut Self {
         self.tag_attribute_values = value;
         self
     }
@@ -701,7 +758,17 @@ impl<'a> Builder<'a> {
     ///         .add_tag_attribute_values("my-tag", "my-attr", &[""])
     ///         .clean("<my-tag my-attr>test</my-tag> <span>mess</span>").to_string();
     ///     assert_eq!("<my-tag my-attr=\"\">test</my-tag> <span>mess</span>", a);
-    pub fn add_tag_attribute_values<T: 'a + ?Sized + Borrow<str>, U: 'a + ?Sized + Borrow<str>, V: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, tag: &'a U, attribute: &'a V, it: I) -> &mut Self {
+    pub fn add_tag_attribute_values<
+        T: 'a + ?Sized + Borrow<str>,
+        U: 'a + ?Sized + Borrow<str>,
+        V: 'a + ?Sized + Borrow<str>,
+        I: IntoIter<Item = &'a T>,
+    >(
+        &mut self,
+        tag: &'a U,
+        attribute: &'a V,
+        it: I,
+    ) -> &mut Self {
         self.tag_attribute_values
             .entry(tag.borrow())
             .or_insert_with(HashMap::new)
@@ -724,8 +791,24 @@ impl<'a> Builder<'a> {
     ///         .rm_tag_attribute_values("a", "href", &["/"])
     ///         .clean("<a href=\"/\"></a>").to_string();
     ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
-    pub fn rm_tag_attribute_values<'b, 'c, T: 'b + ?Sized + Borrow<str>, U: 'c + ?Sized + Borrow<str>, V: 'c + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, tag: &'c U, attribute: &'c V, it: I) -> &mut Self {
-        if let Some(attrs) = self.tag_attribute_values.get_mut(tag.borrow()).and_then(|map| map.get_mut(attribute.borrow())) {
+    pub fn rm_tag_attribute_values<
+        'b,
+        'c,
+        T: 'b + ?Sized + Borrow<str>,
+        U: 'c + ?Sized + Borrow<str>,
+        V: 'c + ?Sized + Borrow<str>,
+        I: IntoIter<Item = &'b T>,
+    >(
+        &mut self,
+        tag: &'c U,
+        attribute: &'c V,
+        it: I,
+    ) -> &mut Self {
+        if let Some(attrs) = self
+            .tag_attribute_values
+            .get_mut(tag.borrow())
+            .and_then(|map| map.get_mut(attribute.borrow()))
+        {
             for i in it {
                 attrs.remove(i.borrow());
             }
@@ -750,7 +833,9 @@ impl<'a> Builder<'a> {
     ///     let mut b = ammonia::Builder::default();
     ///     b.tag_attribute_values(Clone::clone(&tag_attribute_values));
     ///     assert_eq!(tag_attribute_values, b.clone_tag_attribute_values());
-    pub fn clone_tag_attribute_values(&self) -> HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>> {
+    pub fn clone_tag_attribute_values(
+        &self,
+    ) -> HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>> {
         self.tag_attribute_values.clone()
     }
 
@@ -788,8 +873,12 @@ impl<'a> Builder<'a> {
     ///         .add_generic_attributes(&["my-attr"])
     ///         .clean("<span my-attr>mess</span>").to_string();
     ///     assert_eq!("<span my-attr=\"\">mess</span>", a);
-    pub fn add_generic_attributes<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, it: I) -> &mut Self {
-        self.generic_attributes.extend(it.into_iter().map(Borrow::borrow));
+    pub fn add_generic_attributes<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item = &'a T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
+        self.generic_attributes
+            .extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
@@ -803,7 +892,10 @@ impl<'a> Builder<'a> {
     ///         .rm_generic_attributes(&["title"])
     ///         .clean("<span title=\"cool\"></span>").to_string();
     ///     assert_eq!("<span></span>", a);
-    pub fn rm_generic_attributes<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, it: I) -> &mut Self {
+    pub fn rm_generic_attributes<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
         for i in it {
             self.generic_attributes.remove(i.borrow());
         }
@@ -867,7 +959,10 @@ impl<'a> Builder<'a> {
     ///         .add_url_schemes(&["my-scheme"])
     ///         .clean("<a href=my-scheme:home>mess</span>").to_string();
     ///     assert_eq!("<a href=\"my-scheme:home\" rel=\"noopener noreferrer\">mess</a>", a);
-    pub fn add_url_schemes<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, it: I) -> &mut Self {
+    pub fn add_url_schemes<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item = &'a T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
         self.url_schemes.extend(it.into_iter().map(Borrow::borrow));
         self
     }
@@ -882,7 +977,10 @@ impl<'a> Builder<'a> {
     ///         .rm_url_schemes(&["ftp"])
     ///         .clean("<a href=\"ftp://ftp.mozilla.org/\"></a>").to_string();
     ///     assert_eq!("<a rel=\"noopener noreferrer\"></a>", a);
-    pub fn rm_url_schemes<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, it: I) -> &mut Self {
+    pub fn rm_url_schemes<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
         for i in it {
             self.url_schemes.remove(i.borrow());
         }
@@ -958,9 +1056,13 @@ impl<'a> Builder<'a> {
     ///     r#"<a href="/"><img alt="Home"></a>"#);
     /// ```
     pub fn attribute_filter<'cb, CallbackFn>(&mut self, callback: CallbackFn) -> &mut Self
-        where CallbackFn: for<'u> Fn(&str, &str, &'u str) -> Option<Cow<'u, str>> + Send + Sync + 'static
+    where
+        CallbackFn: for<'u> Fn(&str, &str, &'u str) -> Option<Cow<'u, str>> + Send + Sync + 'static,
     {
-        assert!(self.attribute_filter.is_none(), "attribute_filter can be set only once");
+        assert!(
+            self.attribute_filter.is_none(),
+            "attribute_filter can be set only once"
+        );
         self.attribute_filter = Some(Box::new(callback));
         self
     }
@@ -1107,8 +1209,19 @@ impl<'a> Builder<'a> {
     ///         .add_allowed_classes("a", &["onebox"])
     ///         .clean("<a href=/ class=onebox>mess</span>").to_string();
     ///     assert_eq!("<a href=\"/\" class=\"onebox\" rel=\"noopener noreferrer\">mess</a>", a);
-    pub fn add_allowed_classes<T: 'a + ?Sized + Borrow<str>, U: 'a + ?Sized + Borrow<str>, I: IntoIter<Item=&'a T>>(&mut self, tag: &'a U, it: I) -> &mut Self {
-        self.allowed_classes.entry(tag.borrow()).or_insert_with(|| HashSet::new()).extend(it.into_iter().map(Borrow::borrow));
+    pub fn add_allowed_classes<
+        T: 'a + ?Sized + Borrow<str>,
+        U: 'a + ?Sized + Borrow<str>,
+        I: IntoIter<Item = &'a T>,
+    >(
+        &mut self,
+        tag: &'a U,
+        it: I,
+    ) -> &mut Self {
+        self.allowed_classes
+            .entry(tag.borrow())
+            .or_insert_with(|| HashSet::new())
+            .extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
@@ -1123,7 +1236,17 @@ impl<'a> Builder<'a> {
     ///         .rm_allowed_classes("span", &["active"])
     ///         .clean("<span class=active>").to_string();
     ///     assert_eq!("<span class=\"\"></span>", a);
-    pub fn rm_allowed_classes<'b, 'c, T: 'b + ?Sized + Borrow<str>, U: 'c + ?Sized + Borrow<str>, I: IntoIter<Item=&'b T>>(&mut self, tag: &'c U, it: I) -> &mut Self {
+    pub fn rm_allowed_classes<
+        'b,
+        'c,
+        T: 'b + ?Sized + Borrow<str>,
+        U: 'c + ?Sized + Borrow<str>,
+        I: IntoIter<Item = &'b T>,
+    >(
+        &mut self,
+        tag: &'c U,
+        it: I,
+    ) -> &mut Self {
         if let Some(tag) = self.allowed_classes.get_mut(tag.borrow()) {
             for i in it {
                 tag.remove(i.borrow());
@@ -1301,25 +1424,24 @@ impl<'a> Builder<'a> {
     fn clean_dom(&self, mut dom: RcDom) -> Document {
         let mut stack = Vec::new();
         let mut removed = Vec::new();
-        let link_rel = self.link_rel
+        let link_rel = self
+            .link_rel
             .map(|link_rel| format_tendril!("{}", link_rel));
         if link_rel.is_some() {
             assert!(self.generic_attributes.get("rel").is_none());
-            assert!(
-                self.tag_attributes
-                    .get("a")
-                    .and_then(|a| a.get("rel"))
-                    .is_none()
-            );
+            assert!(self
+                .tag_attributes
+                .get("a")
+                .and_then(|a| a.get("rel"))
+                .is_none());
         }
         assert!(self.allowed_classes.is_empty() || !self.generic_attributes.contains("class"));
         for (tag_name, _classes) in &self.allowed_classes {
-            assert!(
-                self.tag_attributes
-                    .get(tag_name)
-                    .and_then(|a| a.get("class"))
-                    .is_none()
-            );
+            assert!(self
+                .tag_attributes
+                .get(tag_name)
+                .and_then(|a| a.get("class"))
+                .is_none());
         }
         for tag_name in &self.clean_content_tags {
             assert!(!self.tags.contains(tag_name));
@@ -1373,9 +1495,7 @@ impl<'a> Builder<'a> {
         // Otherwise, we could wind up with a DoS, either caused by a memory leak,
         // or caused by a stack overflow.
         while let Some(node) = removed.pop() {
-            removed.extend_from_slice(
-                &replace(&mut *node.children.borrow_mut(), Vec::new())[..]
-            );
+            removed.extend_from_slice(&replace(&mut *node.children.borrow_mut(), Vec::new())[..]);
         }
         Document(dom)
     }
@@ -1383,12 +1503,12 @@ impl<'a> Builder<'a> {
     /// Returns `true` if a node and all its content should be removed.
     fn clean_node_content(&self, node: &Handle) -> bool {
         match node.data {
-            NodeData::Text { .. } |
-            NodeData::Comment { .. } |
-            NodeData::Doctype { .. } |
-            NodeData::Document |
-            NodeData::ProcessingInstruction { .. } => false,
-            NodeData::Element { ref name, .. } => self.clean_content_tags.contains(&*name.local)
+            NodeData::Text { .. }
+            | NodeData::Comment { .. }
+            | NodeData::Doctype { .. }
+            | NodeData::Document
+            | NodeData::ProcessingInstruction { .. } => false,
+            NodeData::Element { ref name, .. } => self.clean_content_tags.contains(&*name.local),
         }
     }
 
@@ -1401,53 +1521,57 @@ impl<'a> Builder<'a> {
         match child.data {
             NodeData::Text { .. } => true,
             NodeData::Comment { .. } => !self.strip_comments,
-            NodeData::Doctype { .. } |
-            NodeData::Document |
-            NodeData::ProcessingInstruction { .. } => false,
+            NodeData::Doctype { .. }
+            | NodeData::Document
+            | NodeData::ProcessingInstruction { .. } => false,
             NodeData::Element {
                 ref name,
                 ref attrs,
                 ..
-            } => if self.tags.contains(&*name.local) {
-                let attr_filter = |attr: &html5ever::Attribute| {
-                    let whitelisted = self.generic_attributes.contains(&*attr.name.local) ||
-                        self.tag_attributes
-                            .get(&*name.local)
-                            .map(|ta| ta.contains(&*attr.name.local)) ==
-                            Some(true) ||
-                        self.tag_attribute_values
-                            .get(&*name.local)
-                            .and_then(|tav| tav.get(&*attr.name.local))
-                            .map(|vs| {
-                                let attr_val = attr.value.to_lowercase();
-                                vs.iter().any(|v| v.to_lowercase() == attr_val)
-                            }) ==
-                            Some(true);
-                    if !whitelisted {
-                        // If the class attribute is not whitelisted,
-                        // but there is a whitelisted set of allowed_classes,
-                        // do not strip out the class attribute.
-                        // Banned classes will be filtered later.
-                        &*attr.name.local == "class" &&
-                          self.allowed_classes.contains_key(&*name.local)
-                    } else if is_url_attr(&*name.local, &*attr.name.local) {
-                        let url = Url::parse(&*attr.value);
-                        if let Ok(url) = url {
-                            self.url_schemes.contains(url.scheme())
-                        } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
-                            !matches!(self.url_relative, UrlRelative::Deny)
+            } => {
+                if self.tags.contains(&*name.local) {
+                    let attr_filter = |attr: &html5ever::Attribute| {
+                        let whitelisted = self.generic_attributes.contains(&*attr.name.local)
+                            || self
+                                .tag_attributes
+                                .get(&*name.local)
+                                .map(|ta| ta.contains(&*attr.name.local))
+                                == Some(true)
+                            || self
+                                .tag_attribute_values
+                                .get(&*name.local)
+                                .and_then(|tav| tav.get(&*attr.name.local))
+                                .map(|vs| {
+                                    let attr_val = attr.value.to_lowercase();
+                                    vs.iter().any(|v| v.to_lowercase() == attr_val)
+                                })
+                                == Some(true);
+                        if !whitelisted {
+                            // If the class attribute is not whitelisted,
+                            // but there is a whitelisted set of allowed_classes,
+                            // do not strip out the class attribute.
+                            // Banned classes will be filtered later.
+                            &*attr.name.local == "class"
+                                && self.allowed_classes.contains_key(&*name.local)
+                        } else if is_url_attr(&*name.local, &*attr.name.local) {
+                            let url = Url::parse(&*attr.value);
+                            if let Ok(url) = url {
+                                self.url_schemes.contains(url.scheme())
+                            } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
+                                !matches!(self.url_relative, UrlRelative::Deny)
+                            } else {
+                                false
+                            }
                         } else {
-                            false
+                            true
                         }
-                    } else {
-                        true
-                    }
-                };
-                attrs.borrow_mut().retain(attr_filter);
-                true
-            } else {
-                false
-            },
+                    };
+                    attrs.borrow_mut().retain(attr_filter);
+                    true
+                } else {
+                    false
+                }
+            }
         }
     }
 
@@ -1492,7 +1616,9 @@ impl<'a> Builder<'a> {
                 let mut drop_attrs = Vec::new();
                 let mut attrs = attrs.borrow_mut();
                 for (i, attr) in &mut attrs.iter_mut().enumerate() {
-                    let replace_with = if let Some(new) = attr_filter.filter(&*name.local, &*attr.name.local, &*attr.value) {
+                    let replace_with = if let Some(new) =
+                        attr_filter.filter(&*name.local, &*attr.name.local, &*attr.value)
+                    {
                         if *new != *attr.value {
                             Some(format_tendril!("{}", new))
                         } else {
@@ -1513,7 +1639,8 @@ impl<'a> Builder<'a> {
             if let Some(ref base) = url_base {
                 for attr in &mut *attrs.borrow_mut() {
                     if is_url_attr(&*name.local, &*attr.name.local) {
-                        let url = base.join(&*attr.value)
+                        let url = base
+                            .join(&*attr.value)
                             .expect("invalid URLs should be stripped earlier");
                         attr.value = format_tendril!("{}", url);
                     }
@@ -1522,8 +1649,10 @@ impl<'a> Builder<'a> {
                 let mut drop_attrs = Vec::new();
                 let mut attrs = attrs.borrow_mut();
                 for (i, attr) in attrs.iter_mut().enumerate() {
-                    if is_url_attr(&*name.local, &*attr.name.local) && is_url_relative(&*attr.value) {
-                        let new_value = evaluate.evaluate(&*attr.value)
+                    if is_url_attr(&*name.local, &*attr.name.local) && is_url_relative(&*attr.value)
+                    {
+                        let new_value = evaluate
+                            .evaluate(&*attr.value)
                             .as_ref()
                             .map(Cow::as_ref)
                             .map(StrTendril::from_str)
@@ -1576,16 +1705,20 @@ impl<'a> Builder<'a> {
 
 /// Given an element name and attribute name, determine if the given attribute contains a URL.
 fn is_url_attr(element: &str, attr: &str) -> bool {
-    attr == "href" || attr == "src"
-    || (element == "form" && attr == "action")
-    || (element == "object" && attr == "data")
-    || ((element == "button" || element == "input") && attr == "formaction")
-    || (element == "a" && attr == "ping")
-    || (element == "video" && attr == "poster")
+    attr == "href"
+        || attr == "src"
+        || (element == "form" && attr == "action")
+        || (element == "object" && attr == "data")
+        || ((element == "button" || element == "input") && attr == "formaction")
+        || (element == "a" && attr == "ping")
+        || (element == "video" && attr == "poster")
 }
 
 fn is_url_relative(url: &str) -> bool {
-    matches!(Url::parse(url), Err(url::ParseError::RelativeUrlWithoutBase))
+    matches!(
+        Url::parse(url),
+        Err(url::ParseError::RelativeUrlWithoutBase)
+    )
 }
 
 /// Policy for [relative URLs], that is, URLs that do not specify the scheme in full.
@@ -1668,7 +1801,9 @@ impl fmt::Debug for UrlRelative {
         match *self {
             UrlRelative::Deny => write!(f, "UrlRelative::Deny"),
             UrlRelative::PassThrough => write!(f, "UrlRelative::PassThrough"),
-            UrlRelative::RewriteWithBase(ref base) => write!(f, "UrlRelative::RewriteWithBase({})", base),
+            UrlRelative::RewriteWithBase(ref base) => {
+                write!(f, "UrlRelative::RewriteWithBase({})", base)
+            }
             UrlRelative::Custom(_) => write!(f, "UrlRelative::Custom"),
             UrlRelative::__NonExhaustive => unreachable!(),
         }
@@ -1686,7 +1821,10 @@ pub trait UrlRelativeEvaluate: Send + Sync {
     /// Return `None` to remove the attribute. Return `Some(str)` to replace it with a new string.
     fn evaluate<'a>(&self, _: &'a str) -> Option<Cow<'a, str>>;
 }
-impl<T> UrlRelativeEvaluate for T where T: Fn(&str) -> Option<Cow<'_, str>> + Send + Sync {
+impl<T> UrlRelativeEvaluate for T
+where
+    T: Fn(&str) -> Option<Cow<'_, str>> + Send + Sync,
+{
     fn evaluate<'a>(&self, url: &'a str) -> Option<Cow<'a, str>> {
         self(url)
     }
@@ -1708,7 +1846,10 @@ pub trait AttributeFilter: Send + Sync {
     fn filter<'a>(&self, _: &str, _: &str, _: &'a str) -> Option<Cow<'a, str>>;
 }
 
-impl<T> AttributeFilter for T where T: for<'a> Fn(&str, &str, &'a str) -> Option<Cow<'a, str>> + Send + Sync + 'static {
+impl<T> AttributeFilter for T
+where
+    T: for<'a> Fn(&str, &str, &'a str) -> Option<Cow<'a, str>> + Send + Sync + 'static,
+{
     fn filter<'a>(&self, element: &str, attribute: &str, value: &'a str) -> Option<Cow<'a, str>> {
         self(element, attribute, value)
     }
@@ -1765,8 +1906,7 @@ impl Document {
         let mut ret_val = Vec::new();
         serialize(&mut ret_val, &self.0.document.children.borrow()[0], opts)
             .expect("Writing to a string shouldn't fail (expect on OOM)");
-        String::from_utf8(ret_val)
-            .expect("html5ever only supports UTF8")
+        String::from_utf8(ret_val).expect("html5ever only supports UTF8")
     }
 
     /// Serializes a `Document` instance to a writer.
@@ -1967,7 +2107,9 @@ mod test {
     fn rewrite_url_relative() {
         let fragment = "<a href=test>Test</a>";
         let result = Builder::new()
-            .url_relative(UrlRelative::RewriteWithBase(Url::parse("http://example.com/").unwrap()))
+            .url_relative(UrlRelative::RewriteWithBase(
+                Url::parse("http://example.com/").unwrap(),
+            ))
             .clean(fragment)
             .to_string();
         assert_eq!(
@@ -1981,11 +2123,14 @@ mod test {
         let result = Builder::new()
             .attribute_filter(|elem, attr, value| {
                 assert_eq!("a", elem);
-                assert!(match (attr, value) {
-                    ("href", "test") => true,
-                    ("rel", "noopener noreferrer") => true,
-                    _ => false,
-                }, value.to_string());
+                assert!(
+                    match (attr, value) {
+                        ("href", "test") => true,
+                        ("rel", "noopener noreferrer") => true,
+                        _ => false,
+                    },
+                    value.to_string()
+                );
                 Some(value.into())
             })
             .clean(fragment)
@@ -2010,10 +2155,7 @@ mod test {
             })
             .clean(fragment)
             .to_string();
-        assert_eq!(
-            result,
-            r#"Test<img alt="test">"#
-        );
+        assert_eq!(result, r#"Test<img alt="test">"#);
     }
 
     #[test]
@@ -2023,12 +2165,16 @@ mod test {
             .attribute_filter(|elem, attr, value| {
                 assert_eq!("img", elem);
                 match (attr, value) {
-                    ("src", "imgtest") => Some(format!("https://example.com/images/{}", value).into()),
+                    ("src", "imgtest") => {
+                        Some(format!("https://example.com/images/{}", value).into())
+                    }
                     ("alt", "test") => None,
                     _ => panic!("unexpected"),
                 }
             })
-            .url_relative(UrlRelative::RewriteWithBase(Url::parse("http://wrong.invalid/").unwrap()))
+            .url_relative(UrlRelative::RewriteWithBase(
+                Url::parse("http://wrong.invalid/").unwrap(),
+            ))
             .clean(fragment)
             .to_string();
         assert_eq!(
@@ -2049,7 +2195,9 @@ mod test {
                     _ => panic!("unexpected"),
                 }
             })
-            .url_relative(UrlRelative::RewriteWithBase(Url::parse("https://example.com/base/#").unwrap()))
+            .url_relative(UrlRelative::RewriteWithBase(
+                Url::parse("https://example.com/base/#").unwrap(),
+            ))
             .clean(fragment)
             .to_string();
         assert_eq!(
@@ -2062,7 +2210,9 @@ mod test {
     fn rewrite_url_relative_no_rel() {
         let fragment = "<a href=test>Test</a>";
         let result = Builder::new()
-            .url_relative(UrlRelative::RewriteWithBase(Url::parse("http://example.com/").unwrap()))
+            .url_relative(UrlRelative::RewriteWithBase(
+                Url::parse("http://example.com/").unwrap(),
+            ))
             .link_rel(None)
             .clean(fragment)
             .to_string();
@@ -2250,10 +2400,7 @@ mod test {
                 "p" => hashset!["name"],
             ])
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            "<p name=\"foo\"></p>",
-        );
+        assert_eq!(result.to_string(), "<p name=\"foo\"></p>",);
     }
     #[test]
     fn keep_allowed_attributes_with_tag_attribute_values() {
@@ -2287,10 +2434,7 @@ mod test {
                 "input" => hashset!["name"],
             ])
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            "<input type=\"CHECKBOX\" name=\"foo\">",
-        );
+        assert_eq!(result.to_string(), "<input type=\"CHECKBOX\" name=\"foo\">",);
     }
     #[test]
     fn remove_entity_link() {
@@ -2366,7 +2510,10 @@ mod test {
             .url_relative(UrlRelative::Custom(Box::new(evaluate)))
             .clean("<a href=\"https://www.google.com/\">google</a>")
             .to_string();
-        assert_eq!(a, "<a href=\"https://www.google.com/\" rel=\"noopener noreferrer\">google</a>");
+        assert_eq!(
+            a,
+            "<a href=\"https://www.google.com/\" rel=\"noopener noreferrer\">google</a>"
+        );
     }
     #[test]
     fn clean_children_of_bad_element() {
@@ -2423,43 +2570,65 @@ mod test {
     #[test]
     fn id_prefixed() {
         let fragment = "<a id=\"hello\"></a><b id=\"hello\"></a>";
-        let result = String::from(Builder::new().tag_attributes(hashmap![
-            "a" => hashset!["id"],
-        ]).id_prefix(Some("prefix-")).clean(fragment));
-        assert_eq!(result.to_string(), "<a id=\"prefix-hello\" rel=\"noopener noreferrer\"></a><b></b>");
+        let result = String::from(
+            Builder::new()
+                .tag_attributes(hashmap![
+                    "a" => hashset!["id"],
+                ])
+                .id_prefix(Some("prefix-"))
+                .clean(fragment),
+        );
+        assert_eq!(
+            result.to_string(),
+            "<a id=\"prefix-hello\" rel=\"noopener noreferrer\"></a><b></b>"
+        );
     }
     #[test]
     fn id_already_prefixed() {
         let fragment = "<a id=\"prefix-hello\"></a>";
-        let result = String::from(Builder::new().tag_attributes(hashmap![
-            "a" => hashset!["id"],
-        ]).id_prefix(Some("prefix-")).clean(fragment));
-        assert_eq!(result.to_string(), "<a id=\"prefix-hello\" rel=\"noopener noreferrer\"></a>");
+        let result = String::from(
+            Builder::new()
+                .tag_attributes(hashmap![
+                    "a" => hashset!["id"],
+                ])
+                .id_prefix(Some("prefix-"))
+                .clean(fragment),
+        );
+        assert_eq!(
+            result.to_string(),
+            "<a id=\"prefix-hello\" rel=\"noopener noreferrer\"></a>"
+        );
     }
     #[test]
     fn clean_content_tags() {
         let fragment = "<script type=\"text/javascript\"><a>Hello!</a></script>";
-        let result = String::from(Builder::new()
-            .clean_content_tags(hashset!["script"])
-            .clean(fragment));
+        let result = String::from(
+            Builder::new()
+                .clean_content_tags(hashset!["script"])
+                .clean(fragment),
+        );
         assert_eq!(result.to_string(), "");
     }
     #[test]
     fn only_clean_content_tags() {
         let fragment = "<em>This is</em><script><a>Hello!</a></script><p>still here!</p>";
-        let result = String::from(Builder::new()
-            .clean_content_tags(hashset!["script"])
-            .clean(fragment));
+        let result = String::from(
+            Builder::new()
+                .clean_content_tags(hashset!["script"])
+                .clean(fragment),
+        );
         assert_eq!(result.to_string(), "<em>This is</em><p>still here!</p>");
     }
     #[test]
     fn clean_removed_default_tag() {
         let fragment = "<em>This is</em><script><a>Hello!</a></script><p>still here!</p>";
-        let result = String::from(Builder::new()
-            .rm_tags(hashset!["a"])
-            .rm_tag_attributes("a", hashset!["href", "hreflang"])
-            .clean_content_tags(hashset!["script"])
-            .clean(fragment));
+        let result = String::from(
+            Builder::new()
+                .rm_tags(hashset!["a"])
+                .rm_tag_attributes("a", hashset!["href", "hreflang"])
+                .clean_content_tags(hashset!["script"])
+                .clean(fragment),
+        );
         assert_eq!(result.to_string(), "<em>This is</em><p>still here!</p>");
     }
     #[test]
@@ -2473,13 +2642,14 @@ mod test {
     #[test]
     #[should_panic]
     fn panic_on_clean_content_tag() {
-        Builder::new()
-            .clean_content_tags(hashset!["a"])
-            .clean("");
+        Builder::new().clean_content_tags(hashset!["a"]).clean("");
     }
 
     #[test]
     fn clean_text_test() {
-        assert_eq!(clean_text("<this> is <a test function"), "&lt;this&gt;&#32;is&#32;&lt;a&#32;test&#32;function");
+        assert_eq!(
+            clean_text("<this> is <a test function"),
+            "&lt;this&gt;&#32;is&#32;&lt;a&#32;test&#32;function"
+        );
     }
 }
