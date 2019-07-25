@@ -9,6 +9,7 @@ readme = "README.md"
 documentation = "https://docs.rs/ammonia/"
 repository = "https://github.com/rust-ammonia/ammonia"
 categories = [ "web-programming", "text-processing" ]
+edition = "2018"
 
 [dependencies]
 html5ever = "0.24"
@@ -19,5 +20,5 @@ url = "2"
 lazy_static = "1.3"
 
 [dev-dependencies]
-version-sync = "0.7"
+version-sync = "0.8"
 env_logger = "0.6.1"
