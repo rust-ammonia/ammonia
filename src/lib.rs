@@ -86,7 +86,7 @@ pub fn clean(src: &str) -> String {
 /// Turn an arbitrary string into unformatted HTML.
 ///
 /// This function is roughly equivalent to PHP's `htmlspecialchars` and `htmlentities`.
-/// it is maximally strict on purpose, encoding every character that has special meaning to the
+/// It is maximally strict on purpose, encoding every character that has special meaning to the
 /// HTML parser.
 ///
 /// This function cannot be used to package strings into a `<script>` or `<style>` tag;
@@ -98,7 +98,7 @@ pub fn clean(src: &str) -> String {
 pub fn clean_text(src: &str) -> String {
     let mut ret_val = String::with_capacity(max(4, src.len()));
     for c in src.chars() {
-        ret_val.push_str(match c {
+        let mut replacement = match c {
             // this character, when confronted, will start a tag
             '<' => "&lt;",
             // in an unquoted attribute, will end the attribute value
@@ -123,11 +123,9 @@ pub fn clean_text(src: &str) -> String {
             // a spec-compliant browser will perform this replacement anyway, but the middleware might not
             '\0' => "&#65533;",
             // ALL OTHER CHARACTERS ARE PASSED THROUGH VERBATIM
-            _ => {
-                ret_val.push(c);
-                continue;
-            }
-        });
+            _ => { ret_val.push(c); continue; },
+        };
+        ret_val.push_str(replacement);
     }
     ret_val
 }
@@ -2525,6 +2523,6 @@ mod test {
 
     #[test]
     fn clean_text_test() {
-        assert_eq!(clean_text("<this> is <a test function"), "&gt;this&lt;&#32;is&#32;&gt;a&#32;test&#32;function");
+        assert_eq!(clean_text("<this> is <a test function"), "&lt;this&gt;&#32;is&#32;&lt;a&#32;test&#32;function");
     }
 }
