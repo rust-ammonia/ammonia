@@ -2,8 +2,8 @@
 name = "ammonia_bench"
 version = "0.0.1"
 license = "WTFPL"
+edition = "2018"
 
 [dependencies]
 ammonia = { path = "../" }
 time = "0.1"
-
