@@ -450,7 +450,10 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     let tags = ["my-tag-1", "my-tag-2"].into_iter().cloned().collect();
+    ///     use maplit::hashset;
+    ///
+    ///     let tags = hashset!["my-tag-1", "my-tag-2"];
+    ///
     ///     let mut b = ammonia::Builder::default();
     ///     b.tags(Clone::clone(&tags));
     ///     assert_eq!(tags, b.clone_tags());
@@ -529,8 +532,10 @@ impl<'a> Builder<'a> {
     /// Returns a copy of the set of blacklisted clean-content tags.
     ///
     /// # Examples
+    ///     # use maplit::hashset;
     ///
-    ///     let tags = ["my-tag-1", "my-tag-2"].into_iter().cloned().collect();
+    ///     let tags = hashset!["my-tag-1", "my-tag-2"];
+    ///
     ///     let mut b = ammonia::Builder::default();
     ///     b.clean_content_tags(Clone::clone(&tags));
     ///     assert_eq!(tags, b.clone_clean_content_tags());
@@ -641,10 +646,12 @@ impl<'a> Builder<'a> {
     /// Returns a copy of the set of whitelisted tag-specific attributes.
     ///
     /// # Examples
+    ///     use maplit::{hashmap, hashset};
     ///
-    ///     let tag_attributes = std::iter::once(
-    ///         ("my-tag", ["my-attr-1", "my-attr-2"].into_iter().cloned().collect())
-    ///     ).collect();
+    ///     let tag_attributes = hashmap![
+    ///         "my-tag" => hashset!["my-attr-1", "my-attr-2"]
+    ///     ];
+    ///
     ///     let mut b = ammonia::Builder::default();
     ///     b.tag_attributes(Clone::clone(&tag_attributes));
     ///     assert_eq!(tag_attributes, b.clone_tag_attributes());
@@ -730,15 +737,16 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     use std::collections::{HashMap, HashSet};
+    ///     use maplit::{hashmap, hashset};
     ///
-    ///     let mut attribute_values = HashMap::with_capacity(2);
-    ///     attribute_values.insert("my-attr-1", std::iter::once("foo").collect());
-    ///     attribute_values.insert("my-attr-2", vec!["baz", "bar"].into_iter().collect());
+    ///     let attribute_values = hashmap![
+    ///         "my-attr-1" => hashset!["foo"],
+    ///         "my-attr-2" => hashset!["baz", "bar"],
+    ///     ];
+    ///     let tag_attribute_values = hashmap![
+    ///         "my-tag" => attribute_values
+    ///     ];
     ///
-    ///     let mut tag_attribute_values = HashMap::with_capacity(1);
-    ///     tag_attribute_values.insert("my-tag", attribute_values);
-
     ///     let mut b = ammonia::Builder::default();
     ///     b.tag_attribute_values(Clone::clone(&tag_attribute_values));
     ///     assert_eq!(tag_attribute_values, b.clone_tag_attribute_values());
@@ -806,7 +814,10 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     let generic_attributes = ["my-attr-1", "my-attr-2"].into_iter().cloned().collect();
+    ///     use maplit::hashset;
+    ///
+    ///     let generic_attributes = hashset!["my-attr-1", "my-attr-2"];
+    ///
     ///     let mut b = ammonia::Builder::default();
     ///     b.generic_attributes(Clone::clone(&generic_attributes));
     ///     assert_eq!(generic_attributes, b.clone_generic_attributes());
@@ -881,8 +892,10 @@ impl<'a> Builder<'a> {
     /// Returns a copy of the set of whitelisted URL schemes.
     ///
     /// # Examples
+    ///     use maplit::hashset;
     ///
-    ///     let url_schemes = ["my-scheme-1", "my-scheme-2"].into_iter().cloned().collect();
+    ///     let url_schemes = hashset!["my-scheme-1", "my-scheme-2"];
+    ///
     ///     let mut b = ammonia::Builder::default();
     ///     b.url_schemes(Clone::clone(&url_schemes));
     ///     assert_eq!(url_schemes, b.clone_url_schemes());
@@ -1123,9 +1136,12 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     let allowed_classes = std::iter::once(
-    ///         ("my-tag", ["my-class-1", "my-class-2"].into_iter().cloned().collect())
-    ///     ).collect();
+    ///     use maplit::{hashmap, hashset};
+    ///
+    ///     let allowed_classes = hashmap![
+    ///         "my-tag" => hashset!["my-class-1", "my-class-2"]
+    ///     ];
+    ///
     ///     let mut b = ammonia::Builder::default();
     ///     b.allowed_classes(Clone::clone(&allowed_classes));
     ///     assert_eq!(allowed_classes, b.clone_allowed_classes());
@@ -2440,8 +2456,8 @@ mod test {
     fn clean_removed_default_tag() {
         let fragment = "<em>This is</em><script><a>Hello!</a></script><p>still here!</p>";
         let result = String::from(Builder::new()
-            .rm_tags(["a"].into_iter().cloned())
-            .rm_tag_attributes("a", ["href", "hreflang"].into_iter().cloned())
+            .rm_tags(hashset!["a"])
+            .rm_tag_attributes("a", hashset!["href", "hreflang"])
             .clean_content_tags(hashset!["script"])
             .clean(fragment));
         assert_eq!(result.to_string(), "<em>This is</em><p>still here!</p>");
