@@ -158,11 +158,8 @@ pub fn clean_text(src: &str) -> String {
 ///    a particular value:
 ///
 ///    ```should_panic
-///    #[macro_use]
-///    extern crate maplit;
-///    # extern crate ammonia;
-///
 ///    use ammonia::Builder;
+///    use maplit::hashset;
 ///
 ///    # fn main() {
 ///    Builder::default()
@@ -174,11 +171,8 @@ pub fn clean_text(src: &str) -> String {
 ///    This, however, is perfectly valid:
 ///
 ///    ```
-///    #[macro_use]
-///    extern crate maplit;
-///    # extern crate ammonia;
-///
 ///    use ammonia::Builder;
+///    use maplit::hashset;
 ///
 ///    # fn main() {
 ///    Builder::default()
@@ -198,11 +192,8 @@ pub fn clean_text(src: &str) -> String {
 ///    This will panic:
 ///
 ///    ```should_panic
-///    #[macro_use]
-///    extern crate maplit;
-///    # extern crate ammonia;
-///
 ///    use ammonia::Builder;
+///    use maplit::{hashmap, hashset};
 ///
 ///    # fn main() {
 ///    Builder::default()
@@ -215,11 +206,8 @@ pub fn clean_text(src: &str) -> String {
 ///    This, however, is perfectly valid:
 ///
 ///    ```
-///    #[macro_use]
-///    extern crate maplit;
-///    # extern crate ammonia;
-///
 ///    use ammonia::Builder;
+///    use maplit::{hashmap, hashset};
 ///
 ///    # fn main() {
 ///    Builder::default()
@@ -239,11 +227,8 @@ pub fn clean_text(src: &str) -> String {
 ///    [`tags`] by default:
 ///
 ///    ```should_panic
-///    #[macro_use]
-///    extern crate maplit;
-///    # extern crate ammonia;
-///
 ///    use ammonia::Builder;
+///    use maplit::hashset;
 ///
 ///    # fn main() {
 ///    Builder::default()
@@ -255,11 +240,8 @@ pub fn clean_text(src: &str) -> String {
 ///    This, however, is valid:
 ///
 ///    ```
-///    #[macro_use]
-///    extern crate maplit;
-///    # extern crate ammonia;
-///
 ///    use ammonia::Builder;
+///    use maplit::hashset;
 ///
 ///    # fn main() {
 ///    Builder::default()
@@ -402,11 +384,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     #[macro_use]
-    ///     extern crate maplit;
-    ///     # extern crate ammonia;
-    ///
     ///     use ammonia::Builder;
+    ///     use maplit::hashset;
     ///
     ///     # fn main() {
     ///     let tags = hashset!["my-tag"];
@@ -486,11 +465,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     #[macro_use]
-    ///     extern crate maplit;
-    ///     # extern crate ammonia;
-    ///
     ///     use ammonia::Builder;
+    ///     use maplit::hashset;
     ///
     ///     # fn main() {
     ///     let tag_blacklist = hashset!["script", "style"];
@@ -532,11 +508,8 @@ impl<'a> Builder<'a> {
     /// Does nothing if the tags aren't blacklisted.
     ///
     /// # Examples
-    ///     #[macro_use]
-    ///     extern crate maplit;
-    ///     # extern crate ammonia;
-    ///
     ///     use ammonia::Builder;
+    ///     use maplit::hashset;
     ///
     ///     # fn main() {
     ///     let tag_blacklist = hashset!["script"];
@@ -573,11 +546,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     #[macro_use]
-    ///     extern crate maplit;
-    ///     # extern crate ammonia;
-    ///
     ///     use ammonia::Builder;
+    ///     use maplit::{hashmap, hashset};
     ///
     ///     # fn main() {
     ///     let tags = hashset!["my-tag"];
@@ -691,11 +661,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     #[macro_use]
-    ///     extern crate maplit;
-    ///     # extern crate ammonia;
-    ///
     ///     use ammonia::Builder;
+    ///     use maplit::{hashmap, hashset};
     ///
     ///     # fn main() {
     ///     let tags = hashset!["my-tag"];
@@ -783,11 +750,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     #[macro_use]
-    ///     extern crate maplit;
-    ///     # extern crate ammonia;
-    ///
     ///     use ammonia::Builder;
+    ///     use maplit::hashset;
     ///
     ///     # fn main() {
     ///     let attributes = hashset!["data-val"];
@@ -854,11 +818,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     #[macro_use]
-    ///     extern crate maplit;
-    ///     # extern crate ammonia;
-    ///
     ///     use ammonia::Builder;
+    ///     use maplit::hashset;
     ///
     ///     # fn main() {
     ///     let url_schemes = hashset![
@@ -1023,7 +984,6 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     # extern crate ammonia;
     ///     use ammonia::{Builder, UrlRelative};
     ///     use std::borrow::Cow;
     ///     fn test(a: &str) -> Option<Cow<str>> { None }
@@ -1102,11 +1062,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     #[macro_use]
-    ///     extern crate maplit;
-    ///     # extern crate ammonia;
-    ///
     ///     use ammonia::Builder;
+    ///     use maplit::{hashmap, hashset};
     ///
     ///     # fn main() {
     ///     let allowed_classes = hashmap![
@@ -1217,11 +1174,8 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     #[macro_use]
-    ///     extern crate maplit;
-    ///     # extern crate ammonia;
-    ///
     ///     use ammonia::Builder;
+    ///     use maplit::hashset;
     ///
     ///     # fn main() {
     ///     let attributes = hashset!["id"];
@@ -1246,7 +1200,6 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     # extern crate ammonia;
     ///     use ammonia::{Builder, Url, UrlRelative};
     ///     # use std::error::Error;
     ///
@@ -1273,7 +1226,6 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     # extern crate ammonia;
     ///     use ammonia::{Builder, Url, UrlRelative};
     ///     # use std::error::Error;
     ///
@@ -1304,7 +1256,6 @@ impl<'a> Builder<'a> {
     ///
     /// # Examples
     ///
-    ///     # extern crate ammonia;
     ///     use ammonia::Builder;
     ///     # use std::error::Error;
     ///
@@ -1656,7 +1607,6 @@ fn is_url_relative(url: &str) -> bool {
 /// If it returns `Some(string)`, then that one gets used.
 /// Otherwise, it will remove the attribute (like `Deny` does).
 ///
-///     # extern crate ammonia;
 ///     use std::borrow::Cow;
 ///     fn is_absolute_path(url: &str) -> bool {
 ///         let u = url.as_bytes();
@@ -1869,10 +1819,8 @@ impl Document {
     ///
     /// # Examples
     ///
-    ///     # extern crate ammonia;
-    ///     extern crate html5ever;
-    ///
     ///     use ammonia::Builder;
+    ///     use maplit::hashset;
     ///     use html5ever::serialize::{serialize, SerializeOpts};
     ///
     ///     # use std::error::Error;
