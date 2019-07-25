@@ -26,7 +26,7 @@ To use `ammonia`, add it to your project's `Cargo.toml` file:
 
 ```toml
 [dependencies]
-ammonia = "2"
+ammonia = "3"
 ```
 
 

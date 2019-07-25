@@ -98,7 +98,7 @@ pub fn clean(src: &str) -> String {
 pub fn clean_text(src: &str) -> String {
     let mut ret_val = String::with_capacity(max(4, src.len()));
     for c in src.chars() {
-        let mut replacement = match c {
+        let replacement = match c {
             // this character, when confronted, will start a tag
             '<' => "&lt;",
             // in an unquoted attribute, will end the attribute value
@@ -295,7 +295,7 @@ pub struct Builder<'a> {
     generic_attributes: HashSet<&'a str>,
     url_schemes: HashSet<&'a str>,
     url_relative: UrlRelative,
-    attribute_filter: Option<Box<AttributeFilter>>,
+    attribute_filter: Option<Box<dyn AttributeFilter>>,
     link_rel: Option<&'a str>,
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     strip_comments: bool,
@@ -1697,7 +1697,7 @@ pub enum UrlRelative {
     /// Relative URLs will be changed into absolute URLs, based on this base URL.
     RewriteWithBase(Url),
     /// Rewrite URLs with a custom function.
-    Custom(Box<UrlRelativeEvaluate>),
+    Custom(Box<dyn UrlRelativeEvaluate>),
     // Do not allow the user to exhaustively match on UrlRelative,
     // because we may add new items to it later.
     #[doc(hidden)]
@@ -1733,7 +1733,7 @@ impl<T> UrlRelativeEvaluate for T where T: Fn(&str) -> Option<Cow<str>> + Send +
     }
 }
 
-impl fmt::Debug for AttributeFilter {
+impl fmt::Debug for dyn AttributeFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("AttributeFilter")
     }
