@@ -1,9 +1,8 @@
-extern crate ammonia;
-extern crate time;
+use time::PreciseTime;
 
 fn main() {
     let n = 10_000;
-    let start = time::PreciseTime::now();
+    let start = PreciseTime::now();
     for _ in 0 .. n {
         ammonia::clean(r##"
         <p>Ammonia is a whitelist-based HTML sanitization library. It is designed to
@@ -16,5 +15,5 @@ fn main() {
         linkification, it only sanitizes URLs in existing links.</p>
         "##);
     }
-    println!("{} nanoseconds to clean up the intro to the Ammonia docs.", start.to(time::PreciseTime::now()).num_nanoseconds().unwrap() / n);
+    println!("{} nanoseconds to clean up the intro to the Ammonia docs.", start.to(PreciseTime::now()).num_nanoseconds().unwrap() / n);
 }
