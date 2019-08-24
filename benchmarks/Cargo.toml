@@ -1,7 +1,7 @@
 [package]
 name = "ammonia_bench"
 version = "0.0.1"
-license = "WTFPL"
+license = "MIT OR Apache-2.0 OR WTFPL OR Unlicense OR CC0"
 edition = "2018"
 
 [dependencies]
