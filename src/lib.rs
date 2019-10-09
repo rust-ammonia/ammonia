@@ -270,6 +270,7 @@ pub struct Builder<'a> {
     clean_content_tags: HashSet<&'a str>,
     tag_attributes: HashMap<&'a str, HashSet<&'a str>>,
     tag_attribute_values: HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>>,
+    set_tag_attribute_values: HashMap<&'a str, HashMap<&'a str, &'a str>>,
     generic_attributes: HashSet<&'a str>,
     url_schemes: HashSet<&'a str>,
     url_relative: UrlRelative,
@@ -353,6 +354,7 @@ impl<'a> Default for Builder<'a> {
             ],
         ];
         let tag_attribute_values = hashmap![];
+        let set_tag_attribute_values = hashmap![];
         let url_schemes = hashset![
             "bitcoin",
             "ftp",
@@ -387,6 +389,7 @@ impl<'a> Default for Builder<'a> {
             clean_content_tags,
             tag_attributes,
             tag_attribute_values,
+            set_tag_attribute_values,
             generic_attributes,
             url_schemes,
             url_relative: UrlRelative::PassThrough,
@@ -837,6 +840,141 @@ impl<'a> Builder<'a> {
         &self,
     ) -> HashMap<&'a str, HashMap<&'a str, HashSet<&'a str>>> {
         self.tag_attribute_values.clone()
+    }
+
+    /// Sets the values of HTML attributes that are to be set on specific tags.
+    ///
+    /// The value is structured as a map from tag names to a map from attribute names to an
+    /// attribute value.
+    ///
+    /// If a tag is not itself whitelisted, adding entries to this map will do nothing.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::Builder;
+    ///     use maplit::{hashmap, hashset};
+    ///
+    ///     # fn main() {
+    ///     let tags = hashset!["my-tag"];
+    ///     let set_tag_attribute_values = hashmap![
+    ///         "my-tag" => hashmap![
+    ///             "my-attr" => "val",
+    ///         ],
+    ///     ];
+    ///     let a = Builder::new().tags(tags).set_tag_attribute_values(set_tag_attribute_values)
+    ///         .clean("<my-tag>")
+    ///         .to_string();
+    ///     assert_eq!(a, "<my-tag my-attr=\"val\"></my-tag>");
+    ///     # }
+    ///
+    /// # Defaults
+    ///
+    /// None.
+    pub fn set_tag_attribute_values(
+        &mut self,
+        value: HashMap<&'a str, HashMap<&'a str, &'a str>>,
+    ) -> &mut Self {
+        self.set_tag_attribute_values = value;
+        self
+    }
+
+
+    /// Add an attribute value to set on a specific element.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_tags(&["my-tag"])
+    ///         .set_tag_attribute_value("my-tag", "my-attr", "val")
+    ///         .clean("<my-tag>test</my-tag> <span>mess</span>").to_string();
+    ///     assert_eq!("<my-tag my-attr=\"val\">test</my-tag> <span>mess</span>", a);
+    pub fn set_tag_attribute_value<
+        T: 'a + ?Sized + Borrow<str>,
+        A: 'a + ?Sized + Borrow<str>,
+        V: 'a + ?Sized + Borrow<str>,
+    >(
+        &mut self,
+        tag: &'a T,
+        attribute: &'a A,
+        value: &'a V,
+    ) -> &mut Self {
+        self.set_tag_attribute_values
+            .entry(tag.borrow())
+            .or_insert_with(HashMap::new)
+            .insert(attribute.borrow(), value.borrow());
+        self
+    }
+
+    /// Remove existing tag-specific attribute values to be set.
+    ///
+    /// Does nothing if the attribute is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         // this does nothing, since no value is set for this tag attribute yet
+    ///         .rm_set_tag_attribute_value("a", "target")
+    ///         .set_tag_attribute_value("a", "target", "_blank")
+    ///         .rm_set_tag_attribute_value("a", "target")
+    ///         .clean("<a href=\"/\"></a>").to_string();
+    ///     assert_eq!("<a href=\"/\" rel=\"noopener noreferrer\"></a>", a);
+    pub fn rm_set_tag_attribute_value<
+        T: 'a + ?Sized + Borrow<str>,
+        A: 'a + ?Sized + Borrow<str>,
+    >(
+        &mut self,
+        tag: &'a T,
+        attribute: &'a A,
+    ) -> &mut Self {
+        if let Some(attributes) = self.set_tag_attribute_values.get_mut(tag.borrow()) {
+            attributes.remove(attribute.borrow());
+        }
+        self
+    }
+
+    /// Returns the value that will be set for the attribute on the element, if any.
+    ///
+    /// # Examples
+    ///
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.set_tag_attribute_value("a", "target", "_blank");
+    ///     let value = b.get_set_tag_attribute_value("a", "target");
+    ///     assert_eq!(value, Some("_blank"));
+    pub fn get_set_tag_attribute_value<
+        T: 'a + ?Sized + Borrow<str>,
+        A: 'a + ?Sized + Borrow<str>,
+    >(
+        &self,
+        tag: &'a T,
+        attribute: &'a A,
+    ) -> Option<&'a str> {
+        self.set_tag_attribute_values
+            .get(tag.borrow())
+            .and_then(|map| map.get(attribute.borrow()))
+            .copied()
+    }
+
+    /// Returns a copy of the set of tag-specific attribute values to be set.
+    ///
+    /// # Examples
+    ///
+    ///     use maplit::{hashmap, hashset};
+    ///
+    ///     let attribute_values = hashmap![
+    ///         "my-attr-1" => "foo",
+    ///         "my-attr-2" => "bar",
+    ///     ];
+    ///     let set_tag_attribute_values = hashmap![
+    ///         "my-tag" => attribute_values,
+    ///     ];
+    ///
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.set_tag_attribute_values(Clone::clone(&set_tag_attribute_values));
+    ///     assert_eq!(set_tag_attribute_values, b.clone_set_tag_attribute_values());
+    pub fn clone_set_tag_attribute_values(
+        &self,
+    ) -> HashMap<&'a str, HashMap<&'a str, &'a str>> {
+        self.set_tag_attribute_values.clone()
     }
 
     /// Sets the attributes that are allowed on any tag.
@@ -1595,6 +1733,27 @@ impl<'a> Builder<'a> {
             ..
         } = child.data
         {
+            if let Some(set_attrs) = self.set_tag_attribute_values.get(&*name.local) {
+                let mut attrs = attrs.borrow_mut();
+                for (&set_name, &set_value) in set_attrs {
+                    // set the value of the attribute if the attribute is already present
+                    if let Some(attr) = attrs
+                        .iter_mut()
+                        .find(|attr| &*attr.name.local == set_name)
+                    {
+                        if &*attr.value != set_value {
+                            attr.value = set_value.into();
+                        }
+                    } else {
+                        // otherwise, add the attribute
+                        let attr = Attribute {
+                            name: QualName::new(None, ns!(), set_name.into()),
+                            value: set_value.into(),
+                        };
+                        attrs.push(attr);
+                    }
+                }
+            }
             if let Some(ref link_rel) = *link_rel {
                 if &*name.local == "a" {
                     attrs.borrow_mut().push(Attribute {
@@ -2435,6 +2594,43 @@ mod test {
             ])
             .clean(fragment);
         assert_eq!(result.to_string(), "<input type=\"CHECKBOX\" name=\"foo\">",);
+    }
+    #[test]
+    fn set_tag_attribute_values() {
+        let fragment = "<a href=\"https://example.com/\">Link</a>";
+        let result = Builder::new()
+            .link_rel(None)
+            .add_tag_attributes("a", &["target"])
+            .set_tag_attribute_value("a", "target", "_blank")
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<a href=\"https://example.com/\" target=\"_blank\">Link</a>",
+        );
+    }
+    #[test]
+    fn update_existing_set_tag_attribute_values() {
+        let fragment = "<a target=\"bad\" href=\"https://example.com/\">Link</a>";
+        let result = Builder::new()
+            .link_rel(None)
+            .add_tag_attributes("a", &["target"])
+            .set_tag_attribute_value("a", "target", "_blank")
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<a target=\"_blank\" href=\"https://example.com/\">Link</a>",
+        );
+    }
+    #[test]
+    fn unwhitelisted_set_tag_attribute_values() {
+        let fragment = "<span>hi</span><my-elem>";
+        let result = Builder::new()
+            .set_tag_attribute_value("my-elem", "my-attr", "val")
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<span>hi</span>",
+        );
     }
     #[test]
     fn remove_entity_link() {
