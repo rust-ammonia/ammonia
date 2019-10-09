@@ -3,7 +3,7 @@ cache: cargo
 rust:
  - beta
  - stable
- - 1.33.0
+ - 1.36.0
 
 branches:
  only:
