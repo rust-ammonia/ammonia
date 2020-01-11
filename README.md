@@ -43,11 +43,14 @@ site.
 
 ```rust
 use ammonia::clean;
-use pulldown_cmark::{push_html, Parser};
+use pulldown_cmark::{Parser, Options, html::push_html};
 
 let text = "[a link](http://www.notriddle.com/)";
 
-let mut md_parse = Parser::new_ext(text, OPTION_ENABLE_TABLES);
+let mut options = Options::empty();
+options.insert(Options::ENABLE_TABLES);
+
+let mut md_parse = Parser::new_ext(text, options);
 let mut unsafe_html = String::new();
 push_html(&mut unsafe_html, md_parse);
 
