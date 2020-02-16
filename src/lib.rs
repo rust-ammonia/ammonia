@@ -28,7 +28,7 @@
 //! [pulldown-cmark]: https://github.com/google/pulldown-cmark "CommonMark parser"
 
 use html5ever::interface::Attribute;
-use html5ever::rcdom::{Handle, NodeData, RcDom};
+use markup5ever_rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::{driver as html, local_name, namespace_url, ns, QualName};
@@ -2063,7 +2063,8 @@ impl Document {
     pub fn to_string(&self) -> String {
         let opts = Self::serialize_opts();
         let mut ret_val = Vec::new();
-        serialize(&mut ret_val, &self.0.document.children.borrow()[0], opts)
+        let inner: SerializableHandle = self.0.document.children.borrow()[0].clone().into();
+        serialize(&mut ret_val, &inner, opts)
             .expect("Writing to a string shouldn't fail (expect on OOM)");
         String::from_utf8(ret_val).expect("html5ever only supports UTF8")
     }
@@ -2098,7 +2099,8 @@ impl Document {
         W: io::Write,
     {
         let opts = Self::serialize_opts();
-        serialize(writer, &self.0.document.children.borrow()[0], opts)
+        let inner: SerializableHandle = self.0.document.children.borrow()[0].clone().into();
+        serialize(writer, &inner, opts)
     }
 
     /// Exposes the `Document` instance as an [`html5ever::rcdom::Handle`][h].
