@@ -279,7 +279,7 @@ pub struct Builder<'a> {
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     strip_comments: bool,
     id_prefix: Option<&'a str>,
-    allowed_attribute_prefix: Option<HashSet<&'a str>>,
+    allowed_generic_attribute_prefix: Option<HashSet<&'a str>>,
 }
 
 impl<'a> Default for Builder<'a> {
@@ -399,7 +399,7 @@ impl<'a> Default for Builder<'a> {
             allowed_classes,
             strip_comments: true,
             id_prefix: None,
-            allowed_attribute_prefix: None,
+            allowed_generic_attribute_prefix: None,
         }
     }
 }
@@ -980,26 +980,26 @@ impl<'a> Builder<'a> {
     }
 
     ///
-    pub fn allowed_attribute_prefix(&mut self, value: HashSet<&'a str>) -> &mut Self {
-        self.allowed_attribute_prefix = Some(value);
+    pub fn allowed_generic_attribute_prefix(&mut self, value: HashSet<&'a str>) -> &mut Self {
+        self.allowed_generic_attribute_prefix = Some(value);
         self
     }
 
     ///
-    pub fn add_allowed_attribute_prefix(&mut self, value: &'a str) -> &mut Self {
-        self.allowed_attribute_prefix
+    pub fn add_allowed_generic_attribute_prefix(&mut self, value: &'a str) -> &mut Self {
+        self.allowed_generic_attribute_prefix
             .get_or_insert_with(HashSet::new)
             .insert(value);
         self
     }
 
     ///
-    pub fn rm_allowed_attribute_prefix<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
+    pub fn rm_allowed_generic_attribute_prefix<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
         &mut self,
         it: I,
     ) -> &mut Self {
         if let Some(true) =
-            self.allowed_attribute_prefix
+            self.allowed_generic_attribute_prefix
             .as_mut()
             .map(|prefixes| {
                 for i in it {
@@ -1007,14 +1007,14 @@ impl<'a> Builder<'a> {
                 }
                 prefixes.is_empty()
             }) {
-            self.allowed_attribute_prefix = None;
+            self.allowed_generic_attribute_prefix = None;
         }
         self
     }
 
     ///
-    pub fn clone_allowed_attribute_prefix(&self) -> Option<HashSet<&'a str>> {
-        self.allowed_attribute_prefix.clone()
+    pub fn clone_allowed_generic_attribute_prefix(&self) -> Option<HashSet<&'a str>> {
+        self.allowed_generic_attribute_prefix.clone()
     }
 
     /// Sets the attributes that are allowed on any tag.
@@ -1711,6 +1711,12 @@ impl<'a> Builder<'a> {
                     let attr_filter = |attr: &html5ever::Attribute| {
                         let whitelisted = self.generic_attributes.contains(&*attr.name.local)
                             || self
+                                .allowed_generic_attribute_prefix
+                                .as_ref()
+                                .map(|prefixes| {
+                                    prefixes.iter().any(|&p| attr.name.local.starts_with(p))
+                                }) == Some(true)
+                            || self
                                 .tag_attributes
                                 .get(&*name.local)
                                 .map(|ta| ta.contains(&*attr.name.local))
@@ -1723,13 +1729,7 @@ impl<'a> Builder<'a> {
                                     let attr_val = attr.value.to_lowercase();
                                     vs.iter().any(|v| v.to_lowercase() == attr_val)
                                 })
-                                == Some(true)
-                            || self
-                                .allowed_attribute_prefix
-                                .as_ref()
-                                .map(|prefixes| {
-                                    prefixes.iter().any(|&p| attr.name.local.starts_with(p))
-                                }) == Some(true);
+                                == Some(true);
                         if !whitelisted {
                             // If the class attribute is not whitelisted,
                             // but there is a whitelisted set of allowed_classes,
@@ -2898,30 +2898,28 @@ mod test {
     }
 
     #[test]
-    fn allowed_attribute_prefix_mgmt() {
+    fn allowed_generic_attribute_prefix_mgmt() {
         let prefix_data = "data-";
         let prefix_code = "code-";
         let mut b = Builder::new();
-        assert_eq!(b.allowed_attribute_prefix.is_none(), true);
-        b.add_allowed_attribute_prefix(&prefix_data);
-        assert_eq!(b.allowed_attribute_prefix.is_some(), true);
-        assert_eq!(b.allowed_attribute_prefix.as_ref().unwrap().len(), 1);
-        b.add_allowed_attribute_prefix(&prefix_data);
-        assert_eq!(b.allowed_attribute_prefix.as_ref().unwrap().len(), 1);
-        b.add_allowed_attribute_prefix(&prefix_code);
-        assert_eq!(b.allowed_attribute_prefix.as_ref().unwrap().len(), 2);
-        b.rm_allowed_attribute_prefix(&[prefix_code]);
-        assert_eq!(b.allowed_attribute_prefix.as_ref().unwrap().len(), 1);
-        b.rm_allowed_attribute_prefix(&[prefix_code]);
-        assert_eq!(b.allowed_attribute_prefix.as_ref().unwrap().len(), 1);
-        b.rm_allowed_attribute_prefix(&[prefix_data]);
-        assert_eq!(b.allowed_attribute_prefix.is_none(), true);
+        assert_eq!(b.allowed_generic_attribute_prefix.is_none(), true);
+        b.add_allowed_generic_attribute_prefix(&prefix_data);
+        assert_eq!(b.allowed_generic_attribute_prefix.is_some(), true);
+        assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 1);
+        b.add_allowed_generic_attribute_prefix(&prefix_data);
+        assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 1);
+        b.add_allowed_generic_attribute_prefix(&prefix_code);
+        assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 2);
+        b.rm_allowed_generic_attribute_prefix(&[prefix_code]);
+        assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 1);
+        b.rm_allowed_generic_attribute_prefix(&[prefix_code]);
+        assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 1);
+        b.rm_allowed_generic_attribute_prefix(&[prefix_data]);
+        assert_eq!(b.allowed_generic_attribute_prefix.is_none(), true);
     }
 
     #[test]
-    fn allowed_attribute_prefix_clean() {
-        let mut b = Builder::new();
-        b.add_allowed_attribute_prefix("data-");
+    fn allowed_generic_attribute_prefix_clean() {
         let fragment = "<a data-foo=\"text/javascript\"><a>Hello!</a></a>";
         let result_cleaned = String::from(
             Builder::new()
@@ -2930,7 +2928,7 @@ mod test {
         assert_eq!(result_cleaned, "<a rel=\"noopener noreferrer\"></a><a rel=\"noopener noreferrer\">Hello!</a>");
         let result_allowed = String::from(
             Builder::new()
-                .add_allowed_attribute_prefix("data-")
+                .add_allowed_generic_attribute_prefix("data-")
                 .clean(fragment),
         );
         assert_eq!(result_allowed, "<a data-foo=\"text/javascript\" rel=\"noopener noreferrer\"></a><a rel=\"noopener noreferrer\">Hello!</a>");
