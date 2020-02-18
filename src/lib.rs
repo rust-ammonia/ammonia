@@ -998,16 +998,24 @@ impl<'a> Builder<'a> {
         &mut self,
         it: I,
     ) -> &mut Self {
-            self.allowed_attribute_prefix.as_mut()
-                .map(|prefixes| {
-                    for i in it {
-                        let _ = prefixes.remove(i.borrow());
-                    }
-                    prefixes
-                });
+        if let Some(true) =
+            self.allowed_attribute_prefix
+            .as_mut()
+            .map(|prefixes| {
+                for i in it {
+                    let _ = prefixes.remove(i.borrow());
+                }
+                prefixes.is_empty()
+            }) {
+            self.allowed_attribute_prefix = None;
+        }
         self
     }
 
+    ///
+    pub fn clone_allowed_attribute_prefix(&self) -> Option<HashSet<&'a str>> {
+        self.allowed_attribute_prefix.clone()
+    }
 
     /// Sets the attributes that are allowed on any tag.
     ///
@@ -1715,7 +1723,13 @@ impl<'a> Builder<'a> {
                                     let attr_val = attr.value.to_lowercase();
                                     vs.iter().any(|v| v.to_lowercase() == attr_val)
                                 })
-                                == Some(true);
+                                == Some(true)
+                            || self
+                                .allowed_attribute_prefix
+                                .as_ref()
+                                .map(|prefixes| {
+                                    prefixes.iter().any(|&p| attr.name.local.starts_with(p))
+                                }) == Some(true);
                         if !whitelisted {
                             // If the class attribute is not whitelisted,
                             // but there is a whitelisted set of allowed_classes,
@@ -2881,5 +2895,44 @@ mod test {
             clean_text("<this> is <a test function"),
             "&lt;this&gt;&#32;is&#32;&lt;a&#32;test&#32;function"
         );
+    }
+
+    #[test]
+    fn allowed_attribute_prefix_mgmt() {
+        let prefix_data = "data-";
+        let prefix_code = "code-";
+        let mut b = Builder::new();
+        assert_eq!(b.allowed_attribute_prefix.is_none(), true);
+        b.add_allowed_attribute_prefix(&prefix_data);
+        assert_eq!(b.allowed_attribute_prefix.is_some(), true);
+        assert_eq!(b.allowed_attribute_prefix.as_ref().unwrap().len(), 1);
+        b.add_allowed_attribute_prefix(&prefix_data);
+        assert_eq!(b.allowed_attribute_prefix.as_ref().unwrap().len(), 1);
+        b.add_allowed_attribute_prefix(&prefix_code);
+        assert_eq!(b.allowed_attribute_prefix.as_ref().unwrap().len(), 2);
+        b.rm_allowed_attribute_prefix(&[prefix_code]);
+        assert_eq!(b.allowed_attribute_prefix.as_ref().unwrap().len(), 1);
+        b.rm_allowed_attribute_prefix(&[prefix_code]);
+        assert_eq!(b.allowed_attribute_prefix.as_ref().unwrap().len(), 1);
+        b.rm_allowed_attribute_prefix(&[prefix_data]);
+        assert_eq!(b.allowed_attribute_prefix.is_none(), true);
+    }
+
+    #[test]
+    fn allowed_attribute_prefix_clean() {
+        let mut b = Builder::new();
+        b.add_allowed_attribute_prefix("data-");
+        let fragment = "<a data-foo=\"text/javascript\"><a>Hello!</a></a>";
+        let result_cleaned = String::from(
+            Builder::new()
+                .clean(fragment),
+        );
+        assert_eq!(result_cleaned, "<a rel=\"noopener noreferrer\"></a><a rel=\"noopener noreferrer\">Hello!</a>");
+        let result_allowed = String::from(
+            Builder::new()
+                .add_allowed_attribute_prefix("data-")
+                .clean(fragment),
+        );
+        assert_eq!(result_allowed, "<a data-foo=\"text/javascript\" rel=\"noopener noreferrer\"></a><a rel=\"noopener noreferrer\">Hello!</a>");
     }
 }
