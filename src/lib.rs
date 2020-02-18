@@ -2902,8 +2902,10 @@ mod test {
         let prefix_data = "data-";
         let prefix_code = "code-";
         let mut b = Builder::new();
+        let mut hs = HashSet::new();
+        hs.insert(prefix_data);
         assert_eq!(b.allowed_generic_attribute_prefix.is_none(), true);
-        b.add_allowed_generic_attribute_prefix(&prefix_data);
+        b.allowed_generic_attribute_prefix(hs);
         assert_eq!(b.allowed_generic_attribute_prefix.is_some(), true);
         assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 1);
         b.add_allowed_generic_attribute_prefix(&prefix_data);
