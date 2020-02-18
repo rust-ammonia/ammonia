@@ -279,6 +279,7 @@ pub struct Builder<'a> {
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     strip_comments: bool,
     id_prefix: Option<&'a str>,
+    allowed_attribute_prefix: Option<HashSet<&'a str>>,
 }
 
 impl<'a> Default for Builder<'a> {
@@ -398,6 +399,7 @@ impl<'a> Default for Builder<'a> {
             allowed_classes,
             strip_comments: true,
             id_prefix: None,
+            allowed_attribute_prefix: None,
         }
     }
 }
@@ -976,6 +978,36 @@ impl<'a> Builder<'a> {
     ) -> HashMap<&'a str, HashMap<&'a str, &'a str>> {
         self.set_tag_attribute_values.clone()
     }
+
+    ///
+    pub fn allowed_attribute_prefix(&mut self, value: HashSet<&'a str>) -> &mut Self {
+        self.allowed_attribute_prefix = Some(value);
+        self
+    }
+
+    ///
+    pub fn add_allowed_attribute_prefix(&mut self, value: &'a str) -> &mut Self {
+        self.allowed_attribute_prefix
+            .get_or_insert_with(HashSet::new)
+            .insert(value);
+        self
+    }
+
+    ///
+    pub fn rm_allowed_attribute_prefix<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
+            self.allowed_attribute_prefix.as_mut()
+                .map(|prefixes| {
+                    for i in it {
+                        let _ = prefixes.remove(i.borrow());
+                    }
+                    prefixes
+                });
+        self
+    }
+
 
     /// Sets the attributes that are allowed on any tag.
     ///
