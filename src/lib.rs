@@ -279,7 +279,7 @@ pub struct Builder<'a> {
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     strip_comments: bool,
     id_prefix: Option<&'a str>,
-    allowed_generic_attribute_prefix: Option<HashSet<&'a str>>,
+    generic_attribute_prefixes: Option<HashSet<&'a str>>,
 }
 
 impl<'a> Default for Builder<'a> {
@@ -399,7 +399,7 @@ impl<'a> Default for Builder<'a> {
             allowed_classes,
             strip_comments: true,
             id_prefix: None,
-            allowed_generic_attribute_prefix: None,
+            generic_attribute_prefixes: None,
         }
     }
 }
@@ -979,27 +979,67 @@ impl<'a> Builder<'a> {
         self.set_tag_attribute_values.clone()
     }
 
+    /// Sets the prefix of attributes that are allowed on any tag.
     ///
-    pub fn allowed_generic_attribute_prefix(&mut self, value: HashSet<&'a str>) -> &mut Self {
-        self.allowed_generic_attribute_prefix = Some(value);
+    /// # Examples
+    ///
+    ///     use ammonia::Builder;
+    ///     use maplit::hashset;
+    ///
+    ///     # fn main() {
+    ///     let prefixes = hashset!["data-"];
+    ///     let a = Builder::new()
+    ///         .generic_attribute_prefixes(prefixes)
+    ///         .clean("<b data-val=1>")
+    ///         .to_string();
+    ///     assert_eq!(a, "<b data-val=\"1\"></b>");
+    ///     # }
+    ///
+    /// # Defaults
+    ///
+    /// ```notest
+    /// lang, title
+    /// ```
+    pub fn generic_attribute_prefixes(&mut self, value: HashSet<&'a str>) -> &mut Self {
+        self.generic_attribute_prefixes = Some(value);
         self
     }
 
+    /// Add additonal whitelisted attribute prefix without overwriting old ones.
     ///
-    pub fn add_allowed_generic_attribute_prefix(&mut self, value: &'a str) -> &mut Self {
-        self.allowed_generic_attribute_prefix
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_generic_attribute_prefixes(&["my-"])
+    ///         .clean("<span my-attr>mess</span>").to_string();
+    ///     assert_eq!("<span my-attr=\"\">mess</span>", a);
+    pub fn add_generic_attribute_prefixes<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item = &'a T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
+        self.generic_attribute_prefixes
             .get_or_insert_with(HashSet::new)
-            .insert(value);
+            .extend(it.into_iter().map(Borrow::borrow));
         self
     }
 
+    /// Remove already-whitelisted attribute prefixes.
     ///
-    pub fn rm_allowed_generic_attribute_prefix<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
+    /// Does nothing if the attribute prefix is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_generic_attribute_prefixes(&["data-", "code-"])
+    ///         .rm_generic_attribute_prefixes(&["data-"])
+    ///         .clean("<span code-test=\"foo\" data-test=\"cool\"></span>").to_string();
+    ///     assert_eq!("<span code-test=\"foo\"></span>", a);
+    pub fn rm_generic_attribute_prefixes<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
         &mut self,
         it: I,
     ) -> &mut Self {
         if let Some(true) =
-            self.allowed_generic_attribute_prefix
+            self.generic_attribute_prefixes
             .as_mut()
             .map(|prefixes| {
                 for i in it {
@@ -1007,14 +1047,24 @@ impl<'a> Builder<'a> {
                 }
                 prefixes.is_empty()
             }) {
-            self.allowed_generic_attribute_prefix = None;
+            self.generic_attribute_prefixes = None;
         }
         self
     }
 
+    /// Returns a copy of the set of whitelisted attribute prefixes.
     ///
-    pub fn clone_allowed_generic_attribute_prefix(&self) -> Option<HashSet<&'a str>> {
-        self.allowed_generic_attribute_prefix.clone()
+    /// # Examples
+    ///
+    ///     use maplit::hashset;
+    ///
+    ///     let generic_attribute_prefixes = hashset!["my-prfx-1-", "my-prfx-2-"];
+    ///
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.generic_attribute_prefixes(Clone::clone(&generic_attribute_prefixes));
+    ///     assert_eq!(Some(generic_attribute_prefixes), b.clone_generic_attribute_prefixes());
+    pub fn clone_generic_attribute_prefixes(&self) -> Option<HashSet<&'a str>> {
+        self.generic_attribute_prefixes.clone()
     }
 
     /// Sets the attributes that are allowed on any tag.
@@ -1711,7 +1761,7 @@ impl<'a> Builder<'a> {
                     let attr_filter = |attr: &html5ever::Attribute| {
                         let whitelisted = self.generic_attributes.contains(&*attr.name.local)
                             || self
-                                .allowed_generic_attribute_prefix
+                                .generic_attribute_prefixes
                                 .as_ref()
                                 .map(|prefixes| {
                                     prefixes.iter().any(|&p| attr.name.local.starts_with(p))
@@ -2898,30 +2948,30 @@ mod test {
     }
 
     #[test]
-    fn allowed_generic_attribute_prefix_mgmt() {
-        let prefix_data = "data-";
-        let prefix_code = "code-";
+    fn generic_attribute_prefixes() {
+        let prefix_data = ["data-"];
+        let prefix_code = ["code-"];
         let mut b = Builder::new();
-        let mut hs = HashSet::new();
-        hs.insert(prefix_data);
-        assert_eq!(b.allowed_generic_attribute_prefix.is_none(), true);
-        b.allowed_generic_attribute_prefix(hs);
-        assert_eq!(b.allowed_generic_attribute_prefix.is_some(), true);
-        assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 1);
-        b.add_allowed_generic_attribute_prefix(&prefix_data);
-        assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 1);
-        b.add_allowed_generic_attribute_prefix(&prefix_code);
-        assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 2);
-        b.rm_allowed_generic_attribute_prefix(&[prefix_code]);
-        assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 1);
-        b.rm_allowed_generic_attribute_prefix(&[prefix_code]);
-        assert_eq!(b.allowed_generic_attribute_prefix.as_ref().unwrap().len(), 1);
-        b.rm_allowed_generic_attribute_prefix(&[prefix_data]);
-        assert_eq!(b.allowed_generic_attribute_prefix.is_none(), true);
+        let mut hs: HashSet<&'_ str> = HashSet::new();
+        hs.insert("data-");
+        assert_eq!(b.generic_attribute_prefixes.is_none(), true);
+        b.generic_attribute_prefixes(hs);
+        assert_eq!(b.generic_attribute_prefixes.is_some(), true);
+        assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
+        b.add_generic_attribute_prefixes(&prefix_data);
+        assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
+        b.add_generic_attribute_prefixes(&prefix_code);
+        assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 2);
+        b.rm_generic_attribute_prefixes(&prefix_code);
+        assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
+        b.rm_generic_attribute_prefixes(&prefix_code);
+        assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
+        b.rm_generic_attribute_prefixes(&prefix_data);
+        assert_eq!(b.generic_attribute_prefixes.is_none(), true);
     }
 
     #[test]
-    fn allowed_generic_attribute_prefix_clean() {
+    fn generic_attribute_prefixes_clean() {
         let fragment = "<a data-foo=\"text/javascript\"><a>Hello!</a></a>";
         let result_cleaned = String::from(
             Builder::new()
@@ -2930,7 +2980,7 @@ mod test {
         assert_eq!(result_cleaned, "<a rel=\"noopener noreferrer\"></a><a rel=\"noopener noreferrer\">Hello!</a>");
         let result_allowed = String::from(
             Builder::new()
-                .add_allowed_generic_attribute_prefix("data-")
+                .add_generic_attribute_prefixes(&["data-"])
                 .clean(fragment),
         );
         assert_eq!(result_allowed, "<a data-foo=\"text/javascript\" rel=\"noopener noreferrer\"></a><a rel=\"noopener noreferrer\">Hello!</a>");
