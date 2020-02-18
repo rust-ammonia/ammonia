@@ -1005,7 +1005,7 @@ impl<'a> Builder<'a> {
         self
     }
 
-    /// Add additonal whitelisted attribute prefix without overwriting old ones.
+    /// Add additional whitelisted attribute prefix without overwriting old ones.
     ///
     /// # Examples
     ///
@@ -2972,17 +2972,26 @@ mod test {
 
     #[test]
     fn generic_attribute_prefixes_clean() {
-        let fragment = "<a data-foo=\"text/javascript\"><a>Hello!</a></a>";
+        let fragment = r#"<a data-1 data-2 code-1 code-2><a>Hello!</a></a>"#;
         let result_cleaned = String::from(
             Builder::new()
+                .add_tag_attributes("a", &["data-1"])
                 .clean(fragment),
         );
-        assert_eq!(result_cleaned, "<a rel=\"noopener noreferrer\"></a><a rel=\"noopener noreferrer\">Hello!</a>");
+        assert_eq!(result_cleaned, r#"<a data-1="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#);
         let result_allowed = String::from(
             Builder::new()
+                .add_tag_attributes("a", &["data-1"])
                 .add_generic_attribute_prefixes(&["data-"])
                 .clean(fragment),
         );
-        assert_eq!(result_allowed, "<a data-foo=\"text/javascript\" rel=\"noopener noreferrer\"></a><a rel=\"noopener noreferrer\">Hello!</a>");
+        assert_eq!(result_allowed, r#"<a data-1="" data-2="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#);
+        let result_allowed = String::from(
+            Builder::new()
+                .add_tag_attributes("a", &["data-1", "code-1"])
+                .add_generic_attribute_prefixes(&["data-", "code-"])
+                .clean(fragment),
+        );
+        assert_eq!(result_allowed, r#"<a data-1="" data-2="" code-1="" code-2="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#);
     }
 }
