@@ -279,6 +279,7 @@ pub struct Builder<'a> {
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
     strip_comments: bool,
     id_prefix: Option<&'a str>,
+    generic_attribute_prefixes: Option<HashSet<&'a str>>,
 }
 
 impl<'a> Default for Builder<'a> {
@@ -398,6 +399,7 @@ impl<'a> Default for Builder<'a> {
             allowed_classes,
             strip_comments: true,
             id_prefix: None,
+            generic_attribute_prefixes: None,
         }
     }
 }
@@ -975,6 +977,94 @@ impl<'a> Builder<'a> {
         &self,
     ) -> HashMap<&'a str, HashMap<&'a str, &'a str>> {
         self.set_tag_attribute_values.clone()
+    }
+
+    /// Sets the prefix of attributes that are allowed on any tag.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::Builder;
+    ///     use maplit::hashset;
+    ///
+    ///     # fn main() {
+    ///     let prefixes = hashset!["data-"];
+    ///     let a = Builder::new()
+    ///         .generic_attribute_prefixes(prefixes)
+    ///         .clean("<b data-val=1>")
+    ///         .to_string();
+    ///     assert_eq!(a, "<b data-val=\"1\"></b>");
+    ///     # }
+    ///
+    /// # Defaults
+    ///
+    /// ```notest
+    /// lang, title
+    /// ```
+    pub fn generic_attribute_prefixes(&mut self, value: HashSet<&'a str>) -> &mut Self {
+        self.generic_attribute_prefixes = Some(value);
+        self
+    }
+
+    /// Add additional whitelisted attribute prefix without overwriting old ones.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_generic_attribute_prefixes(&["my-"])
+    ///         .clean("<span my-attr>mess</span>").to_string();
+    ///     assert_eq!("<span my-attr=\"\">mess</span>", a);
+    pub fn add_generic_attribute_prefixes<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item = &'a T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
+        self.generic_attribute_prefixes
+            .get_or_insert_with(HashSet::new)
+            .extend(it.into_iter().map(Borrow::borrow));
+        self
+    }
+
+    /// Remove already-whitelisted attribute prefixes.
+    ///
+    /// Does nothing if the attribute prefix is already gone.
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::default()
+    ///         .add_generic_attribute_prefixes(&["data-", "code-"])
+    ///         .rm_generic_attribute_prefixes(&["data-"])
+    ///         .clean("<span code-test=\"foo\" data-test=\"cool\"></span>").to_string();
+    ///     assert_eq!("<span code-test=\"foo\"></span>", a);
+    pub fn rm_generic_attribute_prefixes<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
+        &mut self,
+        it: I,
+    ) -> &mut Self {
+        if let Some(true) =
+            self.generic_attribute_prefixes
+            .as_mut()
+            .map(|prefixes| {
+                for i in it {
+                    let _ = prefixes.remove(i.borrow());
+                }
+                prefixes.is_empty()
+            }) {
+            self.generic_attribute_prefixes = None;
+        }
+        self
+    }
+
+    /// Returns a copy of the set of whitelisted attribute prefixes.
+    ///
+    /// # Examples
+    ///
+    ///     use maplit::hashset;
+    ///
+    ///     let generic_attribute_prefixes = hashset!["my-prfx-1-", "my-prfx-2-"];
+    ///
+    ///     let mut b = ammonia::Builder::default();
+    ///     b.generic_attribute_prefixes(Clone::clone(&generic_attribute_prefixes));
+    ///     assert_eq!(Some(generic_attribute_prefixes), b.clone_generic_attribute_prefixes());
+    pub fn clone_generic_attribute_prefixes(&self) -> Option<HashSet<&'a str>> {
+        self.generic_attribute_prefixes.clone()
     }
 
     /// Sets the attributes that are allowed on any tag.
@@ -1670,6 +1760,12 @@ impl<'a> Builder<'a> {
                 if self.tags.contains(&*name.local) {
                     let attr_filter = |attr: &html5ever::Attribute| {
                         let whitelisted = self.generic_attributes.contains(&*attr.name.local)
+                            || self
+                                .generic_attribute_prefixes
+                                .as_ref()
+                                .map(|prefixes| {
+                                    prefixes.iter().any(|&p| attr.name.local.starts_with(p))
+                                }) == Some(true)
                             || self
                                 .tag_attributes
                                 .get(&*name.local)
@@ -2849,5 +2945,53 @@ mod test {
             clean_text("<this> is <a test function"),
             "&lt;this&gt;&#32;is&#32;&lt;a&#32;test&#32;function"
         );
+    }
+
+    #[test]
+    fn generic_attribute_prefixes() {
+        let prefix_data = ["data-"];
+        let prefix_code = ["code-"];
+        let mut b = Builder::new();
+        let mut hs: HashSet<&'_ str> = HashSet::new();
+        hs.insert("data-");
+        assert_eq!(b.generic_attribute_prefixes.is_none(), true);
+        b.generic_attribute_prefixes(hs);
+        assert_eq!(b.generic_attribute_prefixes.is_some(), true);
+        assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
+        b.add_generic_attribute_prefixes(&prefix_data);
+        assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
+        b.add_generic_attribute_prefixes(&prefix_code);
+        assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 2);
+        b.rm_generic_attribute_prefixes(&prefix_code);
+        assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
+        b.rm_generic_attribute_prefixes(&prefix_code);
+        assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
+        b.rm_generic_attribute_prefixes(&prefix_data);
+        assert_eq!(b.generic_attribute_prefixes.is_none(), true);
+    }
+
+    #[test]
+    fn generic_attribute_prefixes_clean() {
+        let fragment = r#"<a data-1 data-2 code-1 code-2><a>Hello!</a></a>"#;
+        let result_cleaned = String::from(
+            Builder::new()
+                .add_tag_attributes("a", &["data-1"])
+                .clean(fragment),
+        );
+        assert_eq!(result_cleaned, r#"<a data-1="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#);
+        let result_allowed = String::from(
+            Builder::new()
+                .add_tag_attributes("a", &["data-1"])
+                .add_generic_attribute_prefixes(&["data-"])
+                .clean(fragment),
+        );
+        assert_eq!(result_allowed, r#"<a data-1="" data-2="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#);
+        let result_allowed = String::from(
+            Builder::new()
+                .add_tag_attributes("a", &["data-1", "code-1"])
+                .add_generic_attribute_prefixes(&["data-", "code-"])
+                .clean(fragment),
+        );
+        assert_eq!(result_allowed, r#"<a data-1="" data-2="" code-1="" code-2="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#);
     }
 }
