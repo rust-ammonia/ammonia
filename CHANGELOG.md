@@ -1,5 +1,11 @@
 # Unreleased
 
+# 3.1.0
+
+* feature: Whitelist generic attribute prefix
+* chore: Update html5ever to 0.25
+* feature: support adding attribute values to elements
+
 # 3.0.0
 
 * Add [`clean_text`] function.
