@@ -79,11 +79,40 @@ pub fn clean(src: &str) -> String {
 /// Turn an arbitrary string into unformatted HTML.
 ///
 /// This function is roughly equivalent to PHP's `htmlspecialchars` and `htmlentities`.
-/// It is maximally strict on purpose, encoding every character that has special meaning to the
+/// It is as strict as possible, encoding every character that has special meaning to the
 /// HTML parser.
+///
+/// # Warnings
 ///
 /// This function cannot be used to package strings into a `<script>` or `<style>` tag;
 /// you need a JavaScript or CSS escaper to do that.
+///
+///     // DO NOT DO THIS
+///     # use ammonia::clean_text;
+///     let untrusted = "Robert\"); abuse();//";
+///     let html = format!("<script>invoke(\"{}\")</script>", clean_text(untrusted));
+///
+/// `<textarea>` tags will strip the first newline, if present, even if that newline is encoded.
+/// If you want to build an editor that works the way most folks expect them to, you should put a
+/// newline at the beginning of the tag, like this:
+///
+///     # use ammonia::{Builder, clean_text};
+///     let untrusted = "\n\nhi!";
+///     let mut b = Builder::new();
+///     b.add_tags(&["textarea"]);
+///     // This is the bad version
+///     // The user put two newlines at the beginning, but the first one was removed
+///     let sanitized = b.clean(&format!("<textarea>{}</textarea>", clean_text(untrusted))).to_string();
+///     assert_eq!("<textarea>\nhi!</textarea>", sanitized);
+///     // This is a good version
+///     // The user put two newlines at the beginning, and we add a third one,
+///     // so the result still has two
+///     let sanitized = b.clean(&format!("<textarea>\n{}</textarea>", clean_text(untrusted))).to_string();
+///     assert_eq!("<textarea>\n\nhi!</textarea>", sanitized);
+///     // This version is also often considered good
+///     // For many applications, leading and trailing whitespace is probably unwanted
+///     let sanitized = b.clean(&format!("<textarea>{}</textarea>", clean_text(untrusted.trim()))).to_string();
+///     assert_eq!("<textarea>hi!</textarea>", sanitized);
 ///
 /// It also does not make user text safe for HTML attribute microsyntaxes such as `class` or `id`.
 /// Only use this function for places where HTML accepts unrestricted text such as `title` attributes
