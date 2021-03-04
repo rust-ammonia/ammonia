@@ -28,12 +28,12 @@
 //! [pulldown-cmark]: https://github.com/google/pulldown-cmark "CommonMark parser"
 
 use html5ever::interface::Attribute;
-use markup5ever_rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::{driver as html, local_name, namespace_url, ns, QualName};
 use lazy_static::lazy_static;
 use maplit::{hashmap, hashset};
+use markup5ever_rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use matches::matches;
 use std::borrow::{Borrow, Cow};
 use std::cmp::max;
@@ -909,7 +909,6 @@ impl<'a> Builder<'a> {
         self
     }
 
-
     /// Add an attribute value to set on a specific element.
     ///
     /// # Examples
@@ -1002,9 +1001,7 @@ impl<'a> Builder<'a> {
     ///     let mut b = ammonia::Builder::default();
     ///     b.set_tag_attribute_values(Clone::clone(&set_tag_attribute_values));
     ///     assert_eq!(set_tag_attribute_values, b.clone_set_tag_attribute_values());
-    pub fn clone_set_tag_attribute_values(
-        &self,
-    ) -> HashMap<&'a str, HashMap<&'a str, &'a str>> {
+    pub fn clone_set_tag_attribute_values(&self) -> HashMap<&'a str, HashMap<&'a str, &'a str>> {
         self.set_tag_attribute_values.clone()
     }
 
@@ -1042,7 +1039,10 @@ impl<'a> Builder<'a> {
     ///         .add_generic_attribute_prefixes(&["my-"])
     ///         .clean("<span my-attr>mess</span>").to_string();
     ///     assert_eq!("<span my-attr=\"\">mess</span>", a);
-    pub fn add_generic_attribute_prefixes<T: 'a + ?Sized + Borrow<str>, I: IntoIter<Item = &'a T>>(
+    pub fn add_generic_attribute_prefixes<
+        T: 'a + ?Sized + Borrow<str>,
+        I: IntoIter<Item = &'a T>,
+    >(
         &mut self,
         it: I,
     ) -> &mut Self {
@@ -1063,19 +1063,20 @@ impl<'a> Builder<'a> {
     ///         .rm_generic_attribute_prefixes(&["data-"])
     ///         .clean("<span code-test=\"foo\" data-test=\"cool\"></span>").to_string();
     ///     assert_eq!("<span code-test=\"foo\"></span>", a);
-    pub fn rm_generic_attribute_prefixes<'b, T: 'b + ?Sized + Borrow<str>, I: IntoIter<Item = &'b T>>(
+    pub fn rm_generic_attribute_prefixes<
+        'b,
+        T: 'b + ?Sized + Borrow<str>,
+        I: IntoIter<Item = &'b T>,
+    >(
         &mut self,
         it: I,
     ) -> &mut Self {
-        if let Some(true) =
-            self.generic_attribute_prefixes
-            .as_mut()
-            .map(|prefixes| {
-                for i in it {
-                    let _ = prefixes.remove(i.borrow());
-                }
-                prefixes.is_empty()
-            }) {
+        if let Some(true) = self.generic_attribute_prefixes.as_mut().map(|prefixes| {
+            for i in it {
+                let _ = prefixes.remove(i.borrow());
+            }
+            prefixes.is_empty()
+        }) {
             self.generic_attribute_prefixes = None;
         }
         self
@@ -1730,7 +1731,7 @@ impl<'a> Builder<'a> {
                 removed.push(node);
                 continue;
             }
-            let pass = self.clean_child(&mut node);
+            let pass = self.clean_child(&mut node, url_base);
             if pass {
                 self.adjust_node_attributes(&mut node, &link_rel, url_base, self.id_prefix);
                 dom.append(&parent.clone(), NodeOrText::AppendNode(node.clone()));
@@ -1774,7 +1775,7 @@ impl<'a> Builder<'a> {
     /// The root node doesn't need cleaning because we create the root node ourselves,
     /// and it doesn't get serialized, and ... it just exists to give the parser
     /// a context (in this case, a div-like block context).
-    fn clean_child(&self, child: &mut Handle) -> bool {
+    fn clean_child(&self, child: &mut Handle, url_base: Option<&Url>) -> bool {
         match child.data {
             NodeData::Text { .. } => true,
             NodeData::Comment { .. } => !self.strip_comments,
@@ -1789,12 +1790,9 @@ impl<'a> Builder<'a> {
                 if self.tags.contains(&*name.local) {
                     let attr_filter = |attr: &html5ever::Attribute| {
                         let whitelisted = self.generic_attributes.contains(&*attr.name.local)
-                            || self
-                                .generic_attribute_prefixes
-                                .as_ref()
-                                .map(|prefixes| {
-                                    prefixes.iter().any(|&p| attr.name.local.starts_with(p))
-                                }) == Some(true)
+                            || self.generic_attribute_prefixes.as_ref().map(|prefixes| {
+                                prefixes.iter().any(|&p| attr.name.local.starts_with(p))
+                            }) == Some(true)
                             || self
                                 .tag_attributes
                                 .get(&*name.local)
@@ -1821,7 +1819,13 @@ impl<'a> Builder<'a> {
                             if let Ok(url) = url {
                                 self.url_schemes.contains(url.scheme())
                             } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
-                                !matches!(self.url_relative, UrlRelative::Deny)
+                                if matches!(self.url_relative, UrlRelative::Deny) {
+                                	false
+                                } else if let Some(url_base) = url_base {
+                                	url_base.join(&*attr.value).is_ok()
+                                } else {
+                                	true
+                                }
                             } else {
                                 false
                             }
@@ -1862,9 +1866,7 @@ impl<'a> Builder<'a> {
                 let mut attrs = attrs.borrow_mut();
                 for (&set_name, &set_value) in set_attrs {
                     // set the value of the attribute if the attribute is already present
-                    if let Some(attr) = attrs
-                        .iter_mut()
-                        .find(|attr| &*attr.name.local == set_name)
+                    if let Some(attr) = attrs.iter_mut().find(|attr| &*attr.name.local == set_name)
                     {
                         if &*attr.value != set_value {
                             attr.value = set_value.into();
@@ -2404,6 +2406,18 @@ mod test {
         );
     }
     #[test]
+    fn rewrite_url_relative_with_invalid_url() {
+    	// Reduced from https://github.com/Bauke/ammonia-crash-test
+        let fragment = r##"<a href="\\"https://example.com\\"">test</a>"##;
+        let result = Builder::new()
+            .url_relative(UrlRelative::RewriteWithBase(
+                Url::parse("http://example.com/").unwrap(),
+            ))
+            .clean(fragment)
+            .to_string();
+        assert_eq!(result, r##"<a rel="noopener noreferrer">test</a>"##);
+    }
+    #[test]
     fn attribute_filter_nop() {
         let fragment = "<a href=test>Test</a>";
         let result = Builder::new()
@@ -2754,10 +2768,7 @@ mod test {
         let result = Builder::new()
             .set_tag_attribute_value("my-elem", "my-attr", "val")
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            "<span>hi</span>",
-        );
+        assert_eq!(result.to_string(), "<span>hi</span>",);
     }
     #[test]
     fn remove_entity_link() {
@@ -3007,20 +3018,29 @@ mod test {
                 .add_tag_attributes("a", &["data-1"])
                 .clean(fragment),
         );
-        assert_eq!(result_cleaned, r#"<a data-1="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#);
+        assert_eq!(
+            result_cleaned,
+            r#"<a data-1="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#
+        );
         let result_allowed = String::from(
             Builder::new()
                 .add_tag_attributes("a", &["data-1"])
                 .add_generic_attribute_prefixes(&["data-"])
                 .clean(fragment),
         );
-        assert_eq!(result_allowed, r#"<a data-1="" data-2="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#);
+        assert_eq!(
+            result_allowed,
+            r#"<a data-1="" data-2="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#
+        );
         let result_allowed = String::from(
             Builder::new()
                 .add_tag_attributes("a", &["data-1", "code-1"])
                 .add_generic_attribute_prefixes(&["data-", "code-"])
                 .clean(fragment),
         );
-        assert_eq!(result_allowed, r#"<a data-1="" data-2="" code-1="" code-2="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#);
+        assert_eq!(
+            result_allowed,
+            r#"<a data-1="" data-2="" code-1="" code-2="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#
+        );
     }
 }
