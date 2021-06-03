@@ -194,7 +194,6 @@ impl SanitizationTokenizer {
 impl TokenSink for SanitizationTokenizer {
     type Handle = ();
     fn process_token(&mut self, token: Token, _line_number: u64) -> TokenSinkResult<()> {
-        println!("Heh, token! {:?}", token);
         match token {
             Token::CharacterTokens(_) | Token::EOFToken | Token::ParseError(_) => {}
             _ => {
