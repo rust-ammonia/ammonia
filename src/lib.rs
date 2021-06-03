@@ -44,11 +44,13 @@ use std::iter::IntoIterator as IntoIter;
 use std::mem::replace;
 use std::rc::Rc;
 use std::str::FromStr;
-use tendril::format_tendril;
 use tendril::stream::TendrilSink;
 use tendril::StrTendril;
+use tendril::{format_tendril, ByteTendril};
 pub use url::Url;
 
+use html5ever::buffer_queue::BufferQueue;
+use html5ever::tokenizer::{Token, TokenSink, TokenSinkResult, Tokenizer};
 pub use url;
 
 lazy_static! {
@@ -153,6 +155,55 @@ pub fn clean_text(src: &str) -> String {
         ret_val.push_str(replacement);
     }
     ret_val
+}
+
+/// Determine if a given string contains HTML
+///
+/// This function is parses the full string into HTML and checks if the input contained any
+/// HTML syntax.
+///
+/// # Note
+/// This function cannot will return positively for strings that contain invalid HTML syntax like
+/// `<g>` and even `Vec::<u8>::new()`.
+pub fn is_html(input: &str) -> bool {
+    let santok = SanitizationTokenizer::new();
+    let mut chunk = ByteTendril::new();
+    chunk.push_slice(input.as_bytes());
+    let mut input = BufferQueue::new();
+    input.push_back(chunk.try_reinterpret().unwrap());
+
+    let mut tok = Tokenizer::new(santok, Default::default());
+    let _ = tok.feed(&mut input);
+    tok.end();
+    tok.sink.was_sanitized
+}
+
+#[derive(Copy, Clone)]
+struct SanitizationTokenizer {
+    was_sanitized: bool,
+}
+
+impl SanitizationTokenizer {
+    pub fn new() -> SanitizationTokenizer {
+        SanitizationTokenizer {
+            was_sanitized: false,
+        }
+    }
+}
+
+impl TokenSink for SanitizationTokenizer {
+    type Handle = ();
+    fn process_token(&mut self, token: Token, _line_number: u64) -> TokenSinkResult<()> {
+        println!("Heh, token! {:?}", token);
+        match token {
+            Token::CharacterTokens(_) | Token::EOFToken | Token::ParseError(_) => {}
+            _ => {
+                self.was_sanitized = true;
+            }
+        }
+        TokenSinkResult::Continue
+    }
+    fn end(&mut self) {}
 }
 
 /// An HTML sanitizer.
@@ -1820,11 +1871,11 @@ impl<'a> Builder<'a> {
                                 self.url_schemes.contains(url.scheme())
                             } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
                                 if matches!(self.url_relative, UrlRelative::Deny) {
-                                	false
+                                    false
                                 } else if let Some(url_base) = url_base {
-                                	url_base.join(&*attr.value).is_ok()
+                                    url_base.join(&*attr.value).is_ok()
                                 } else {
-                                	true
+                                    true
                                 }
                             } else {
                                 false
@@ -3042,5 +3093,35 @@ mod test {
             result_allowed,
             r#"<a data-1="" data-2="" code-1="" code-2="" rel="noopener noreferrer"></a><a rel="noopener noreferrer">Hello!</a>"#
         );
+    }
+    #[test]
+    fn lesser_than_isnt_html() {
+        let fragment = "1 < 2";
+        assert!(!is_html(fragment));
+    }
+    #[test]
+    fn dense_lesser_than_isnt_html() {
+        let fragment = "1<2";
+        assert!(!is_html(fragment));
+    }
+    #[test]
+    fn what_about_number_elements() {
+        let fragment = "foo<2>bar";
+        assert!(!is_html(fragment));
+    }
+    #[test]
+    fn turbofish_is_html_sadly() {
+        let fragment = "Vec::<u8>::new()";
+        assert!(is_html(fragment));
+    }
+    #[test]
+    fn stop_grinning() {
+        let fragment = "did you really believe me? <g>";
+        assert!(is_html(fragment));
+    }
+    #[test]
+    fn dont_be_bold() {
+        let fragment = "<b>";
+        assert!(is_html(fragment));
     }
 }
