@@ -2458,7 +2458,7 @@ mod test {
     }
     #[test]
     fn rewrite_url_relative_with_invalid_url() {
-    	// Reduced from https://github.com/Bauke/ammonia-crash-test
+        // Reduced from https://github.com/Bauke/ammonia-crash-test
         let fragment = r##"<a href="\\"https://example.com\\"">test</a>"##;
         let result = Builder::new()
             .url_relative(UrlRelative::RewriteWithBase(
