@@ -2480,7 +2480,7 @@ mod test {
                         ("rel", "noopener noreferrer") => true,
                         _ => false,
                     },
-                    value.to_string()
+                    "{}", value.to_string()
                 );
                 Some(value.into())
             })
