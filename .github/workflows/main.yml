@@ -1,0 +1,39 @@
+name: CI
+on:
+  # Only run when merging to master, or open/synchronize/reopen a PR.
+  push:
+    branches:
+      - master
+      - staging
+      - trying
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        rust: ["1.41.1", "stable", "beta"]
+        build_flags: ["", "--cfg ammonia_unstable"]
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@master
+      - name: Set toolchain
+        run: |
+          rustup set profile minimal
+          rustup override set ${{ matrix.rust }}
+      - name: Test
+        run: cargo test
+        env:
+          RUSTFLAGS: ${{ matrix.build_flags }}
+
+  ci-success:
+    name: ci
+    if: ${{ success() }}
+    needs:
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - name: CI succeeded
+        run: exit 0
