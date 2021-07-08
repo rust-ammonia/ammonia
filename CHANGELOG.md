@@ -23,6 +23,10 @@
 [`clean_text`]: https://docs.rs/ammonia/3.0.0/ammonia/fn.clean_text.html
 [rust-url 2.0]: https://docs.rs/url/2.0.0/url/
 
+# 2.1.3
+
+* fix: unexpected namespace switches can allow XSS via svg/mathml parsing (backported from 3.1.2)
+
 # 2.1.2
 
 * Fix a memory leak caused by certain node types.
