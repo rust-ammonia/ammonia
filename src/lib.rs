@@ -1896,7 +1896,7 @@ impl<'a> Builder<'a> {
     // Check for unexpected namespace changes.
     //
     // The issue happens if developers added to the list of allowed tags any
-    // tag which is parsed in RCDATA state, PLAINTEXT state or RCDATA state,
+    // tag which is parsed in RCDATA state, PLAINTEXT state or RAWTEXT state,
     // that is:
     //
     // * title
