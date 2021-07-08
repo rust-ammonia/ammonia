@@ -1,5 +1,32 @@
 # Unreleased
 
+# 3.1.2
+
+* fix: unexpected namespace switches can allow XSS via svg/mathml parsing
+
+# 3.1.1
+
+* fix: Crash on invalid URLs in some configurations ([issue #136](https://github.com/rust-ammonia/ammonia/issues/136))
+
+# 3.1.0
+
+* feature: Whitelist generic attribute prefix
+* chore: Update html5ever to 0.25
+* feature: support adding attribute values to elements
+
+# 3.0.0
+
+* Add [`clean_text`] function.
+* Updated to [rust-url 2.0].
+* Updated to the 2018 edition.
+
+[`clean_text`]: https://docs.rs/ammonia/3.0.0/ammonia/fn.clean_text.html
+[rust-url 2.0]: https://docs.rs/url/2.0.0/url/
+
+# 2.1.3
+
+* fix: unexpected namespace switches can allow XSS via svg/mathml parsing (backported from 3.1.2)
+
 # 2.1.2
 
 * Fix a memory leak caused by certain node types.
