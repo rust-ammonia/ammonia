@@ -1452,12 +1452,14 @@ impl<'a> Builder<'a> {
     //
     // * title
     // * textarea
-    // * style
     // * xmp
     // * iframe
     // * noembed
     // * noframes
     // * plaintext
+    // * noscript
+    // * style
+    // * script
     //
     // An example in the wild is Plume, that allows iframe [1].  So in next
     // examples I'll assume the following policy:
@@ -1525,6 +1527,8 @@ impl<'a> Builder<'a> {
     // Elements which change namespace at an unexpected point are removed.
     // This function returns `true` if `child` should be kept, and `false` if it
     // should be removed.
+    //
+    // [1]: https://github.com/Plume-org/Plume/blob/main/plume-models/src/safe_string.rs#L21
     fn check_expected_namespace(&self, parent: &Handle, child: &Handle) -> bool {
         let (parent, child) = match (&parent.data, &child.data) {
             (NodeData::Element { name: pn, .. }, NodeData::Element { name: cn, .. }) => (pn, cn),
