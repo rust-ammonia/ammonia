@@ -1781,7 +1781,8 @@ impl<'a> Builder<'a> {
                 removed.push(node);
                 continue;
             }
-            let pass = self.clean_child(&mut node, url_base);
+            let pass_clean = self.clean_child(&mut node, url_base);
+            let pass = pass_clean && self.check_expected_namespace(&parent, &node);
             if pass {
                 self.adjust_node_attributes(&mut node, &link_rel, url_base, self.id_prefix);
                 dom.append(&parent.clone(), NodeOrText::AppendNode(node.clone()));
@@ -1889,6 +1890,125 @@ impl<'a> Builder<'a> {
                     false
                 }
             }
+        }
+    }
+
+    // Check for unexpected namespace changes.
+    //
+    // The issue happens if developers added to the list of allowed tags any
+    // tag which is parsed in RCDATA state, PLAINTEXT state or RCDATA state,
+    // that is:
+    //
+    // * title
+    // * textarea
+    // * style
+    // * xmp
+    // * iframe
+    // * noembed
+    // * noframes
+    // * plaintext
+    //
+    // An example in the wild is Plume, that allows iframe [1].  So in next
+    // examples I'll assume the following policy:
+    //
+    //     Builder::new()
+    //        .add_tags(&["iframe"])
+    //
+    // In HTML namespace `<iframe>` is parsed specially; that is, its content is
+    // treated as text. For instance, the following html:
+    //
+    //     <iframe><a>test
+    //
+    // Is parsed into the following DOM tree:
+    //
+    //     iframe
+    //     └─ #text: <a>test
+    //
+    // So iframe cannot have any children other than a text node.
+    //
+    // The same is not true, though, in "foreign content"; that is, within
+    // <svg> or <math> tags. The following html:
+    //
+    //     <svg><iframe><a>test
+    //
+    // is parsed differently:
+    //
+    //    svg
+    //    └─ iframe
+    //       └─ a
+    //          └─ #text: test
+    //
+    // So in SVG namespace iframe can have children.
+    //
+    // Ammonia disallows <svg> but it keeps its content after deleting it. And
+    // the parser internally keeps track of the namespace of the element. So
+    // assume we have the following snippet:
+    //
+    //     <svg><iframe><a title="</iframe><img src onerror=alert(1)>">test
+    //
+    // It is parsed into:
+    //
+    //     svg
+    //     └─ iframe
+    //        └─ a title="</iframe><img src onerror=alert(1)>"
+    //           └─ #text: test
+    //
+    // This DOM tree is harmless from ammonia point of view because the piece
+    // of code that looks like XSS is in a title attribute. Hence, the
+    // resulting "safe" HTML from ammonia would be:
+    //
+    //     <iframe><a title="</iframe><img src onerror=alert(1)>" rel="noopener
+    // noreferrer">test</a></iframe>
+    //
+    // However, at this point, the information about namespace is lost, which
+    // means that the browser will parse this snippet into:
+    //
+    //     ├─ iframe
+    //     │  └─ #text: <a title="
+    //     ├─ img src="" onerror="alert(1)"
+    //     └─ #text: " rel="noopener noreferrer">test
+    //
+    // Leading to XSS.
+    //
+    // To solve this issue, check for unexpected namespace switches after cleanup.
+    // Elements which change namespace at an unexpected point are removed.
+    // This function returns `true` if `child` should be kept, and `false` if it
+    // should be removed.
+    fn check_expected_namespace(&self, parent: &Handle, child: &Handle) -> bool {
+        let (parent, child) = match (&parent.data, &child.data) {
+            (NodeData::Element { name: pn, .. }, NodeData::Element { name: cn, .. }) => (pn, cn),
+            _ => return true,
+        };
+        // The only way to switch from html to svg is with the <svg> tag
+        if parent.ns == ns!(html) && child.ns == ns!(svg) {
+            child.local == local_name!("svg")
+        // The only way to switch from html to mathml is with the <math> tag
+        } else if parent.ns == ns!(html) && child.ns == ns!(mathml) {
+            child.local == local_name!("math")
+        // The only way to switch from mathml to svg/html is with a text integration point
+        } else if parent.ns == ns!(mathml) && child.ns != ns!(mathml) {
+            // https://html.spec.whatwg.org/#mathml
+            matches!(
+                &*parent.local,
+                "mi" | "mo" | "mn" | "ms" | "mtext" | "annotation-xml"
+            )
+        // The only way to switch from svg to mathml/html is with an html integration point
+        } else if parent.ns == ns!(svg) && child.ns != ns!(svg) {
+            // https://html.spec.whatwg.org/#svg-0
+            matches!(&*parent.local, "foreignObject")
+        } else if child.ns == ns!(svg) {
+            is_svg_tag(&*child.local)
+        } else if child.ns == ns!(mathml) {
+            is_mathml_tag(&*child.local)
+        } else if child.ns == ns!(html) {
+            (!is_svg_tag(&*child.local) && !is_mathml_tag(&*child.local))
+                || matches!(
+                    &*child.local,
+                    "title" | "style" | "font" | "a" | "script" | "span"
+                )
+        } else {
+            // There are no other supported ways to switch namespace
+            parent.ns == child.ns
         }
     }
 
@@ -2048,6 +2168,280 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
         || ((element == "button" || element == "input") && attr == "formaction")
         || (element == "a" && attr == "ping")
         || (element == "video" && attr == "poster")
+}
+
+/// Given an element name, check if it's SVG
+fn is_svg_tag(element: &str) -> bool {
+    // https://svgwg.org/svg2-draft/eltindex.html
+    match element {
+        "a"
+        | "animate"
+        | "animateMotion"
+        | "animateTransform"
+        | "circle"
+        | "clipPath"
+        | "defs"
+        | "desc"
+        | "discard"
+        | "ellipse"
+        | "feBlend"
+        | "feColorMatrix"
+        | "feComponentTransfer"
+        | "feComposite"
+        | "feConvolveMatrix"
+        | "feDiffuseLighting"
+        | "feDisplacementMap"
+        | "feDistantLight"
+        | "feDropShadow"
+        | "feFlood"
+        | "feFuncA"
+        | "feFuncB"
+        | "feFuncG"
+        | "feFuncR"
+        | "feGaussianBlur"
+        | "feImage"
+        | "feMerge"
+        | "feMergeNode"
+        | "feMorphology"
+        | "feOffset"
+        | "fePointLight"
+        | "feSpecularLighting"
+        | "feSpotLight"
+        | "feTile"
+        | "feTurbulence"
+        | "filter"
+        | "foreignObject"
+        | "g"
+        | "image"
+        | "line"
+        | "linearGradient"
+        | "marker"
+        | "mask"
+        | "metadata"
+        | "mpath"
+        | "path"
+        | "pattern"
+        | "polygon"
+        | "polyline"
+        | "radialGradient"
+        | "rect"
+        | "script"
+        | "set"
+        | "stop"
+        | "style"
+        | "svg"
+        | "switch"
+        | "symbol"
+        | "text"
+        | "textPath"
+        | "title"
+        | "tspan"
+        | "use"
+        | "view" => true,
+        _ => false,
+    }
+}
+
+/// Given an element name, check if it's Math
+fn is_mathml_tag(element: &str) -> bool {
+    // https://svgwg.org/svg2-draft/eltindex.html
+    match element {
+        "abs"
+        | "and"
+        | "annotation"
+        | "annotation-xml"
+        | "apply"
+        | "approx"
+        | "arccos"
+        | "arccosh"
+        | "arccot"
+        | "arccoth"
+        | "arccsc"
+        | "arccsch"
+        | "arcsec"
+        | "arcsech"
+        | "arcsin"
+        | "arcsinh"
+        | "arctan"
+        | "arctanh"
+        | "arg"
+        | "bind"
+        | "bvar"
+        | "card"
+        | "cartesianproduct"
+        | "cbytes"
+        | "ceiling"
+        | "cerror"
+        | "ci"
+        | "cn"
+        | "codomain"
+        | "complexes"
+        | "compose"
+        | "condition"
+        | "conjugate"
+        | "cos"
+        | "cosh"
+        | "cot"
+        | "coth"
+        | "cs"
+        | "csc"
+        | "csch"
+        | "csymbol"
+        | "curl"
+        | "declare"
+        | "degree"
+        | "determinant"
+        | "diff"
+        | "divergence"
+        | "divide"
+        | "domain"
+        | "domainofapplication"
+        | "emptyset"
+        | "eq"
+        | "equivalent"
+        | "eulergamma"
+        | "exists"
+        | "exp"
+        | "exponentiale"
+        | "factorial"
+        | "factorof"
+        | "false"
+        | "floor"
+        | "fn"
+        | "forall"
+        | "gcd"
+        | "geq"
+        | "grad"
+        | "gt"
+        | "ident"
+        | "image"
+        | "imaginary"
+        | "imaginaryi"
+        | "implies"
+        | "in"
+        | "infinity"
+        | "int"
+        | "integers"
+        | "intersect"
+        | "interval"
+        | "inverse"
+        | "lambda"
+        | "laplacian"
+        | "lcm"
+        | "leq"
+        | "limit"
+        | "list"
+        | "ln"
+        | "log"
+        | "logbase"
+        | "lowlimit"
+        | "lt"
+        | "maction"
+        | "maligngroup"
+        | "malignmark"
+        | "math"
+        | "matrix"
+        | "matrixrow"
+        | "max"
+        | "mean"
+        | "median"
+        | "menclose"
+        | "merror"
+        | "mfenced"
+        | "mfrac"
+        | "mglyph"
+        | "mi"
+        | "min"
+        | "minus"
+        | "mlabeledtr"
+        | "mlongdiv"
+        | "mmultiscripts"
+        | "mn"
+        | "mo"
+        | "mode"
+        | "moment"
+        | "momentabout"
+        | "mover"
+        | "mpadded"
+        | "mphantom"
+        | "mprescripts"
+        | "mroot"
+        | "mrow"
+        | "ms"
+        | "mscarries"
+        | "mscarry"
+        | "msgroup"
+        | "msline"
+        | "mspace"
+        | "msqrt"
+        | "msrow"
+        | "mstack"
+        | "mstyle"
+        | "msub"
+        | "msubsup"
+        | "msup"
+        | "mtable"
+        | "mtd"
+        | "mtext"
+        | "mtr"
+        | "munder"
+        | "munderover"
+        | "naturalnumbers"
+        | "neq"
+        | "none"
+        | "not"
+        | "notanumber"
+        | "notin"
+        | "notprsubset"
+        | "notsubset"
+        | "or"
+        | "otherwise"
+        | "outerproduct"
+        | "partialdiff"
+        | "pi"
+        | "piece"
+        | "piecewise"
+        | "plus"
+        | "power"
+        | "primes"
+        | "product"
+        | "prsubset"
+        | "quotient"
+        | "rationals"
+        | "real"
+        | "reals"
+        | "reln"
+        | "rem"
+        | "root"
+        | "scalarproduct"
+        | "sdev"
+        | "sec"
+        | "sech"
+        | "selector"
+        | "semantics"
+        | "sep"
+        | "set"
+        | "setdiff"
+        | "share"
+        | "sin"
+        | "sinh"
+        | "span"
+        | "subset"
+        | "sum"
+        | "tan"
+        | "tanh"
+        | "tendsto"
+        | "times"
+        | "transpose"
+        | "true"
+        | "union"
+        | "uplimit"
+        | "variance"
+        | "vector"
+        | "vectorproduct"
+        | "xor" => true,
+        _ => false,
+    }
 }
 
 fn is_url_relative(url: &str) -> bool {
@@ -2479,7 +2873,8 @@ mod test {
                         ("rel", "noopener noreferrer") => true,
                         _ => false,
                     },
-                    "{}", value.to_string()
+                    "{}",
+                    value.to_string()
                 );
                 Some(value.into())
             })
@@ -3034,6 +3429,64 @@ mod test {
         assert_eq!(
             clean_text("<this> is <a test function"),
             "&lt;this&gt;&#32;is&#32;&lt;a&#32;test&#32;function"
+        );
+    }
+
+    #[test]
+    fn ns_svg() {
+        // https://github.com/cure53/DOMPurify/pull/495
+        let fragment = r##"<svg><iframe><a title="</iframe><img src onerror=alert(1)>">test"##;
+        let result = String::from(Builder::new().add_tags(&["iframe"]).clean(fragment));
+        assert_eq!(
+            result.to_string(),
+            "test"
+        );
+
+        let fragment = "<svg><iframe>remove me</iframe></svg><iframe>keep me</iframe>";
+        let result = String::from(Builder::new().add_tags(&["iframe"]).clean(fragment));
+        assert_eq!(result.to_string(), "remove me<iframe>keep me</iframe>");
+
+        let fragment = "<svg><a>remove me</a></svg><iframe>keep me</iframe>";
+        let result = String::from(Builder::new().add_tags(&["iframe"]).clean(fragment));
+        assert_eq!(result.to_string(), "remove me<iframe>keep me</iframe>");
+
+        let fragment = "<svg><a>keep me</a></svg><iframe>keep me</iframe>";
+        let result = String::from(Builder::new().add_tags(&["iframe", "svg"]).clean(fragment));
+        assert_eq!(
+            result.to_string(),
+            "<svg><a rel=\"noopener noreferrer\">keep me</a></svg><iframe>keep me</iframe>"
+        );
+    }
+
+    #[test]
+    fn ns_mathml() {
+        // https://github.com/cure53/DOMPurify/pull/495
+        let fragment = "<mglyph></mglyph>";
+        let result = String::from(
+            Builder::new()
+                .add_tags(&["math", "mtext", "mglyph"])
+                .clean(fragment),
+        );
+        assert_eq!(result.to_string(), "");
+        let fragment = "<math><mtext><div><mglyph>";
+        let result = String::from(
+            Builder::new()
+                .add_tags(&["math", "mtext", "mglyph"])
+                .clean(fragment),
+        );
+        assert_eq!(
+            result.to_string(),
+            "<math><mtext><div></div></mtext></math>"
+        );
+        let fragment = "<math><mtext><mglyph>";
+        let result = String::from(
+            Builder::new()
+                .add_tags(&["math", "mtext", "mglyph"])
+                .clean(fragment),
+        );
+        assert_eq!(
+            result.to_string(),
+            "<math><mtext><mglyph></mglyph></mtext></math>"
         );
     }
 

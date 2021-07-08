@@ -1,5 +1,9 @@
 # Unreleased
 
+# 3.1.2
+
+* fix: unexpected namespace switches can allow XSS via svg/mathml parsing
+
 # 3.1.1
 
 * fix: Crash on invalid URLs in some configurations ([issue #136](https://github.com/rust-ammonia/ammonia/issues/136))
