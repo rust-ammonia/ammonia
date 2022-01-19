@@ -2137,7 +2137,8 @@ impl<'a> Builder<'a> {
                 for attr in &mut *attrs.borrow_mut() {
                     if &attr.name.local == "class" {
                         let mut classes = vec![];
-                        for class in attr.value.split(' ') {
+                        // https://html.spec.whatwg.org/#global-attributes:classes-2
+                        for class in attr.value.split_ascii_whitespace() {
                             if allowed_values.contains(class) {
                                 classes.push(class.to_owned());
                             }
@@ -3135,6 +3136,20 @@ mod test {
             result.to_string(),
             "<p class=\"foo bar\"><a class=\"baz\">Hey</a></p>"
         );
+    }
+    #[test]
+    fn allowed_classes_ascii_whitespace() {
+        // According to https://infra.spec.whatwg.org/#ascii-whitespace,
+        // TAB (\t), LF (\n), FF (\x0C), CR (\x0D) and SPACE (\x20) are
+        // considered to be ASCII whitespace. Unicode whitespace characters
+        // and VT (\x0B) aren't ASCII whitespace.
+        let fragment = "<p class=\"a\tb\nc\x0Cd\re f\x0B g\u{2000}\">";
+        let result = Builder::new()
+            .allowed_classes(hashmap![
+                "p" => hashset!["a", "b", "c", "d", "e", "f", "g"],
+            ])
+            .clean(fragment);
+        assert_eq!(result.to_string(), r#"<p class="a b c d e"></p>"#);
     }
     #[test]
     fn remove_non_allowed_attributes_with_tag_attribute_values() {
