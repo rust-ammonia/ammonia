@@ -1664,7 +1664,8 @@ impl<'a> Builder<'a> {
                 for attr in &mut *attrs.borrow_mut() {
                     if &attr.name.local == "class" {
                         let mut classes = vec![];
-                        for class in attr.value.split(' ') {
+                        // https://html.spec.whatwg.org/#global-attributes:classes-2
+                        for class in attr.value.split_ascii_whitespace() {
                             if allowed_values.contains(class) {
                                 classes.push(class.to_owned());
                             }
