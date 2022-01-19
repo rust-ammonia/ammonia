@@ -1,5 +1,11 @@
 # Unreleased
 
+# 3.1.3
+
+* fix: incorrect FF/CR handling in `clean_text`
+* fix: split class name attribute by all ASCII whitespace, not just SP 0x20
+* docs: fix incorrect English in `is_html` documentation
+
 # 3.1.2
 
 * fix: unexpected namespace switches can allow XSS via svg/mathml parsing
@@ -22,6 +28,10 @@
 
 [`clean_text`]: https://docs.rs/ammonia/3.0.0/ammonia/fn.clean_text.html
 [rust-url 2.0]: https://docs.rs/url/2.0.0/url/
+
+# 2.1.4
+
+* fix: split class name attribute by all ASCII whitespace, not just SP 0x20 (backported from 3.1.3)
 
 # 2.1.3
 
