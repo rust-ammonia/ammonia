@@ -163,7 +163,7 @@ pub fn clean_text(src: &str) -> String {
 /// HTML syntax.
 ///
 /// # Note
-/// This function cannot will return positively for strings that contain invalid HTML syntax like
+/// This function will return positively for strings that contain invalid HTML syntax like
 /// `<g>` and even `Vec::<u8>::new()`.
 pub fn is_html(input: &str) -> bool {
     let santok = SanitizationTokenizer::new();
