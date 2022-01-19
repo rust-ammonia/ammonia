@@ -143,7 +143,8 @@ pub fn clean_text(src: &str) -> String {
             ' ' => "&#32;",
             '\t' => "&#9;",
             '\n' => "&#10;",
-            '\r' => "&#12;",
+            '\x0c' => "&#12;",
+            '\r' => "&#13;",
             // a spec-compliant browser will perform this replacement anyway, but the middleware might not
             '\0' => "&#65533;",
             // ALL OTHER CHARACTERS ARE PASSED THROUGH VERBATIM
@@ -3433,6 +3434,14 @@ mod test {
         assert_eq!(
             clean_text("<this> is <a test function"),
             "&lt;this&gt;&#32;is&#32;&lt;a&#32;test&#32;function"
+        );
+    }
+
+    #[test]
+    fn clean_text_spaces_test() {
+        assert_eq!(
+            clean_text("\x09\x0a\x0c\x20"),
+            "&#9;&#10;&#12;&#32;"
         );
     }
 
