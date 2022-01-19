@@ -95,8 +95,8 @@ Thanks to the other sanitizer libraries, particularly [Bleach] for Python and [s
 which we blatantly copied most of our API from.
 
 Thanks to ChALkeR, whose [Improper Markup Sanitization] document helped us find high-level semantic holes in Ammonia,
-to [ssokolow](https://github.com/ssokolow), whose review and experience were also very helpful, and to [securityMB](https://github.com/securityMB),
-for finding a very obscure [namespace-related injection bug](https://github.com/rust-ammonia/ammonia/pull/142).
+to [ssokolow](https://github.com/ssokolow), whose review and experience were also very helpful, to [securityMB](https://github.com/securityMB),
+for finding a very obscure [namespace-related injection bug](https://github.com/rust-ammonia/ammonia/pull/142), and [xfix](https://github.com/xfix) for finding a [DoS bug in a recursive destructor](https://github.com/rust-ammonia/ammonia/pull/113).
 
 And finally, thanks to [the contributors].
 
