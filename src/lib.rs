@@ -143,7 +143,8 @@ pub fn clean_text(src: &str) -> String {
             ' ' => "&#32;",
             '\t' => "&#9;",
             '\n' => "&#10;",
-            '\r' => "&#12;",
+            '\x0c' => "&#12;",
+            '\r' => "&#13;",
             // a spec-compliant browser will perform this replacement anyway, but the middleware might not
             '\0' => "&#65533;",
             // ALL OTHER CHARACTERS ARE PASSED THROUGH VERBATIM
@@ -2137,7 +2138,8 @@ impl<'a> Builder<'a> {
                 for attr in &mut *attrs.borrow_mut() {
                     if &attr.name.local == "class" {
                         let mut classes = vec![];
-                        for class in attr.value.split(' ') {
+                        // https://html.spec.whatwg.org/#global-attributes:classes-2
+                        for class in attr.value.split_ascii_whitespace() {
                             if allowed_values.contains(class) {
                                 classes.push(class.to_owned());
                             }
@@ -3137,6 +3139,20 @@ mod test {
         );
     }
     #[test]
+    fn allowed_classes_ascii_whitespace() {
+        // According to https://infra.spec.whatwg.org/#ascii-whitespace,
+        // TAB (\t), LF (\n), FF (\x0C), CR (\x0D) and SPACE (\x20) are
+        // considered to be ASCII whitespace. Unicode whitespace characters
+        // and VT (\x0B) aren't ASCII whitespace.
+        let fragment = "<p class=\"a\tb\nc\x0Cd\re f\x0B g\u{2000}\">";
+        let result = Builder::new()
+            .allowed_classes(hashmap![
+                "p" => hashset!["a", "b", "c", "d", "e", "f", "g"],
+            ])
+            .clean(fragment);
+        assert_eq!(result.to_string(), r#"<p class="a b c d e"></p>"#);
+    }
+    #[test]
     fn remove_non_allowed_attributes_with_tag_attribute_values() {
         let fragment = "<p data-label=\"baz\" name=\"foo\"></p>";
         let result = Builder::new()
@@ -3433,6 +3449,14 @@ mod test {
         assert_eq!(
             clean_text("<this> is <a test function"),
             "&lt;this&gt;&#32;is&#32;&lt;a&#32;test&#32;function"
+        );
+    }
+
+    #[test]
+    fn clean_text_spaces_test() {
+        assert_eq!(
+            clean_text("\x09\x0a\x0c\x20"),
+            "&#9;&#10;&#12;&#32;"
         );
     }
 
