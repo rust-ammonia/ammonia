@@ -1,5 +1,11 @@
 # Unreleased
 
+# 3.1.3
+
+* fix: incorrect FF/CR handling in `clean_text`
+* fix: split class name attribute by all ASCII whitespace, not just SP 0x20
+* docs: fix incorrect English in `is_html` documentation
+
 # 3.1.2
 
 * fix: unexpected namespace switches can allow XSS via svg/mathml parsing
