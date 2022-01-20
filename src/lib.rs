@@ -2517,6 +2517,7 @@ fn is_url_relative(url: &str) -> bool {
 /// This function is only applied to relative URLs.
 /// To filter all of the URLs,
 /// use the not-yet-implemented Content Security Policy.
+#[non_exhaustive]
 pub enum UrlRelative {
     /// Relative URLs will be completely stripped from the document.
     Deny,
@@ -2526,10 +2527,6 @@ pub enum UrlRelative {
     RewriteWithBase(Url),
     /// Rewrite URLs with a custom function.
     Custom(Box<dyn UrlRelativeEvaluate>),
-    // Do not allow the user to exhaustively match on UrlRelative,
-    // because we may add new items to it later.
-    #[doc(hidden)]
-    __NonExhaustive,
 }
 
 impl fmt::Debug for UrlRelative {
@@ -2541,7 +2538,6 @@ impl fmt::Debug for UrlRelative {
                 write!(f, "UrlRelative::RewriteWithBase({})", base)
             }
             UrlRelative::Custom(_) => write!(f, "UrlRelative::Custom"),
-            UrlRelative::__NonExhaustive => unreachable!(),
         }
     }
 }
