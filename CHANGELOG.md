@@ -1,5 +1,7 @@
 # Unreleased
 
+* chore: use `#[non_exhaustive]` instead of hidden variant for `UrlRelative` policy
+
 # 3.1.3
 
 * fix: incorrect FF/CR handling in `clean_text`
