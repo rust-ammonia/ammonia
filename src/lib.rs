@@ -34,7 +34,6 @@ use html5ever::{driver as html, local_name, namespace_url, ns, QualName};
 use lazy_static::lazy_static;
 use maplit::{hashmap, hashset};
 use markup5ever_rcdom::{Handle, NodeData, RcDom, SerializableHandle};
-use matches::matches;
 use std::borrow::{Borrow, Cow};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
