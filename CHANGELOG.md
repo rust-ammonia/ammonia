@@ -1,5 +1,7 @@
 # Unreleased
 
+# 3.1.4
+
 * chore: use `#[non_exhaustive]` instead of hidden variant for `UrlRelative` policy
 * chore: remove unnecessary dependency on third-party `matches!` macro
 
