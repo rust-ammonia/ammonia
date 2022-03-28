@@ -12,8 +12,7 @@ categories = [ "web-programming", "text-processing" ]
 edition = "2018"
 
 [dependencies]
-html5ever = "0.25"
-markup5ever_rcdom = "0.1"
+html5ever = "0.26"
 maplit = "1.0"
 tendril = "0.4"
 url = "2"

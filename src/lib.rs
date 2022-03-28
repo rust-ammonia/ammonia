@@ -1,8 +1,8 @@
 // Copyright (C) Michael Howell and others
 // this library is released under the same terms as Rust itself.
 
-#![forbid(unsafe_code)]
-#![forbid(missing_docs)]
+#![deny(unsafe_code)]
+#![deny(missing_docs)]
 
 //! Ammonia is a whitelist-based HTML sanitization library. It is designed to
 //! prevent cross-site scripting, layout breaking, and clickjacking caused
@@ -27,13 +27,20 @@
 //! [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
 //! [pulldown-cmark]: https://github.com/google/pulldown-cmark "CommonMark parser"
 
+
+#[cfg(ammonia_unstable)]
+pub mod rcdom;
+
+#[cfg(not(ammonia_unstable))]
+mod rcdom;
+
 use html5ever::interface::Attribute;
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::{driver as html, local_name, namespace_url, ns, QualName};
 use lazy_static::lazy_static;
 use maplit::{hashmap, hashset};
-use markup5ever_rcdom::{Handle, NodeData, RcDom, SerializableHandle};
+use rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use std::borrow::{Borrow, Cow};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
@@ -2595,12 +2602,10 @@ where
 /// This type is opaque to insulate the caller from breaking changes in the `html5ever` interface.
 ///
 /// Note that this type wraps an `html5ever` DOM tree. `ammonia` does not support streaming, so
-/// the complete fragment needs to be stored in memory during processing. Currently, `Document`
-/// is backed by an [`html5ever::rcdom::Node`] object.
+/// the complete fragment needs to be stored in memory during processing.
 ///
 /// [`String`]: https://doc.rust-lang.org/nightly/std/string/struct.String.html
 /// [`Write`]: https://doc.rust-lang.org/nightly/std/io/trait.Write.html
-/// [`html5ever::rcdom::Node`]: ../markup5ever/rcdom/struct.Node.html
 ///
 /// # Examples
 ///
@@ -2675,7 +2680,7 @@ impl Document {
         serialize(writer, &inner, opts)
     }
 
-    /// Exposes the `Document` instance as an [`html5ever::rcdom::Handle`][h].
+    /// Exposes the `Document` instance as an [`rcdom::Handle`].
     ///
     /// This method returns the inner object backing the `Document` instance. This allows
     /// making further changes to the DOM without introducing redundant serialization and
@@ -2687,8 +2692,6 @@ impl Document {
     ///
     /// For this method to be accessible, a `cfg` flag is required. The easiest way is to
     /// use the `RUSTFLAGS` environment variable:
-    ///
-    /// [h]: ../markup5ever/rcdom/type.Handle.html
     ///
     /// ```text
     /// RUSTFLAGS='--cfg ammonia_unstable' cargo build
