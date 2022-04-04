@@ -1669,6 +1669,35 @@ impl<'a> Builder<'a> {
         Self::default()
     }
 
+    /// Constructs a [`Builder`] instance configured with no allowed tags.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::{Builder, Url, UrlRelative};
+    ///     # use std::error::Error;
+    ///
+    ///     # fn do_main() -> Result<(), Box<Error>> {
+    ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>empty()</code> function</a>.";
+    ///     let output = "This is an Ammonia example using the empty() function.";
+    ///
+    ///     let result = Builder::empty() // <--
+    ///         .url_relative(UrlRelative::RewriteWithBase(Url::parse("https://docs.rs/ammonia/1.0/ammonia/")?))
+    ///         .clean(input)
+    ///         .to_string();
+    ///     assert_eq!(result, output);
+    ///     # Ok(())
+    ///     # }
+    ///     # fn main() { do_main().unwrap() }
+    ///
+    /// [default options]: fn.clean.html
+    /// [`Builder`]: struct.Builder.html
+    pub fn empty() -> Self {
+        Self {
+            tags: hashset![],
+            ..Self::default()
+        }
+    }
+
     /// Sanitizes an HTML fragment in a string according to the configured options.
     ///
     /// # Examples
@@ -3449,10 +3478,7 @@ mod test {
 
     #[test]
     fn clean_text_spaces_test() {
-        assert_eq!(
-            clean_text("\x09\x0a\x0c\x20"),
-            "&#9;&#10;&#12;&#32;"
-        );
+        assert_eq!(clean_text("\x09\x0a\x0c\x20"), "&#9;&#10;&#12;&#32;");
     }
 
     #[test]
@@ -3460,10 +3486,7 @@ mod test {
         // https://github.com/cure53/DOMPurify/pull/495
         let fragment = r##"<svg><iframe><a title="</iframe><img src onerror=alert(1)>">test"##;
         let result = String::from(Builder::new().add_tags(&["iframe"]).clean(fragment));
-        assert_eq!(
-            result.to_string(),
-            "test"
-        );
+        assert_eq!(result.to_string(), "test");
 
         let fragment = "<svg><iframe>remove me</iframe></svg><iframe>keep me</iframe>";
         let result = String::from(Builder::new().add_tags(&["iframe"]).clean(fragment));
