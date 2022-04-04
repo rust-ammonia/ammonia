@@ -1,6 +1,7 @@
 # Unreleased
 
 * chore: bump MSRV to 1.49.0
+* chore: update to html5ever 0.26
 * feature: add `Builder::empty()` constructor
 
 # 3.1.4
