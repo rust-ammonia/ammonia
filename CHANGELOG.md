@@ -1,5 +1,8 @@
 # Unreleased
 
+* chore: bump MSRV to 1.49.0
+* feature: add `Builder::empty()` constructor
+
 # 3.1.4
 
 * chore: use `#[non_exhaustive]` instead of hidden variant for `UrlRelative` policy
