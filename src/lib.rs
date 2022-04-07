@@ -64,13 +64,16 @@ static AMMONIA: Lazy<Builder<'static>> = Lazy::new(|| Builder::default());
 /// Clean HTML with a conservative set of defaults.
 ///
 /// * [tags](struct.Builder.html#defaults)
-/// * [attributes on specific tags](struct.Builder.html#defaults-1)
-/// * [attributes on all tags](struct.Builder.html#defaults-2)
-/// * [url schemes](struct.Builder.html#defaults-3)
-/// * [relative URLs are passed through, unchanged, by default](struct.Builder.html#defaults-4)
-/// * [links are marked `noopener noreferrer` by default](struct.Builder.html#defaults-5)
-/// * [all `class=""` settings are blocked by default](struct.Builder.html#defaults-6)
-/// * [comments are stripped by default](struct.Builder.html#defaults-7)
+/// * [`script` and `style` have their contents stripped](struct.Builder.html#defaults-1)
+/// * [attributes on specific tags](struct.Builder.html#defaults-2)
+/// * [attributes on all tags](struct.Builder.html#defaults-6)
+/// * [url schemes](struct.Builder.html#defaults-7)
+/// * [relative URLs are passed through, unchanged, by default](struct.Builder.html#defaults-8)
+/// * [links are marked `noopener noreferrer` by default](struct.Builder.html#defaults-9)
+/// * all `class=""` settings are blocked by default
+/// * comments are stripped by default
+/// * no generic attribute prefixes are turned on by default
+/// * no specific tag-attribute-value settings are configured by default
 ///
 /// [opener]: https://mathiasbynens.github.io/rel-noopener/
 /// [referrer]: https://en.wikipedia.org/wiki/HTTP_referer
@@ -597,7 +600,9 @@ impl<'a> Builder<'a> {
     ///
     /// # Defaults
     ///
-    /// No tags have content removed by default.
+    /// ```notest
+    /// script, style
+    /// ```
     pub fn clean_content_tags(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.clean_content_tags = value;
         self
@@ -1078,9 +1083,7 @@ impl<'a> Builder<'a> {
     ///
     /// # Defaults
     ///
-    /// ```notest
-    /// lang, title
-    /// ```
+    /// No attribute prefixes are allowed by default.
     pub fn generic_attribute_prefixes(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.generic_attribute_prefixes = Some(value);
         self
