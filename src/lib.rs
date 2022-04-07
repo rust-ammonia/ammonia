@@ -38,8 +38,8 @@ use html5ever::interface::Attribute;
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::{driver as html, local_name, namespace_url, ns, QualName};
-use lazy_static::lazy_static;
 use maplit::{hashmap, hashset};
+use once_cell::sync::Lazy;
 use rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use std::borrow::{Borrow, Cow};
 use std::cmp::max;
@@ -59,9 +59,7 @@ use html5ever::buffer_queue::BufferQueue;
 use html5ever::tokenizer::{Token, TokenSink, TokenSinkResult, Tokenizer};
 pub use url;
 
-lazy_static! {
-    static ref AMMONIA: Builder<'static> = Builder::default();
-}
+static AMMONIA: Lazy<Builder<'static>> = Lazy::new(|| Builder::default());
 
 /// Clean HTML with a conservative set of defaults.
 ///
