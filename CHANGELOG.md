@@ -1,5 +1,10 @@
 # Unreleased
 
+# 3.2.1
+
+* chore: bump MSRV to 1.51.0 <https://github.com/serde-rs/serde/issues/2255>
+* chore: fix broken links in documentation
+
 # 3.2.0
 
 * chore: bump MSRV to 1.49.0
