@@ -1,5 +1,9 @@
 # Unreleased
 
+# 3.2.1
+
+* chore: fix broken links in documentation
+
 # 3.2.0
 
 * chore: bump MSRV to 1.49.0
