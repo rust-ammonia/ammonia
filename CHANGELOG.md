@@ -1,5 +1,8 @@
 # Unreleased
 
+* chore: bump MSRV to 1.56.0
+* docs: fix incorrect XSS example
+
 # 3.2.1
 
 * chore: bump MSRV to 1.51.0 <https://github.com/serde-rs/serde/issues/2255>
