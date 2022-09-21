@@ -19,7 +19,7 @@
 //!
 //! ```
 //! let result = ammonia::clean(
-//!     "<b><img src='' onerror='alert(\\'hax\\')'>I'm not trying to XSS you</b>"
+//!     "<b><img src='' onerror=alert('hax')>I'm not trying to XSS you</b>"
 //! );
 //! assert_eq!(result, "<b><img src=\"\">I'm not trying to XSS you</b>");
 //! ```
