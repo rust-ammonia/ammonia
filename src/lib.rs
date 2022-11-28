@@ -47,7 +47,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io;
 use std::iter::IntoIterator as IntoIter;
-use std::mem::replace;
+use std::mem;
 use std::rc::Rc;
 use std::str::FromStr;
 use tendril::stream::TendrilSink;
@@ -59,7 +59,7 @@ use html5ever::buffer_queue::BufferQueue;
 use html5ever::tokenizer::{Token, TokenSink, TokenSinkResult, Tokenizer};
 pub use url;
 
-static AMMONIA: Lazy<Builder<'static>> = Lazy::new(|| Builder::default());
+static AMMONIA: Lazy<Builder<'static>> = Lazy::new(Builder::default);
 
 /// Clean HTML with a conservative set of defaults.
 ///
@@ -371,7 +371,7 @@ pub struct Builder<'a> {
 
 impl<'a> Default for Builder<'a> {
     fn default() -> Self {
-        #[cfg_attr(rustfmt, rustfmt_skip)]
+        #[rustfmt::skip]
         let tags = hashset![
             "a", "abbr", "acronym", "area", "article", "aside", "b", "bdi",
             "bdo", "blockquote", "br", "caption", "center", "cite", "code",
@@ -757,7 +757,7 @@ impl<'a> Builder<'a> {
     ) -> &mut Self {
         self.tag_attributes
             .entry(tag.borrow())
-            .or_insert_with(|| HashSet::new())
+            .or_insert_with(HashSet::new)
             .extend(it.into_iter().map(Borrow::borrow));
         self
     }
@@ -1481,7 +1481,7 @@ impl<'a> Builder<'a> {
     ///     a.link_rel(Some("a b"));
     ///     assert_eq!(a.get_link_rel(), Some("a b"));
     pub fn get_link_rel(&self) -> Option<&str> {
-        self.link_rel.clone()
+        self.link_rel
     }
 
     /// Sets the CSS classes that are allowed on specific tags.
@@ -1536,7 +1536,7 @@ impl<'a> Builder<'a> {
     ) -> &mut Self {
         self.allowed_classes
             .entry(tag.borrow())
-            .or_insert_with(|| HashSet::new())
+            .or_insert_with(HashSet::new)
             .extend(it.into_iter().map(Borrow::borrow));
         self
     }
@@ -1781,7 +1781,7 @@ impl<'a> Builder<'a> {
                 .is_none());
         }
         assert!(self.allowed_classes.is_empty() || !self.generic_attributes.contains("class"));
-        for (tag_name, _classes) in &self.allowed_classes {
+        for tag_name in self.allowed_classes.keys() {
             assert!(self
                 .tag_attributes
                 .get(tag_name)
@@ -1802,7 +1802,7 @@ impl<'a> Builder<'a> {
             children[0].clone()
         };
         stack.extend(
-            replace(&mut *body.children.borrow_mut(), Vec::new())
+            mem::take(&mut *body.children.borrow_mut())
                 .into_iter()
                 .rev(),
         );
@@ -1829,7 +1829,7 @@ impl<'a> Builder<'a> {
                 }
             }
             stack.extend(
-                replace(&mut *node.children.borrow_mut(), Vec::new())
+                mem::take(&mut *node.children.borrow_mut())
                     .into_iter()
                     .rev(),
             );
@@ -1841,7 +1841,7 @@ impl<'a> Builder<'a> {
         // Otherwise, we could wind up with a DoS, either caused by a memory leak,
         // or caused by a stack overflow.
         while let Some(node) = removed.pop() {
-            removed.extend_from_slice(&replace(&mut *node.children.borrow_mut(), Vec::new())[..]);
+            removed.extend_from_slice(&mem::take(&mut *node.children.borrow_mut())[..]);
         }
         Document(dom)
     }
@@ -2102,10 +2102,8 @@ impl<'a> Builder<'a> {
             }
             if let Some(ref id_prefix) = id_prefix {
                 for attr in &mut *attrs.borrow_mut() {
-                    if &attr.name.local == "id" {
-                        if !attr.value.starts_with(id_prefix) {
-                            attr.value = format_tendril!("{}{}", id_prefix, attr.value);
-                        }
+                    if &attr.name.local == "id" && !attr.value.starts_with(id_prefix) {
+                        attr.value = format_tendril!("{}{}", id_prefix, attr.value);
                     }
                 }
             }
@@ -2133,7 +2131,7 @@ impl<'a> Builder<'a> {
                     attrs.swap_remove(i);
                 }
             }
-            if let Some(ref base) = url_base {
+            if let Some(base) = url_base {
                 for attr in &mut *attrs.borrow_mut() {
                     if is_url_attr(&*name.local, &*attr.name.local) {
                         let url = base
@@ -2215,7 +2213,8 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
 /// Given an element name, check if it's SVG
 fn is_svg_tag(element: &str) -> bool {
     // https://svgwg.org/svg2-draft/eltindex.html
-    match element {
+    matches!(
+        element,
         "a"
         | "animate"
         | "animateMotion"
@@ -2279,15 +2278,14 @@ fn is_svg_tag(element: &str) -> bool {
         | "title"
         | "tspan"
         | "use"
-        | "view" => true,
-        _ => false,
-    }
+        | "view"
+    )
 }
 
 /// Given an element name, check if it's Math
 fn is_mathml_tag(element: &str) -> bool {
     // https://svgwg.org/svg2-draft/eltindex.html
-    match element {
+    matches!(element,
         "abs"
         | "and"
         | "annotation"
@@ -2481,9 +2479,8 @@ fn is_mathml_tag(element: &str) -> bool {
         | "variance"
         | "vector"
         | "vectorproduct"
-        | "xor" => true,
-        _ => false,
-    }
+        | "xor"
+    )
 }
 
 fn is_url_relative(url: &str) -> bool {
