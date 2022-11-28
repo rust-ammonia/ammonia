@@ -1,6 +1,6 @@
 # Unreleased
 
-* chore: bump MSRV to 1.56.0
+* chore: bump MSRV to 1.60.0
 * docs: fix incorrect XSS example
 
 # 3.2.1
