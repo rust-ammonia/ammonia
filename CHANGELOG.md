@@ -1,5 +1,7 @@
 # Unreleased
 
+# 3.3.0
+
 * chore: bump MSRV to 1.60.0
 * docs: fix incorrect XSS example
 * feature: add `UrlRelative::RewriteWithRoot`
