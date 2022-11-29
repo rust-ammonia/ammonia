@@ -1792,11 +1792,6 @@ impl<'a> Builder<'a> {
             assert!(!self.tags.contains(tag_name));
             assert!(!self.tag_attributes.contains_key(tag_name));
         }
-        let url_base = if let UrlRelative::RewriteWithBase(ref base) = self.url_relative {
-            Some(base)
-        } else {
-            None
-        };
         let body = {
             let children = dom.document.children.borrow();
             children[0].clone()
@@ -1818,10 +1813,10 @@ impl<'a> Builder<'a> {
                 removed.push(node);
                 continue;
             }
-            let pass_clean = self.clean_child(&mut node, url_base);
+            let pass_clean = self.clean_child(&mut node);
             let pass = pass_clean && self.check_expected_namespace(&parent, &node);
             if pass {
-                self.adjust_node_attributes(&mut node, &link_rel, url_base, self.id_prefix);
+                self.adjust_node_attributes(&mut node, &link_rel, self.id_prefix);
                 dom.append(&parent.clone(), NodeOrText::AppendNode(node.clone()));
             } else {
                 for sub in node.children.borrow_mut().iter_mut() {
@@ -1863,7 +1858,7 @@ impl<'a> Builder<'a> {
     /// The root node doesn't need cleaning because we create the root node ourselves,
     /// and it doesn't get serialized, and ... it just exists to give the parser
     /// a context (in this case, a div-like block context).
-    fn clean_child(&self, child: &mut Handle, url_base: Option<&Url>) -> bool {
+    fn clean_child(&self, child: &mut Handle) -> bool {
         match child.data {
             NodeData::Text { .. } => true,
             NodeData::Comment { .. } => !self.strip_comments,
@@ -1907,13 +1902,7 @@ impl<'a> Builder<'a> {
                             if let Ok(url) = url {
                                 self.url_schemes.contains(url.scheme())
                             } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
-                                if matches!(self.url_relative, UrlRelative::Deny) {
-                                    false
-                                } else if let Some(url_base) = url_base {
-                                    url_base.join(&*attr.value).is_ok()
-                                } else {
-                                    true
-                                }
+                                !matches!(self.url_relative, UrlRelative::Deny)
                             } else {
                                 false
                             }
@@ -2064,7 +2053,6 @@ impl<'a> Builder<'a> {
         &self,
         child: &mut Handle,
         link_rel: &Option<StrTendril>,
-        url_base: Option<&Url>,
         id_prefix: Option<&'a str>,
     ) {
         if let NodeData::Element {
@@ -2131,27 +2119,13 @@ impl<'a> Builder<'a> {
                     attrs.swap_remove(i);
                 }
             }
-            if let Some(base) = url_base {
-                for attr in &mut *attrs.borrow_mut() {
-                    if is_url_attr(&*name.local, &*attr.name.local) {
-                        let url = base
-                            .join(&*attr.value)
-                            .expect("invalid URLs should be stripped earlier");
-                        attr.value = format_tendril!("{}", url);
-                    }
-                }
-            } else if let UrlRelative::Custom(ref evaluate) = self.url_relative {
+            {
                 let mut drop_attrs = Vec::new();
                 let mut attrs = attrs.borrow_mut();
                 for (i, attr) in attrs.iter_mut().enumerate() {
                     if is_url_attr(&*name.local, &*attr.name.local) && is_url_relative(&*attr.value)
                     {
-                        let new_value = evaluate
-                            .evaluate(&*attr.value)
-                            .as_ref()
-                            .map(Cow::as_ref)
-                            .map(StrTendril::from_str)
-                            .and_then(Result::ok);
+                        let new_value = self.url_relative.evaluate(&*attr.value);
                         if let Some(new_value) = new_value {
                             attr.value = new_value;
                         } else {
@@ -2558,8 +2532,131 @@ pub enum UrlRelative {
     PassThrough,
     /// Relative URLs will be changed into absolute URLs, based on this base URL.
     RewriteWithBase(Url),
+    /// Force absolute and relative paths into a particular directory.
+    ///
+    /// Since the resolver does not affect fully-qualified URLs, it doesn't
+    /// prevent users from linking wherever they want. This feature only
+    /// serves to make content more portable.
+    ///
+    /// # Examples
+    ///
+    /// <table>
+    /// <thead>
+    /// <tr>
+    ///     <th>root</th>
+    ///     <th>path</th>
+    ///     <th>url</th>
+    ///     <th>result</th>
+    /// </tr>
+    /// </thead>
+    /// <tbody>
+    /// <tr>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/</td>
+    ///     <td>README.md</td>
+    ///     <td></td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/README.md</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/</td>
+    ///     <td>README.md</td>
+    ///     <td>/</td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/</td>
+    ///     <td>README.md</td>
+    ///     <td>/CONTRIBUTING.md</td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/CONTRIBUTING.md</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master</td>
+    ///     <td>README.md</td>
+    ///     <td></td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/README.md</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master</td>
+    ///     <td>README.md</td>
+    ///     <td>/</td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master</td>
+    ///     <td>README.md</td>
+    ///     <td>/CONTRIBUTING.md</td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/CONTRIBUTING.md</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/</td>
+    ///     <td></td>
+    ///     <td></td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/</td>
+    ///     <td></td>
+    ///     <td>/</td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/</td>
+    ///     <td></td>
+    ///     <td>/CONTRIBUTING.md</td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/CONTRIBUTING.md</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/</td>
+    ///     <td>rust-ammonia/ammonia/blob/master/README.md</td>
+    ///     <td></td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/README.md</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/</td>
+    ///     <td>rust-ammonia/ammonia/blob/master/README.md</td>
+    ///     <td>/</td>
+    ///     <td>https://github.com/</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/</td>
+    ///     <td>rust-ammonia/ammonia/blob/master/README.md</td>
+    ///     <td>CONTRIBUTING.md</td>
+    ///     <td>https://github.com/rust-ammonia/ammonia/blob/master/CONTRIBUTING.md</td>
+    /// </tr><tr>
+    ///     <td>https://github.com/</td>
+    ///     <td>rust-ammonia/ammonia/blob/master/README.md</td>
+    ///     <td>/CONTRIBUTING.md</td>
+    ///     <td>https://github.com/CONTRIBUTING.md</td>
+    /// </tr>
+    /// </tbody>
+    /// </table>
+    RewriteWithRoot {
+        /// The URL that is treated as the root by the resolver.
+        root: Url,
+        /// The "current path" used to resolve relative paths.
+        path: String,
+    },
     /// Rewrite URLs with a custom function.
     Custom(Box<dyn UrlRelativeEvaluate>),
+}
+
+impl UrlRelative {
+    fn evaluate(&self, url: &str) -> Option<tendril::StrTendril> {
+        match self {
+            UrlRelative::RewriteWithBase(ref url_base) => {
+                url_base.join(url).ok().and_then(|x| StrTendril::from_str(x.as_str()).ok())
+            }
+            UrlRelative::RewriteWithRoot { ref root, ref path } => {
+                (match url.as_bytes() {
+                    // Scheme-relative URL
+                    [b'/', b'/', ..] => root.join(url),
+                    // Path-absolute URL
+                    b"/" => root.join("."),
+                    [b'/', ..] => root.join(&url[1..]),
+                    // Path-relative URL
+                    _ => root.join(path).and_then(|r| r.join(url)),
+                }).ok().and_then(|x| StrTendril::from_str(x.as_str()).ok())
+            }
+            UrlRelative::Custom(ref evaluate) => {
+                evaluate
+                    .evaluate(&*url)
+                    .as_ref()
+                    .map(Cow::as_ref)
+                    .map(StrTendril::from_str)
+                    .and_then(Result::ok)
+            }
+            UrlRelative::PassThrough => StrTendril::from_str(url).ok(),
+            UrlRelative::Deny => None,
+        }
+    }
 }
 
 impl fmt::Debug for UrlRelative {
@@ -2569,6 +2666,9 @@ impl fmt::Debug for UrlRelative {
             UrlRelative::PassThrough => write!(f, "UrlRelative::PassThrough"),
             UrlRelative::RewriteWithBase(ref base) => {
                 write!(f, "UrlRelative::RewriteWithBase({})", base)
+            }
+            UrlRelative::RewriteWithRoot { ref root, ref path } => {
+                write!(f, "UrlRelative::RewriteWithRoot {{ root: {root}, path: {path} }}")
             }
             UrlRelative::Custom(_) => write!(f, "UrlRelative::Custom"),
         }
@@ -3622,5 +3722,101 @@ mod test {
     fn dont_be_bold() {
         let fragment = "<b>";
         assert!(is_html(fragment));
+    }
+
+    #[test]
+    fn rewrite_with_root() {
+        let tests = [
+            (
+                "https://github.com/rust-ammonia/ammonia/blob/master/",
+                "README.md",
+                "",
+                "https://github.com/rust-ammonia/ammonia/blob/master/README.md",
+            ),
+            (
+                "https://github.com/rust-ammonia/ammonia/blob/master/",
+                "README.md",
+                "/",
+                "https://github.com/rust-ammonia/ammonia/blob/master/",
+            ),
+            (
+                "https://github.com/rust-ammonia/ammonia/blob/master/",
+                "README.md",
+                "/CONTRIBUTING.md",
+                "https://github.com/rust-ammonia/ammonia/blob/master/CONTRIBUTING.md",
+            ),
+            (
+                "https://github.com/rust-ammonia/ammonia/blob/master",
+                "README.md",
+                "",
+                "https://github.com/rust-ammonia/ammonia/blob/README.md",
+            ),
+            (
+                "https://github.com/rust-ammonia/ammonia/blob/master",
+                "README.md",
+                "/",
+                "https://github.com/rust-ammonia/ammonia/blob/",
+            ),
+            (
+                "https://github.com/rust-ammonia/ammonia/blob/master",
+                "README.md",
+                "/CONTRIBUTING.md",
+                "https://github.com/rust-ammonia/ammonia/blob/CONTRIBUTING.md",
+            ),
+            (
+                "https://github.com/rust-ammonia/ammonia/blob/master/",
+                "",
+                "",
+                "https://github.com/rust-ammonia/ammonia/blob/master/",
+            ),
+            (
+                "https://github.com/rust-ammonia/ammonia/blob/master/",
+                "",
+                "/",
+                "https://github.com/rust-ammonia/ammonia/blob/master/",
+            ),
+            (
+                "https://github.com/rust-ammonia/ammonia/blob/master/",
+                "",
+                "/CONTRIBUTING.md",
+                "https://github.com/rust-ammonia/ammonia/blob/master/CONTRIBUTING.md",
+            ),
+            (
+                "https://github.com/",
+                "rust-ammonia/ammonia/blob/master/README.md",
+                "",
+                "https://github.com/rust-ammonia/ammonia/blob/master/README.md",
+            ),
+            (
+                "https://github.com/",
+                "rust-ammonia/ammonia/blob/master/README.md",
+                "/",
+                "https://github.com/",
+            ),
+            (
+                "https://github.com/",
+                "rust-ammonia/ammonia/blob/master/README.md",
+                "CONTRIBUTING.md",
+                "https://github.com/rust-ammonia/ammonia/blob/master/CONTRIBUTING.md",
+            ),
+            (
+                "https://github.com/",
+                "rust-ammonia/ammonia/blob/master/README.md",
+                "/CONTRIBUTING.md",
+                "https://github.com/CONTRIBUTING.md",
+            ),
+        ];
+        for (root, path, url, result) in tests {
+            let h = format!(r#"<a href="{url}">test</a>"#);
+            let r = format!(r#"<a href="{result}" rel="noopener noreferrer">test</a>"#);
+            let a = Builder::new()
+                .url_relative(UrlRelative::RewriteWithRoot { root: Url::parse(root).unwrap(), path: path.to_string() })
+                .clean(&h)
+                .to_string();
+            if r != a {
+                println!("failed to check ({root}, {path}, {url}, {result})\n{r} != {a}", r = r);
+                assert_eq!(r, a);
+            }
+        }
     }
 }
