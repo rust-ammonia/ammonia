@@ -1,5 +1,7 @@
 # Unreleased
 
+* feature: change lifetimes on UrlRelative (breaking change)
+
 # 3.3.0
 
 * chore: bump MSRV to 1.60.0
