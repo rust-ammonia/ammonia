@@ -360,7 +360,7 @@ pub struct Builder<'a> {
     set_tag_attribute_values: HashMap<&'a str, HashMap<&'a str, &'a str>>,
     generic_attributes: HashSet<&'a str>,
     url_schemes: HashSet<&'a str>,
-    url_relative: UrlRelative,
+    url_relative: UrlRelative<'a>,
     attribute_filter: Option<Box<dyn AttributeFilter>>,
     link_rel: Option<&'a str>,
     allowed_classes: HashMap<&'a str, HashSet<&'a str>>,
@@ -1338,7 +1338,7 @@ impl<'a> Builder<'a> {
     /// ```notest
     /// UrlRelative::PassThrough
     /// ```
-    pub fn url_relative(&mut self, value: UrlRelative) -> &mut Self {
+    pub fn url_relative(&mut self, value: UrlRelative<'a>) -> &mut Self {
         self.url_relative = value;
         self
     }
@@ -2525,7 +2525,7 @@ fn is_url_relative(url: &str) -> bool {
 /// To filter all of the URLs,
 /// use the not-yet-implemented Content Security Policy.
 #[non_exhaustive]
-pub enum UrlRelative {
+pub enum UrlRelative<'a> {
     /// Relative URLs will be completely stripped from the document.
     Deny,
     /// Relative URLs will be passed through unchanged.
@@ -2625,10 +2625,10 @@ pub enum UrlRelative {
         path: String,
     },
     /// Rewrite URLs with a custom function.
-    Custom(Box<dyn UrlRelativeEvaluate>),
+    Custom(Box<dyn UrlRelativeEvaluate<'a>>),
 }
 
-impl UrlRelative {
+impl<'a> UrlRelative<'a> {
     fn evaluate(&self, url: &str) -> Option<tendril::StrTendril> {
         match self {
             UrlRelative::RewriteWithBase(ref url_base) => {
@@ -2659,7 +2659,7 @@ impl UrlRelative {
     }
 }
 
-impl fmt::Debug for UrlRelative {
+impl<'a> fmt::Debug for UrlRelative<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             UrlRelative::Deny => write!(f, "UrlRelative::Deny"),
@@ -2682,15 +2682,15 @@ impl fmt::Debug for UrlRelative {
 /// See [`url_relative`][url_relative] for more details.
 ///
 /// [url_relative]: struct.Builder.html#method.url_relative
-pub trait UrlRelativeEvaluate: Send + Sync {
+pub trait UrlRelativeEvaluate<'a>: Send + Sync + 'a {
     /// Return `None` to remove the attribute. Return `Some(str)` to replace it with a new string.
-    fn evaluate<'a>(&self, _: &'a str) -> Option<Cow<'a, str>>;
+    fn evaluate<'url>(&self, _: &'url str) -> Option<Cow<'url, str>>;
 }
-impl<T> UrlRelativeEvaluate for T
+impl<'a, T> UrlRelativeEvaluate<'a> for T
 where
-    T: Fn(&str) -> Option<Cow<'_, str>> + Send + Sync,
+    T: Fn(&str) -> Option<Cow<'_, str>> + Send + Sync + 'a,
 {
-    fn evaluate<'a>(&self, url: &'a str) -> Option<Cow<'a, str>> {
+    fn evaluate<'url>(&self, url: &'url str) -> Option<Cow<'url, str>> {
         self(url)
     }
 }
