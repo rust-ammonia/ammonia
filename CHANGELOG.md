@@ -1,6 +1,7 @@
 # Unreleased
 
 * feature: change lifetimes on UrlRelative (breaking change)
+* chore: use the `Display` trait (and `ToString`) instead of an inherent `to_string` method (breaking change)
 
 # 3.3.0
 
