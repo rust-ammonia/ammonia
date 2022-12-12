@@ -44,7 +44,7 @@ use rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use std::borrow::{Borrow, Cow};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
-use std::fmt;
+use std::fmt::{self, Display};
 use std::io;
 use std::iter::IntoIterator as IntoIter;
 use std::mem;
@@ -2747,32 +2747,6 @@ where
 pub struct Document(RcDom);
 
 impl Document {
-    /// Serializes a `Document` instance to a `String`.
-    ///
-    /// This method returns a [`String`] with the sanitized HTML. This is the simplest way to use
-    /// `ammonia`.
-    ///
-    /// [`String`]: https://doc.rust-lang.org/nightly/std/string/struct.String.html
-    ///
-    /// # Examples
-    ///
-    ///     use ammonia::Builder;
-    ///
-    ///     let input = "Some <style></style>HTML here";
-    ///     let output = "Some HTML here";
-    ///
-    ///     let document = Builder::new()
-    ///         .clean(input);
-    ///     assert_eq!(document.to_string(), output);
-    pub fn to_string(&self) -> String {
-        let opts = Self::serialize_opts();
-        let mut ret_val = Vec::new();
-        let inner: SerializableHandle = self.0.document.children.borrow()[0].clone().into();
-        serialize(&mut ret_val, &inner, opts)
-            .expect("Writing to a string shouldn't fail (expect on OOM)");
-        String::from_utf8(ret_val).expect("html5ever only supports UTF8")
-    }
-
     /// Serializes a `Document` instance to a writer.
     ///
     /// This method writes the sanitized HTML to a [`Write`] instance, avoiding a buffering step.
@@ -2880,9 +2854,35 @@ impl Clone for Document {
     }
 }
 
-impl fmt::Display for Document {
+/// Convert a `Document` to stringified HTML.
+///
+/// Since [`Document`] implements [`Display`], it can be converted to a [`String`] using the
+/// standard [`ToString::to_string`] method. This is the simplest way to use `ammonia`.
+///
+/// [`Document`]: ammonia::Document
+/// [`Display`]: std::fmt::Display
+/// [`ToString::to_string`]: std::string::ToString
+///
+/// # Examples
+///
+///     use ammonia::Builder;
+///
+///     let input = "Some <style></style>HTML here";
+///     let output = "Some HTML here";
+///
+///     let document = Builder::new()
+///         .clean(input);
+///     assert_eq!(document.to_string(), output);
+impl Display for Document {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        let opts = Self::serialize_opts();
+        let mut ret_val = Vec::new();
+        let inner: SerializableHandle = self.0.document.children.borrow()[0].clone().into();
+        serialize(&mut ret_val, &inner, opts)
+            .expect("Writing to a string shouldn't fail (expect on OOM)");
+        String::from_utf8(ret_val)
+            .expect("html5ever only supports UTF8")
+            .fmt(f)
     }
 }
 
