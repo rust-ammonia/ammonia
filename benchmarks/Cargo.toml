@@ -6,4 +6,4 @@ edition = "2018"
 
 [dependencies]
 ammonia = { path = "../" }
-time = "0.1"
+time = "0.3"
