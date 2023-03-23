@@ -378,7 +378,7 @@ impl<'a> Default for Builder<'a> {
             "col", "colgroup", "data", "dd", "del", "details", "dfn", "div",
             "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2",
             "h3", "h4", "h5", "h6", "header", "hgroup", "hr", "i", "img",
-            "ins", "kbd", "kbd", "li", "map", "mark", "nav", "ol", "p", "pre",
+            "ins", "kbd", "li", "map", "mark", "nav", "ol", "p", "pre",
             "q", "rp", "rt", "rtc", "ruby", "s", "samp", "small", "span",
             "strike", "strong", "sub", "summary", "sup", "table", "tbody",
             "td", "th", "thead", "time", "tr", "tt", "u", "ul", "var", "wbr"
@@ -516,7 +516,7 @@ impl<'a> Builder<'a> {
     /// col, colgroup, data, dd, del, details, dfn, div,
     /// dl, dt, em, figcaption, figure, footer, h1, h2,
     /// h3, h4, h5, h6, header, hgroup, hr, i, img,
-    /// ins, kbd, kbd, li, map, mark, nav, ol, p, pre,
+    /// ins, kbd, li, map, mark, nav, ol, p, pre,
     /// q, rp, rt, rtc, ruby, s, samp, small, span,
     /// strike, strong, sub, summary, sup, table, tbody,
     /// td, th, thead, time, tr, tt, u, ul, var, wbr
