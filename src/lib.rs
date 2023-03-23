@@ -2675,9 +2675,7 @@ impl<'a> fmt::Debug for UrlRelative<'a> {
     }
 }
 
-/// Types that implement this trait can be used to convert a relative URL into an absolute URL.
-///
-/// This evaluator is only called when the URL is relative; absolute URLs are not evaluated.
+/// Types that implement this trait can be used to rewrite an URL with a custom function.
 ///
 /// See [`url_relative`][url_relative] for more details.
 ///
