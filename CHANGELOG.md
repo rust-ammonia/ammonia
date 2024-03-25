@@ -5,6 +5,8 @@
 * Update html5ever to 0.27
 * feature: change lifetimes on UrlRelative (breaking change)
 * chore: use the `Display` trait (and `ToString`) instead of an inherent `to_string` method (breaking change)
+* Security fixes are not backported to the 2.0 branch any more.
+  Only the v3 and v4 branches are supported.
 
 # 3.3.0
 
