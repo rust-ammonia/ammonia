@@ -756,7 +756,7 @@ impl<'a> Builder<'a> {
     ) -> &mut Self {
         self.tag_attributes
             .entry(tag.borrow())
-            .or_insert_with(HashSet::new)
+            .or_default()
             .extend(it.into_iter().map(Borrow::borrow));
         self
     }
@@ -864,9 +864,9 @@ impl<'a> Builder<'a> {
     ) -> &mut Self {
         self.tag_attribute_values
             .entry(tag.borrow())
-            .or_insert_with(HashMap::new)
+            .or_default()
             .entry(attribute.borrow())
-            .or_insert_with(HashSet::new)
+            .or_default()
             .extend(it.into_iter().map(Borrow::borrow));
 
         self
@@ -989,7 +989,7 @@ impl<'a> Builder<'a> {
     ) -> &mut Self {
         self.set_tag_attribute_values
             .entry(tag.borrow())
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(attribute.borrow(), value.borrow());
         self
     }
@@ -1535,7 +1535,7 @@ impl<'a> Builder<'a> {
     ) -> &mut Self {
         self.allowed_classes
             .entry(tag.borrow())
-            .or_insert_with(HashSet::new)
+            .or_default()
             .extend(it.into_iter().map(Borrow::borrow));
         self
     }
@@ -1896,8 +1896,8 @@ impl<'a> Builder<'a> {
                             // Banned classes will be filtered later.
                             &*attr.name.local == "class"
                                 && self.allowed_classes.contains_key(&*name.local)
-                        } else if is_url_attr(&*name.local, &*attr.name.local) {
-                            let url = Url::parse(&*attr.value);
+                        } else if is_url_attr(&name.local, &attr.name.local) {
+                            let url = Url::parse(&attr.value);
                             if let Ok(url) = url {
                                 self.url_schemes.contains(url.scheme())
                             } else if url == Err(url::ParseError::RelativeUrlWithoutBase) {
@@ -2026,11 +2026,11 @@ impl<'a> Builder<'a> {
             // https://html.spec.whatwg.org/#svg-0
             matches!(&*parent.local, "foreignObject")
         } else if child.ns == ns!(svg) {
-            is_svg_tag(&*child.local)
+            is_svg_tag(&child.local)
         } else if child.ns == ns!(mathml) {
-            is_mathml_tag(&*child.local)
+            is_mathml_tag(&child.local)
         } else if child.ns == ns!(html) {
-            (!is_svg_tag(&*child.local) && !is_mathml_tag(&*child.local))
+            (!is_svg_tag(&child.local) && !is_mathml_tag(&child.local))
                 || matches!(
                     &*child.local,
                     "title" | "style" | "font" | "a" | "script" | "span"
@@ -2099,7 +2099,7 @@ impl<'a> Builder<'a> {
                 let mut attrs = attrs.borrow_mut();
                 for (i, attr) in &mut attrs.iter_mut().enumerate() {
                     let replace_with = if let Some(new) =
-                        attr_filter.filter(&*name.local, &*attr.name.local, &*attr.value)
+                        attr_filter.filter(&name.local, &attr.name.local, &attr.value)
                     {
                         if *new != *attr.value {
                             Some(format_tendril!("{}", new))
@@ -2122,9 +2122,8 @@ impl<'a> Builder<'a> {
                 let mut drop_attrs = Vec::new();
                 let mut attrs = attrs.borrow_mut();
                 for (i, attr) in attrs.iter_mut().enumerate() {
-                    if is_url_attr(&*name.local, &*attr.name.local) && is_url_relative(&*attr.value)
-                    {
-                        let new_value = self.url_relative.evaluate(&*attr.value);
+                    if is_url_attr(&name.local, &attr.name.local) && is_url_relative(&attr.value) {
+                        let new_value = self.url_relative.evaluate(&attr.value);
                         if let Some(new_value) = new_value {
                             attr.value = new_value;
                         } else {
@@ -2648,7 +2647,7 @@ impl<'a> UrlRelative<'a> {
                 .and_then(|x| StrTendril::from_str(x.as_str()).ok())
             }
             UrlRelative::Custom(ref evaluate) => evaluate
-                .evaluate(&*url)
+                .evaluate(url)
                 .as_ref()
                 .map(Cow::as_ref)
                 .map(StrTendril::from_str)
@@ -2891,7 +2890,7 @@ impl Display for Document {
 
 impl fmt::Debug for Document {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Document({})", self.to_string())
+        write!(f, "Document({})", self)
     }
 }
 
@@ -3002,11 +3001,10 @@ mod test {
             .attribute_filter(|elem, attr, value| {
                 assert_eq!("a", elem);
                 assert!(
-                    match (attr, value) {
-                        ("href", "test") => true,
-                        ("rel", "noopener noreferrer") => true,
-                        _ => false,
-                    },
+                    matches!(
+                        (attr, value),
+                        ("href", "test") | ("rel", "noopener noreferrer")
+                    ),
                     "{}",
                     value.to_string()
                 );
@@ -3379,11 +3377,11 @@ mod test {
             let u = url.as_bytes();
             // `//a/b/c` is "protocol-relative", meaning "a" is a hostname
             // `/a/b/c` is an absolute path, and what we want to do stuff to.
-            u.get(0) == Some(&b'/') && u.get(1) != Some(&b'/')
+            u.first() == Some(&b'/') && u.get(1) != Some(&b'/')
         }
         fn is_banned(url: &str) -> bool {
             let u = url.as_bytes();
-            u.get(0) == Some(&b'b') && u.get(1) == Some(&b'a')
+            u.first() == Some(&b'b') && u.get(1) == Some(&b'a')
         }
         fn evaluate(url: &str) -> Option<Cow<'_, str>> {
             if is_absolute_path(url) {
@@ -3406,11 +3404,11 @@ mod test {
             let u = url.as_bytes();
             // `//a/b/c` is "protocol-relative", meaning "a" is a hostname
             // `/a/b/c` is an absolute path, and what we want to do stuff to.
-            u.get(0) == Some(&b'/') && u.get(1) != Some(&b'/')
+            u.first() == Some(&b'/') && u.get(1) != Some(&b'/')
         }
         fn is_banned(url: &str) -> bool {
             let u = url.as_bytes();
-            u.get(0) == Some(&b'b') && u.get(1) == Some(&b'a')
+            u.first() == Some(&b'b') && u.get(1) == Some(&b'a')
         }
         fn evaluate(url: &str) -> Option<Cow<'_, str>> {
             if is_absolute_path(url) {
@@ -3647,9 +3645,9 @@ mod test {
         let mut b = Builder::new();
         let mut hs: HashSet<&'_ str> = HashSet::new();
         hs.insert("data-");
-        assert_eq!(b.generic_attribute_prefixes.is_none(), true);
+        assert!(b.generic_attribute_prefixes.is_none());
         b.generic_attribute_prefixes(hs);
-        assert_eq!(b.generic_attribute_prefixes.is_some(), true);
+        assert!(b.generic_attribute_prefixes.is_some());
         assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
         b.add_generic_attribute_prefixes(&prefix_data);
         assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
@@ -3660,7 +3658,7 @@ mod test {
         b.rm_generic_attribute_prefixes(&prefix_code);
         assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
         b.rm_generic_attribute_prefixes(&prefix_data);
-        assert_eq!(b.generic_attribute_prefixes.is_none(), true);
+        assert!(b.generic_attribute_prefixes.is_none());
     }
 
     #[test]
