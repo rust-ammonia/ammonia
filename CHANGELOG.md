@@ -1,5 +1,8 @@
 # Unreleased
 
+# 4.0.0
+
+* Update html5ever to 0.27
 * feature: change lifetimes on UrlRelative (breaking change)
 * chore: use the `Display` trait (and `ToString`) instead of an inherent `to_string` method (breaking change)
 
