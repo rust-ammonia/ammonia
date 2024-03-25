@@ -130,7 +130,11 @@ impl Drop for Node {
         while let Some(node) = nodes.pop() {
             let children = mem::take(&mut *node.children.borrow_mut());
             nodes.extend(children.into_iter());
-            if let NodeData::Element { ref template_contents, .. } = node.data {
+            if let NodeData::Element {
+                ref template_contents,
+                ..
+            } = node.data
+            {
                 if let Some(template_contents) = template_contents.borrow_mut().take() {
                     nodes.push(template_contents);
                 }
@@ -188,7 +192,7 @@ fn append_to_existing_text(prev: &Handle, text: &str) -> bool {
         NodeData::Text { ref contents } => {
             contents.borrow_mut().push_slice(text);
             true
-        },
+        }
         _ => false,
     }
 }
@@ -234,7 +238,11 @@ impl TreeSink for RcDom {
             ..
         } = target.data
         {
-            template_contents.borrow().as_ref().expect("not a template element!").clone()
+            template_contents
+                .borrow()
+                .as_ref()
+                .expect("not a template element!")
+                .clone()
         } else {
             panic!("not a template element!")
         }
@@ -325,7 +333,7 @@ impl TreeSink for RcDom {
                 Node::new(NodeData::Text {
                     contents: RefCell::new(text),
                 })
-            },
+            }
 
             // The tree builder promises we won't have a text node after
             // the insertion point.
@@ -452,12 +460,13 @@ impl Serialize for SerializableHandle {
         let mut ops = VecDeque::new();
         match traversal_scope {
             IncludeNode => ops.push_back(SerializeOp::Open(self.0.clone())),
-            ChildrenOnly(_) => ops.extend(self
-                .0
-                .children
-                .borrow()
-                .iter()
-                .map(|h| SerializeOp::Open(h.clone())))
+            ChildrenOnly(_) => ops.extend(
+                self.0
+                    .children
+                    .borrow()
+                    .iter()
+                    .map(|h| SerializeOp::Open(h.clone())),
+            ),
         }
 
         while let Some(op) = ops.pop_front() {
@@ -479,13 +488,11 @@ impl Serialize for SerializableHandle {
                         for child in handle.children.borrow().iter().rev() {
                             ops.push_front(SerializeOp::Open(child.clone()));
                         }
-                    },
+                    }
 
                     NodeData::Doctype { ref name, .. } => serializer.write_doctype(name)?,
 
-                    NodeData::Text { ref contents } => {
-                        serializer.write_text(&contents.borrow())?
-                    },
+                    NodeData::Text { ref contents } => serializer.write_text(&contents.borrow())?,
 
                     NodeData::Comment { ref contents } => serializer.write_comment(contents)?,
 
@@ -499,7 +506,7 @@ impl Serialize for SerializableHandle {
 
                 SerializeOp::Close(name) => {
                     serializer.end_elem(name)?;
-                },
+                }
             }
         }
 
