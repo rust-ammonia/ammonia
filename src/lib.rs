@@ -3639,6 +3639,22 @@ mod test {
     }
 
     #[test]
+    fn xml_processing_instruction() {
+        // https://blog.slonser.info/posts/dompurify-node-type-confusion/
+        let fragment = r##"<svg><?xml-stylesheet src='slonser' ?></svg>"##;
+        let result = String::from(Builder::new().clean(fragment));
+        assert_eq!(result.to_string(), "");
+
+        let fragment = r##"<svg><?xml-stylesheet src='slonser' ?></svg>"##;
+        let result = String::from(Builder::new().add_tags(&["svg"]).clean(fragment));
+        assert_eq!(result.to_string(), "<svg></svg>");
+
+        let fragment = r##"<svg><?xml-stylesheet ><img src=x onerror="alert('Ammonia bypassed!!!')"> ?></svg>"##;
+        let result = String::from(Builder::new().add_tags(&["svg"]).clean(fragment));
+        assert_eq!(result.to_string(), "<svg></svg><img src=\"x\"> ?&gt;");
+    }
+
+    #[test]
     fn generic_attribute_prefixes() {
         let prefix_data = ["data-"];
         let prefix_code = ["code-"];
