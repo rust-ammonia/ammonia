@@ -1658,7 +1658,7 @@ impl<'a> Builder<'a> {
     ///     use ammonia::{Builder, Url, UrlRelative};
     ///     # use std::error::Error;
     ///
-    ///     # fn do_main() -> Result<(), Box<Error>> {
+    ///     # fn do_main() -> Result<(), Box<dyn Error>> {
     ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
     ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
     ///
@@ -1684,7 +1684,7 @@ impl<'a> Builder<'a> {
     ///     use ammonia::{Builder, Url, UrlRelative};
     ///     # use std::error::Error;
     ///
-    ///     # fn do_main() -> Result<(), Box<Error>> {
+    ///     # fn do_main() -> Result<(), Box<dyn Error>> {
     ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>empty()</code> function</a>.";
     ///     let output = "This is an Ammonia example using the empty() function.";
     ///
@@ -1713,7 +1713,7 @@ impl<'a> Builder<'a> {
     ///     use ammonia::{Builder, Url, UrlRelative};
     ///     # use std::error::Error;
     ///
-    ///     # fn do_main() -> Result<(), Box<Error>> {
+    ///     # fn do_main() -> Result<(), Box<dyn Error>> {
     ///     let input = "<!-- comments will be stripped -->This is an <a href=.>Ammonia</a> example using <a href=struct.Builder.html#method.new onclick=xss>the <code onmouseover=xss>new()</code> function</a>.";
     ///     let output = "This is an <a href=\"https://docs.rs/ammonia/1.0/ammonia/\" rel=\"noopener noreferrer\">Ammonia</a> example using <a href=\"https://docs.rs/ammonia/1.0/ammonia/struct.Builder.html#method.new\" rel=\"noopener noreferrer\">the <code>new()</code> function</a>.";
     ///
@@ -1743,7 +1743,7 @@ impl<'a> Builder<'a> {
     ///     use ammonia::Builder;
     ///     # use std::error::Error;
     ///
-    ///     # fn do_main() -> Result<(), Box<Error>> {
+    ///     # fn do_main() -> Result<(), Box<dyn Error>> {
     ///     let a = Builder::new()
     ///         .clean_from_reader(&b"<!-- no -->"[..])? // notice the `b`
     ///         .to_string();
@@ -2817,7 +2817,7 @@ impl Document {
     ///     use html5ever::serialize::{serialize, SerializeOpts};
     ///
     ///     # use std::error::Error;
-    ///     # fn do_main() -> Result<(), Box<Error>> {
+    ///     # fn do_main() -> Result<(), Box<dyn Error>> {
     ///     let input = "<a>one link</a> and <a>one more</a>";
     ///     let expected = "<a>one more</a> and <a>one link</a>";
     ///
