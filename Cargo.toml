@@ -9,10 +9,11 @@ readme = "README.md"
 documentation = "https://docs.rs/ammonia/"
 repository = "https://github.com/rust-ammonia/ammonia"
 categories = [ "web-programming", "text-processing" ]
-edition = "2018"
+edition = "2021"
+rust-version = "1.60"
 
 [dependencies]
-html5ever = "0.26"
+html5ever = "0.27"
 maplit = "1.0"
 tendril = "0.4"
 url = "2"
@@ -20,4 +21,4 @@ once_cell = "1.10"
 
 [dev-dependencies]
 version-sync = "0.9"
-env_logger = "0.10"
+env_logger = "0.10" # env_logger 0.11 requires MSRV 1.70 even for a dev-dep due to Cargo metadata
