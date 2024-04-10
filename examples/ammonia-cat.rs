@@ -29,7 +29,7 @@ fn run() -> io::Result<()> {
 fn main() {
     env_logger::init();
     if let Err(ref e) = run() {
-        println!("error: {}", e);
+        eprintln!("error: {e}");
         process::exit(1);
     }
 }
