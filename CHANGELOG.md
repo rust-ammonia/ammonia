@@ -1,5 +1,8 @@
 # Unreleased
 
+* Bump MSRV to 1.61.0
+* Improve panic message when `clean_content_tags` conflicts with other options
+
 # 4.0.0
 
 * Update html5ever to 0.27
