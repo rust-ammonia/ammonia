@@ -1788,8 +1788,8 @@ impl<'a> Builder<'a> {
                 .is_none());
         }
         for tag_name in &self.clean_content_tags {
-            assert!(!self.tags.contains(tag_name));
-            assert!(!self.tag_attributes.contains_key(tag_name));
+            assert!(!self.tags.contains(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time");
+            assert!(!self.tag_attributes.contains_key(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tag_attributes` at the same time");
         }
         let body = {
             let children = dom.document.children.borrow();
