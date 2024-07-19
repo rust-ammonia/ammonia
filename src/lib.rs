@@ -366,6 +366,7 @@ pub struct Builder<'a> {
     strip_comments: bool,
     id_prefix: Option<&'a str>,
     generic_attribute_prefixes: Option<HashSet<&'a str>>,
+    is_document: bool,
 }
 
 impl<'a> Default for Builder<'a> {
@@ -486,6 +487,7 @@ impl<'a> Default for Builder<'a> {
             strip_comments: true,
             id_prefix: None,
             generic_attribute_prefixes: None,
+            is_document: false,
         }
     }
 }
@@ -1705,6 +1707,17 @@ impl<'a> Builder<'a> {
         }
     }
 
+    /// Use this to parse a full document instead of a document fragment (like a div)
+    pub fn parse_as_document(&mut self) -> &mut Self {
+        // TODO: expand on this
+        self.add_tags(["html", "head", "link", "title", "meta", "body"])
+            .add_tag_attributes("meta", ["name", "content"])
+            .add_tag_attributes("html", ["lang"]);
+
+        self.is_document = true;
+        self
+    }
+
     /// Sanitizes an HTML fragment in a string according to the configured options.
     ///
     /// # Examples
@@ -1725,7 +1738,11 @@ impl<'a> Builder<'a> {
     ///     # }
     ///     # fn main() { do_main().unwrap() }
     pub fn clean(&self, src: &str) -> Document {
-        let parser = Self::make_parser();
+        let parser = if self.is_document {
+            html::parse_document(RcDom::default(), html::ParseOpts::default())
+        } else {
+            Self::make_parser()
+        };
         let dom = parser.one(src);
         self.clean_dom(dom)
     }
@@ -1788,7 +1805,10 @@ impl<'a> Builder<'a> {
                 .is_none());
         }
         for tag_name in &self.clean_content_tags {
-            assert!(!self.tags.contains(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time");
+            assert!(
+                !self.tags.contains(tag_name),
+                "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time"
+            );
             assert!(!self.tag_attributes.contains_key(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tag_attributes` at the same time");
         }
         let body = {
