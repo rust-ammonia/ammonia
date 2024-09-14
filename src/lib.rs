@@ -1373,7 +1373,8 @@ impl<'a> Builder<'a> {
     /// ```
     pub fn attribute_filter<'cb, CallbackFn>(&mut self, callback: CallbackFn) -> &mut Self
     where
-        CallbackFn: for<'u> Fn(&str, &str, &'u str) -> Option<Cow<'u, str>> + Send + Sync + Clone + 'static,
+        CallbackFn:
+            for<'u> Fn(&str, &str, &'u str) -> Option<Cow<'u, str>> + Send + Sync + Clone + 'static,
     {
         assert!(
             self.attribute_filter.is_none(),
@@ -1789,7 +1790,10 @@ impl<'a> Builder<'a> {
                 .is_none());
         }
         for tag_name in &self.clean_content_tags {
-            assert!(!self.tags.contains(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time");
+            assert!(
+                !self.tags.contains(tag_name),
+                "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time"
+            );
             assert!(!self.tag_attributes.contains_key(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tag_attributes` at the same time");
         }
         let body = {
@@ -2727,7 +2731,6 @@ where
         self(element, attribute, value)
     }
 }
-
 
 /// A sanitized HTML document.
 ///
