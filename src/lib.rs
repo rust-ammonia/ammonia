@@ -33,6 +33,7 @@ pub mod rcdom;
 #[cfg(not(ammonia_unstable))]
 mod rcdom;
 
+use dyn_clone::DynClone;
 use html5ever::interface::Attribute;
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
@@ -351,7 +352,7 @@ impl TokenSink for SanitizationTokenizer {
 /// [`id_prefix`]: #method.id_prefix
 /// [`tags`]: #method.tags
 /// [`clean_content_tags`]: #method.clean_content_tags
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Builder<'a> {
     tags: HashSet<&'a str>,
     clean_content_tags: HashSet<&'a str>,
@@ -1373,7 +1374,8 @@ impl<'a> Builder<'a> {
     /// ```
     pub fn attribute_filter<'cb, CallbackFn>(&mut self, callback: CallbackFn) -> &mut Self
     where
-        CallbackFn: for<'u> Fn(&str, &str, &'u str) -> Option<Cow<'u, str>> + Send + Sync + 'static,
+        CallbackFn:
+            for<'u> Fn(&str, &str, &'u str) -> Option<Cow<'u, str>> + Send + Sync + Clone + 'static,
     {
         assert!(
             self.attribute_filter.is_none(),
@@ -1789,7 +1791,10 @@ impl<'a> Builder<'a> {
                 .is_none());
         }
         for tag_name in &self.clean_content_tags {
-            assert!(!self.tags.contains(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time");
+            assert!(
+                !self.tags.contains(tag_name),
+                "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time"
+            );
             assert!(!self.tag_attributes.contains_key(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tag_attributes` at the same time");
         }
         let body = {
@@ -2524,6 +2529,7 @@ fn is_url_relative(url: &str) -> bool {
 /// To filter all of the URLs,
 /// use the not-yet-implemented Content Security Policy.
 #[non_exhaustive]
+#[derive(Clone)]
 pub enum UrlRelative<'a> {
     /// Relative URLs will be completely stripped from the document.
     Deny,
@@ -2685,18 +2691,20 @@ impl<'a> fmt::Debug for UrlRelative<'a> {
 /// See [`url_relative`][url_relative] for more details.
 ///
 /// [url_relative]: struct.Builder.html#method.url_relative
-pub trait UrlRelativeEvaluate<'a>: Send + Sync + 'a {
+pub trait UrlRelativeEvaluate<'a>: Send + Sync + DynClone + 'a {
     /// Return `None` to remove the attribute. Return `Some(str)` to replace it with a new string.
     fn evaluate<'url>(&self, _: &'url str) -> Option<Cow<'url, str>>;
 }
 impl<'a, T> UrlRelativeEvaluate<'a> for T
 where
-    T: Fn(&str) -> Option<Cow<'_, str>> + Send + Sync + 'a,
+    T: Fn(&str) -> Option<Cow<'_, str>> + Send + Sync + DynClone + 'a,
 {
     fn evaluate<'url>(&self, url: &'url str) -> Option<Cow<'url, str>> {
         self(url)
     }
 }
+
+dyn_clone::clone_trait_object!(<'a> UrlRelativeEvaluate<'a>);
 
 impl fmt::Debug for dyn AttributeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -2709,14 +2717,16 @@ impl fmt::Debug for dyn AttributeFilter {
 /// See [`attribute_filter`][attribute_filter] for more details.
 ///
 /// [attribute_filter]: struct.Builder.html#method.attribute_filter
-pub trait AttributeFilter: Send + Sync {
+pub trait AttributeFilter: Send + Sync + DynClone {
     /// Return `None` to remove the attribute. Return `Some(str)` to replace it with a new string.
     fn filter<'a>(&self, _: &str, _: &str, _: &'a str) -> Option<Cow<'a, str>>;
 }
 
+dyn_clone::clone_trait_object!(AttributeFilter);
+
 impl<T> AttributeFilter for T
 where
-    T: for<'a> Fn(&str, &str, &'a str) -> Option<Cow<'a, str>> + Send + Sync + 'static,
+    T: for<'a> Fn(&str, &str, &'a str) -> Option<Cow<'a, str>> + Send + Sync + DynClone + 'static,
 {
     fn filter<'a>(&self, element: &str, attribute: &str, value: &'a str) -> Option<Cow<'a, str>> {
         self(element, attribute, value)
