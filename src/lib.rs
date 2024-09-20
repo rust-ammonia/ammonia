@@ -41,6 +41,7 @@ use maplit::{hashmap, hashset};
 use once_cell::sync::Lazy;
 use rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use std::borrow::{Borrow, Cow};
+use std::cell::Cell;
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
@@ -179,37 +180,37 @@ pub fn is_html(input: &str) -> bool {
     let mut input = BufferQueue::default();
     input.push_back(chunk.try_reinterpret().unwrap());
 
-    let mut tok = Tokenizer::new(santok, Default::default());
+    let tok = Tokenizer::new(santok, Default::default());
     let _ = tok.feed(&mut input);
     tok.end();
-    tok.sink.was_sanitized
+    tok.sink.was_sanitized.get()
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 struct SanitizationTokenizer {
-    was_sanitized: bool,
+    was_sanitized: Cell<bool>,
 }
 
 impl SanitizationTokenizer {
     pub fn new() -> SanitizationTokenizer {
         SanitizationTokenizer {
-            was_sanitized: false,
+            was_sanitized: false.into(),
         }
     }
 }
 
 impl TokenSink for SanitizationTokenizer {
     type Handle = ();
-    fn process_token(&mut self, token: Token, _line_number: u64) -> TokenSinkResult<()> {
+    fn process_token(&self, token: Token, _line_number: u64) -> TokenSinkResult<()> {
         match token {
             Token::CharacterTokens(_) | Token::EOFToken | Token::ParseError(_) => {}
             _ => {
-                self.was_sanitized = true;
+                self.was_sanitized.set(true);
             }
         }
         TokenSinkResult::Continue
     }
-    fn end(&mut self) {}
+    fn end(&self) {}
 }
 
 /// An HTML sanitizer.

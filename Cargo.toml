@@ -10,10 +10,10 @@ documentation = "https://docs.rs/ammonia/"
 repository = "https://github.com/rust-ammonia/ammonia"
 categories = [ "web-programming", "text-processing" ]
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.65"
 
 [dependencies]
-html5ever = "0.27"
+html5ever = "0.29"
 maplit = "1.0"
 tendril = "0.4"
 url = "2"
