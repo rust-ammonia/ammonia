@@ -1,6 +1,6 @@
 # Unreleased
 
-* Bump MSRV to 1.61.0
+* Bump MSRV to 1.65.0
 * Improve panic message when `clean_content_tags` conflicts with other options
 
 # 4.0.0
