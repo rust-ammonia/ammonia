@@ -33,6 +33,8 @@ pub mod rcdom;
 #[cfg(not(ammonia_unstable))]
 mod rcdom;
 
+mod style;
+
 use html5ever::interface::Attribute;
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
@@ -367,6 +369,7 @@ pub struct Builder<'a> {
     strip_comments: bool,
     id_prefix: Option<&'a str>,
     generic_attribute_prefixes: Option<HashSet<&'a str>>,
+    style_properties: Option<HashSet<&'a str>>,
 }
 
 impl<'a> Default for Builder<'a> {
@@ -487,6 +490,7 @@ impl<'a> Default for Builder<'a> {
             strip_comments: true,
             id_prefix: None,
             generic_attribute_prefixes: None,
+            style_properties: None,
         }
     }
 }
@@ -1651,6 +1655,34 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Only allows the specified properties in `style` attributes.
+    ///
+    /// Irrelevant if `style` is not an allowed attribute.
+    ///
+    /// Note that if style filtering is enabled style properties will be normalised e.g.
+    /// invalid declarations and @rules will be removed, with only syntactically valid
+    /// declarations kept.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::Builder;
+    ///     use maplit::hashset;
+    ///
+    ///     # fn main() {
+    ///     let attributes = hashset!["style"];
+    ///     let properties = hashset!["color"];
+    ///     let a = Builder::new()
+    ///         .generic_attributes(attributes)
+    ///         .filter_style_properties(properties)
+    ///         .clean("<p style=\"font-weight: heavy; color: red\">my html</p>")
+    ///         .to_string();
+    ///     assert_eq!(a, "<p style=\"color:red\">my html</p>");
+    ///     # }
+    pub fn filter_style_properties(&mut self, value: HashSet<&'a str>) -> &mut Self {
+        self.style_properties = Some(value);
+        self
+    }
+
     /// Constructs a [`Builder`] instance configured with the [default options].
     ///
     /// # Examples
@@ -2048,6 +2080,7 @@ impl<'a> Builder<'a> {
     ///
     /// * relative URL rewriting
     /// * adding `<a rel>` attributes
+    /// * filtering out banned style properties
     /// * filtering out banned classes
     fn adjust_node_attributes(
         &self,
@@ -2139,6 +2172,13 @@ impl<'a> Builder<'a> {
                 // but that's slower.
                 for i in drop_attrs.into_iter().rev() {
                     attrs.swap_remove(i);
+                }
+            }
+            if let Some(allowed_values) = &self.style_properties {
+                for attr in &mut *attrs.borrow_mut() {
+                    if &attr.name.local == "style" {
+                        attr.value = style::filter_style_attribute(&attr.value, allowed_values).into();
+                    }
                 }
             }
             if let Some(allowed_values) = self.allowed_classes.get(&*name.local) {
