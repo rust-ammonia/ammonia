@@ -1,7 +1,8 @@
 # Unreleased
 
-* Bump MSRV to 1.65.0
-* Improve panic message when `clean_content_tags` conflicts with other options
+* chore: bump MSRV to 1.65.0
+* feature: improve panic message when `clean_content_tags` conflicts with other options
+* feature: add support for sanitizing the `style` attribute
 
 # 4.0.0
 
