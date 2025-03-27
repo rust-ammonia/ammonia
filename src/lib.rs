@@ -1798,7 +1798,7 @@ impl<'a> Builder<'a> {
     /// This is not a public API because RcDom isn't really stable.
     /// We want to be able to take breaking changes to html5ever itself
     /// without having to break Ammonia's API.
-    fn clean_dom(&self, mut dom: RcDom) -> Document {
+    fn clean_dom(&self, dom: RcDom) -> Document {
         let mut stack = Vec::new();
         let mut removed = Vec::new();
         let link_rel = self
