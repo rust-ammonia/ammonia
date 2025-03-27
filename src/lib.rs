@@ -40,7 +40,7 @@ use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::{driver as html, local_name, namespace_url, ns, QualName};
 use maplit::{hashmap, hashset};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use std::borrow::{Borrow, Cow};
 use std::cell::Cell;
@@ -61,7 +61,7 @@ use html5ever::buffer_queue::BufferQueue;
 use html5ever::tokenizer::{Token, TokenSink, TokenSinkResult, Tokenizer};
 pub use url;
 
-static AMMONIA: Lazy<Builder<'static>> = Lazy::new(Builder::default);
+static AMMONIA: LazyLock<Builder<'static>> = LazyLock::new(Builder::default);
 
 /// Clean HTML with a conservative set of defaults.
 ///
