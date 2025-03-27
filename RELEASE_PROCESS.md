@@ -11,6 +11,8 @@ How to make a release of ammonia
 
 * Check out and pull down `master`
 
-* Copy the CHANGELOG into a GitHub release:
+* Copy the CHANGELOG into a GitHub release
+
+* Make sure that README.md requests the same major.minor version, and that SECURITY.md describes the backport plan
 
 * Run `cargo publish`
