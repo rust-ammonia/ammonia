@@ -38,8 +38,9 @@ jobs:
       - uses: actions/checkout@master
       - name: Set toolchain
         run: |
+          cp Cargo.lock.msrv Cargo.lock
           rustup set profile minimal
-          rustup override set 1.65.0
+          rustup override set 1.80.0
       - name: Check
         run: cargo check --lib --all-features
         env:
