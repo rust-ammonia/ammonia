@@ -10,7 +10,7 @@ documentation = "https://docs.rs/ammonia/"
 repository = "https://github.com/rust-ammonia/ammonia"
 categories = [ "web-programming", "text-processing" ]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 
 [dependencies]
 html5ever = "0.30"
@@ -22,7 +22,7 @@ cssparser = "0.35.0"
 
 [dev-dependencies]
 version-sync = "0.9"
-env_logger = "0.10" # env_logger 0.11 requires MSRV 1.70 even for a dev-dep due to Cargo metadata
+env_logger = "0.11"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(ammonia_unstable)'] }
