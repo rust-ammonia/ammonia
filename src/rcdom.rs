@@ -70,8 +70,6 @@ pub enum NodeData {
     /// [dtd wiki]: https://en.wikipedia.org/wiki/Document_type_declaration
     Doctype {
         name: StrTendril,
-        public_id: StrTendril,
-        system_id: StrTendril,
     },
 
     /// A text node.
@@ -370,15 +368,13 @@ impl TreeSink for RcDom {
     fn append_doctype_to_document(
         &self,
         name: StrTendril,
-        public_id: StrTendril,
-        system_id: StrTendril,
+        _public_id: StrTendril,
+        _system_id: StrTendril,
     ) {
         append(
             &self.document,
             Node::new(NodeData::Doctype {
                 name,
-                public_id,
-                system_id,
             }),
         );
     }
