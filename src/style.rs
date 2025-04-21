@@ -32,7 +32,7 @@
 //! [CSSATTR]: https://w3c.github.io/csswg-drafts/css-style-attr/
 use std::collections::HashSet;
 
-use cssparser::{BasicParseErrorKind, DeclarationParser, Delimiter::CurlyBracketBlock, ParseError, ParseErrorKind, Parser, ParserInput, ToCss, Token};
+use cssparser::{BasicParseErrorKind, DeclarationParser, ParseError, ParseErrorKind, Parser, ParserInput, ParserState, ToCss, Token};
 
 
 
@@ -98,7 +98,7 @@ pub fn parse_one_declaration<'i, 't>(
         return Ok(("".into(), String::new()));
     }
     input.expect_colon()?;
-    Declarations.parse_value(name, input)
+    Declarations.parse_value(name, input, &input.state())
 }
 
 
@@ -111,6 +111,7 @@ impl <'i> DeclarationParser<'i> for Declarations {
         &mut self,
         name: cssparser::CowRcStr<'i>,
         input: &mut Parser<'i, 't>,
+        _declaration_start: &ParserState,
     ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
         let mut value = String::new();
         loop {

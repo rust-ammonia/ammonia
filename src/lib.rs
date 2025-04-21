@@ -40,7 +40,7 @@ use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::{driver as html, local_name, namespace_url, ns, QualName};
 use maplit::{hashmap, hashset};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use std::borrow::{Borrow, Cow};
 use std::cell::Cell;
@@ -61,7 +61,7 @@ use html5ever::buffer_queue::BufferQueue;
 use html5ever::tokenizer::{Token, TokenSink, TokenSinkResult, Tokenizer};
 pub use url;
 
-static AMMONIA: Lazy<Builder<'static>> = Lazy::new(Builder::default);
+static AMMONIA: LazyLock<Builder<'static>> = LazyLock::new(Builder::default);
 
 /// Clean HTML with a conservative set of defaults.
 ///
@@ -1798,7 +1798,7 @@ impl<'a> Builder<'a> {
     /// This is not a public API because RcDom isn't really stable.
     /// We want to be able to take breaking changes to html5ever itself
     /// without having to break Ammonia's API.
-    fn clean_dom(&self, mut dom: RcDom) -> Document {
+    fn clean_dom(&self, dom: RcDom) -> Document {
         let mut stack = Vec::new();
         let mut removed = Vec::new();
         let link_rel = self
