@@ -38,7 +38,7 @@ mod style;
 use html5ever::interface::Attribute;
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
-use html5ever::{driver as html, local_name, namespace_url, ns, QualName};
+use html5ever::{driver as html, local_name, ns, QualName};
 use maplit::{hashmap, hashset};
 use std::sync::LazyLock;
 use rcdom::{Handle, NodeData, RcDom, SerializableHandle};
@@ -2208,6 +2208,7 @@ impl<'a> Builder<'a> {
             html::ParseOpts::default(),
             QualName::new(None, ns!(html), local_name!("div")),
             vec![],
+            false,
         )
     }
 }
