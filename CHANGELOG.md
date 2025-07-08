@@ -1,5 +1,11 @@
 # Unreleased
 
+# 4.1.1
+
+* chore: upgrade to [html5ever 0.35][]
+
+[html5ever 0.35]: https://github.com/servo/html5ever/releases/tag/html5ever-v0.35.0
+
 # 4.1.0
 
 * chore: bump MSRV to 1.80.0
