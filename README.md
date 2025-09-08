@@ -1,26 +1,27 @@
 HTML Sanitization
 =================
 
-[![Crates.IO](https://img.shields.io/crates/v/ammonia.svg)](https://crates.io/crates/ammonia)
+[![crates.io](https://img.shields.io/crates/v/ammonia.svg)](https://crates.io/crates/ammonia)
 ![Requires rustc 1.80.0](https://img.shields.io/badge/rustc-1.80.0+-green.svg)
 
 Ammonia is a whitelist-based HTML sanitization library. It is designed to
-prevent cross-site scripting, layout breaking, and clickjacking caused
-by untrusted user-provided HTML being mixed into a larger web page.
+prevent cross-site scripting, layout breaking, and clickjacking caused by
+untrusted user-provided HTML being mixed into a larger web page.
 
-Ammonia uses [html5ever] to parse and serialize document fragments the same way browsers do,
-so it is extremely resilient to syntactic obfuscation.
+Ammonia uses [html5ever] to parse and serialize document fragments the same way
+browsers do, so it is extremely resilient to syntactic obfuscation.
 
-Ammonia parses its input exactly according to the HTML5 specification;
-it will not linkify bare URLs, insert line or paragraph breaks, or convert `(C)` into &copy;.
-If you want that, use a markup processor before running the sanitizer, like [pulldown-cmark].
+Ammonia parses its input exactly according to the HTML5 specification; it will
+not linkify bare URLs, insert line or paragraph breaks, or convert `(C)` into
+&copy;. If you want that, use a markup processor before running the sanitizer,
+like [pulldown-cmark].
 
 [html5ever]: https://github.com/servo/html5ever "The HTML parser in Servo"
-[pulldown-cmark]: https://github.com/google/pulldown-cmark
+[pulldown-cmark]: https://github.com/pulldown-cmark/pulldown-cmark
 
 
 Installation
------------
+------------
 
 To use `ammonia`, add it to your project's `Cargo.toml` file:
 
@@ -31,7 +32,8 @@ ammonia = "4.1"
 
 
 Changes
------------
+-------
+
 Please see the [CHANGELOG](CHANGELOG.md) for a release history.
 
 
@@ -62,9 +64,9 @@ assert_eq!(safe_html, "<a href=\"http://www.notriddle.com/\">a link</a>");
 Performance
 -----------
 
-Ammonia builds a DOM, traverses it (replacing unwanted nodes along the way),
-and serializes it again. It could be faster for what it does, and if you don't
-want to allow any HTML it is possible to be even faster than that.
+Ammonia builds a DOM, traverses it (replacing unwanted nodes along the way), and
+serializes it again. It could be faster for what it does, and if you don't want
+to allow any HTML it is possible to be even faster than that.
 
 However, it takes about fifteen times longer to sanitize an HTML string using
 [bleach]-2.0.0 with html5lib-0.999999999 than it does using Ammonia 1.0.
@@ -78,30 +80,35 @@ However, it takes about fifteen times longer to sanitize an HTML string using
 
 
 License
-------
+-------
 
 Licensed under either of these:
 
  * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
-   http://www.apache.org/licenses/LICENSE-2.0)
+   https://www.apache.org/licenses/LICENSE-2.0)
  * MIT license ([LICENSE-MIT](LICENSE-MIT) or
-   http://opensource.org/licenses/MIT)
+   https://opensource.org/license/mit)
 
 
 Thanks
 ------
 
-Thanks to the other sanitizer libraries, particularly [Bleach] for Python and [sanitize-html] for Node,
-which we blatantly copied most of our API from.
+Thanks to the other sanitizer libraries, particularly [Bleach] for Python and
+[sanitize-html] for Node.js, which we blatantly copied most of our API from.
 
-Thanks to ChALkeR, whose [Improper Markup Sanitization] document helped us find high-level semantic holes in Ammonia,
-to [ssokolow](https://github.com/ssokolow), whose review and experience were also very helpful, to [securityMB](https://github.com/securityMB),
-for finding a very obscure [namespace-related injection bug](https://github.com/rust-ammonia/ammonia/pull/142), and [xfix](https://github.com/xfix) for finding a [DoS bug in a recursive destructor](https://github.com/rust-ammonia/ammonia/pull/113).
+Thanks to ChALkeR, whose [improper markup sanitization document] helped us find
+high-level semantic holes in Ammonia, to
+[ssokolow](https://github.com/ssokolow), whose review and experience were also
+very helpful, to [securityMB](https://github.com/securityMB), for finding a very
+obscure
+[namespace-related injection bug](https://github.com/rust-ammonia/ammonia/pull/142),
+and [xfix](https://github.com/xfix) for finding a
+[DoS bug in a recursive destructor](https://github.com/rust-ammonia/ammonia/pull/113).
 
 And finally, thanks to [the contributors].
 
 
 [sanitize-html]: https://www.npmjs.com/package/sanitize-html
 [Bleach]: https://bleach.readthedocs.io/
-[Improper Markup Sanitization]: https://github.com/ChALkeR/notes/blob/master/Improper-markup-sanitization.md
-[the contributors]: https://github.com/notriddle/ammonia/graphs/contributors
+[improper markup sanitization document]: https://github.com/ChALkeR/notes/blob/master/Improper-markup-sanitization.md
+[the contributors]: https://github.com/rust-ammonia/ammonia/graphs/contributors
