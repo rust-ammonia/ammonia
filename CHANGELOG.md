@@ -1,5 +1,9 @@
 # Unreleased
 
+# 4.1.2
+
+* fix: unexpected namespace switches after cleanup can cause mXSS
+
 # 4.1.1
 
 * chore: upgrade to [html5ever 0.35][]

@@ -1841,12 +1841,11 @@ impl<'a> Builder<'a> {
             let parent = node.parent
                 .replace(None).expect("a node in the DOM will have a parent, except the root, which is not processed")
                 .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
-            if self.clean_node_content(&node) {
+            if self.clean_node_content(&node) || !self.check_expected_namespace(&parent, &node) {
                 removed.push(node);
                 continue;
             }
-            let pass_clean = self.clean_child(&mut node);
-            let pass = pass_clean && self.check_expected_namespace(&parent, &node);
+            let pass = self.clean_child(&mut node);
             if pass {
                 self.adjust_node_attributes(&mut node, &link_rel, self.id_prefix);
                 dom.append(&parent.clone(), NodeOrText::AppendNode(node.clone()));
@@ -2053,21 +2052,18 @@ impl<'a> Builder<'a> {
             matches!(
                 &*parent.local,
                 "mi" | "mo" | "mn" | "ms" | "mtext" | "annotation-xml"
-            )
+            ) && if child.ns == ns!(html) { is_html_tag(&child.local) } else { true }
         // The only way to switch from svg to mathml/html is with an html integration point
         } else if parent.ns == ns!(svg) && child.ns != ns!(svg) {
             // https://html.spec.whatwg.org/#svg-0
             matches!(&*parent.local, "foreignObject")
+                && if child.ns == ns!(html) { is_html_tag(&child.local) } else { true }
         } else if child.ns == ns!(svg) {
             is_svg_tag(&child.local)
         } else if child.ns == ns!(mathml) {
             is_mathml_tag(&child.local)
         } else if child.ns == ns!(html) {
-            (!is_svg_tag(&child.local) && !is_mathml_tag(&child.local))
-                || matches!(
-                    &*child.local,
-                    "title" | "style" | "font" | "a" | "script" | "span"
-                )
+            is_html_tag(&child.local)
         } else {
             // There are no other supported ways to switch namespace
             parent.ns == child.ns
@@ -2222,6 +2218,14 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
         || ((element == "button" || element == "input") && attr == "formaction")
         || (element == "a" && attr == "ping")
         || (element == "video" && attr == "poster")
+}
+
+fn is_html_tag(element: &str) -> bool {
+    (!is_svg_tag(element) && !is_mathml_tag(element))
+        || matches!(
+            element,
+            "title" | "style" | "font" | "a" | "script" | "span"
+        )
 }
 
 /// Given an element name, check if it's SVG
@@ -3630,21 +3634,34 @@ mod test {
         // https://github.com/cure53/DOMPurify/pull/495
         let fragment = r##"<svg><iframe><a title="</iframe><img src onerror=alert(1)>">test"##;
         let result = String::from(Builder::new().add_tags(&["iframe"]).clean(fragment));
-        assert_eq!(result.to_string(), "test");
+        assert_eq!(result.to_string(), "");
 
         let fragment = "<svg><iframe>remove me</iframe></svg><iframe>keep me</iframe>";
         let result = String::from(Builder::new().add_tags(&["iframe"]).clean(fragment));
-        assert_eq!(result.to_string(), "remove me<iframe>keep me</iframe>");
+        assert_eq!(result.to_string(), "<iframe>keep me</iframe>");
 
         let fragment = "<svg><a>remove me</a></svg><iframe>keep me</iframe>";
         let result = String::from(Builder::new().add_tags(&["iframe"]).clean(fragment));
-        assert_eq!(result.to_string(), "remove me<iframe>keep me</iframe>");
+        assert_eq!(result.to_string(), "<iframe>keep me</iframe>");
 
         let fragment = "<svg><a>keep me</a></svg><iframe>keep me</iframe>";
         let result = String::from(Builder::new().add_tags(&["iframe", "svg"]).clean(fragment));
         assert_eq!(
             result.to_string(),
             "<svg><a rel=\"noopener noreferrer\">keep me</a></svg><iframe>keep me</iframe>"
+        );
+    }
+
+    #[test]
+    fn ns_svg_2() {
+        let fragment = "<svg><foreignObject><table><path><xmp><!--</xmp><img title'--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
+        let result =  Builder::default()
+            .strip_comments(false)
+            .add_tags(&["svg","foreignObject","table","path","xmp"])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<svg><foreignObject><table></table></foreignObject></svg>"
         );
     }
 
@@ -3679,6 +3696,20 @@ mod test {
             "<math><mtext><mglyph></mglyph></mtext></math>"
         );
     }
+
+    #[test]
+    fn ns_mathml_2() {
+        let fragment = "<math><mtext><table><mglyph><xmp><!--</xmp><img title='--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
+        let result =  Builder::default()
+            .strip_comments(false)
+            .add_tags(&["math","mtext","table","mglyph","xmp"])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<math><mtext><table></table></mtext></math>"
+        );
+    }
+
 
     #[test]
     fn xml_processing_instruction() {
