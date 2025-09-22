@@ -1,5 +1,9 @@
 # Unreleased
 
+# 3.3.1
+
+* fix: unexpected namespace switches after cleanup can cause mXSS
+
 # 3.3.0
 
 * chore: bump MSRV to 1.60.0
