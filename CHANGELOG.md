@@ -2,7 +2,7 @@
 
 # 4.1.2
 
-* fix: unexpected namespace switches after cleanup can cause mXSS
+* fix: unexpected namespace switches after cleanup can cause mXSS (reported by zzm0902@shu.edu.cn)
 
 # 4.1.1
 
@@ -31,7 +31,7 @@
 
 # 3.3.1
 
-* fix: unexpected namespace switches after cleanup can cause mXSS (backport 4.1.2)
+* fix: unexpected namespace switches after cleanup can cause mXSS (backport 4.1.2, reported by zzm0902@shu.edu.cn)
 
 # 3.3.0
 
