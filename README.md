@@ -102,6 +102,7 @@ high-level semantic holes in Ammonia, to
 very helpful, to [securityMB](https://github.com/securityMB), for finding a very
 obscure
 [namespace-related injection bug](https://github.com/rust-ammonia/ammonia/pull/142),
+zzm0902@shu.edu.cn, for finding [another obscure namespace-related injection bug](https://github.com/rust-ammonia/ammonia/pull/220),
 and [xfix](https://github.com/xfix) for finding a
 [DoS bug in a recursive destructor](https://github.com/rust-ammonia/ammonia/pull/113).
 
