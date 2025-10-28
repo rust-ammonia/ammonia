@@ -40,7 +40,6 @@ use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::{driver as html, local_name, ns, QualName};
 use maplit::{hashmap, hashset};
-use std::sync::LazyLock;
 use rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use std::borrow::{Borrow, Cow};
 use std::cell::Cell;
@@ -52,6 +51,7 @@ use std::iter::IntoIterator as IntoIter;
 use std::mem;
 use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::LazyLock;
 use tendril::stream::TendrilSink;
 use tendril::StrTendril;
 use tendril::{format_tendril, ByteTendril};
@@ -62,6 +62,17 @@ use html5ever::tokenizer::{Token, TokenSink, TokenSinkResult, Tokenizer};
 pub use url;
 
 static AMMONIA: LazyLock<Builder<'static>> = LazyLock::new(Builder::default);
+
+static VALID_RELS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/whitelists/rel.txt"
+    ))
+    .lines()
+    .map(str::trim)
+    .filter(|s| !s.is_empty())
+    .collect()
+});
 
 /// Clean HTML with a conservative set of defaults.
 ///
@@ -390,7 +401,7 @@ impl<'a> Default for Builder<'a> {
         let generic_attributes = hashset!["lang", "title"];
         let tag_attributes = hashmap![
             "a" => hashset![
-                "href", "hreflang"
+                "href", "hreflang", "rel"
             ],
             "bdo" => hashset![
                 "dir"
@@ -1806,11 +1817,6 @@ impl<'a> Builder<'a> {
             .map(|link_rel| format_tendril!("{}", link_rel));
         if link_rel.is_some() {
             assert!(self.generic_attributes.get("rel").is_none());
-            assert!(self
-                .tag_attributes
-                .get("a")
-                .and_then(|a| a.get("rel"))
-                .is_none());
         }
         assert!(self.allowed_classes.is_empty() || !self.generic_attributes.contains("class"));
         for tag_name in self.allowed_classes.keys() {
@@ -1821,7 +1827,10 @@ impl<'a> Builder<'a> {
                 .is_none());
         }
         for tag_name in &self.clean_content_tags {
-            assert!(!self.tags.contains(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time");
+            assert!(
+                !self.tags.contains(tag_name),
+                "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time"
+            );
             assert!(!self.tag_attributes.contains_key(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tag_attributes` at the same time");
         }
         let body = {
@@ -2052,12 +2061,20 @@ impl<'a> Builder<'a> {
             matches!(
                 &*parent.local,
                 "mi" | "mo" | "mn" | "ms" | "mtext" | "annotation-xml"
-            ) && if child.ns == ns!(html) { is_html_tag(&child.local) } else { true }
+            ) && if child.ns == ns!(html) {
+                is_html_tag(&child.local)
+            } else {
+                true
+            }
         // The only way to switch from svg to mathml/html is with an html integration point
         } else if parent.ns == ns!(svg) && child.ns != ns!(svg) {
             // https://html.spec.whatwg.org/#svg-0
             matches!(&*parent.local, "foreignObject")
-                && if child.ns == ns!(html) { is_html_tag(&child.local) } else { true }
+                && if child.ns == ns!(html) {
+                    is_html_tag(&child.local)
+                } else {
+                    true
+                }
         } else if child.ns == ns!(svg) {
             is_svg_tag(&child.local)
         } else if child.ns == ns!(mathml) {
@@ -2109,12 +2126,55 @@ impl<'a> Builder<'a> {
                     }
                 }
             }
-            if let Some(ref link_rel) = *link_rel {
-                if &*name.local == "a" {
-                    attrs.borrow_mut().push(Attribute {
-                        name: QualName::new(None, ns!(), local_name!("rel")),
-                        value: link_rel.clone(),
-                    })
+            if &*name.local == "a" {
+                let rel_value_opt = {
+                    attrs
+                        .borrow()
+                        .iter()
+                        .find(|a| a.name.local.as_ref() == "rel")
+                        .map(|a| a.value.clone())
+                };
+
+                if let Some(rel_value) = rel_value_opt {
+                    let attr_valid_rels = rel_value
+                        .split_whitespace()
+                        .filter(|s| VALID_RELS.contains(*s))
+                        .collect::<HashSet<_>>();
+
+                    let link_rel = link_rel.clone().unwrap_or_default();
+
+                    let mut updated_attrs = attr_valid_rels
+                        .into_iter()
+                        .chain(link_rel.split_whitespace())
+                        .filter(|s| VALID_RELS.contains(*s))
+                        .collect::<HashSet<_>>()
+                        .into_iter()
+                        .collect::<Vec<_>>();
+                    updated_attrs.sort();
+
+                    if updated_attrs.is_empty() {
+                        // remove attr if no attribute
+                        attrs
+                            .borrow_mut()
+                            .retain(|a| a.name.local.as_ref() != "rel");
+                    } else {
+                        if let Some(attr) = attrs
+                            .borrow_mut()
+                            .iter_mut()
+                            .find(|a| a.name.local.as_ref() == "rel")
+                        {
+                            // update rel attribute with filtered values
+                            attr.value = updated_attrs.join(" ").into();
+                        }
+                    }
+                } else {
+                    if let Some(link_rel) = link_rel {
+                        // add default rel attribute if none existed
+                        attrs.borrow_mut().push(Attribute {
+                            name: QualName::new(None, ns!(), local_name!("rel")),
+                            value: link_rel.clone(),
+                        });
+                    }
                 }
             }
             if let Some(ref id_prefix) = id_prefix {
@@ -2173,7 +2233,8 @@ impl<'a> Builder<'a> {
             if let Some(allowed_values) = &self.style_properties {
                 for attr in &mut *attrs.borrow_mut() {
                     if &attr.name.local == "style" {
-                        attr.value = style::filter_style_attribute(&attr.value, allowed_values).into();
+                        attr.value =
+                            style::filter_style_attribute(&attr.value, allowed_values).into();
                     }
                 }
             }
@@ -3163,6 +3224,18 @@ mod test {
         );
     }
     #[test]
+    fn append_rel_with_valid_rels() {
+        let fragment = "<a href=test rel=\"ugc nofollow\">Test</a>";
+        let result = Builder::new()
+            .url_relative(UrlRelative::PassThrough)
+            .clean(fragment)
+            .to_string();
+        assert_eq!(
+            result,
+            "<a href=\"test\" rel=\"nofollow noopener noreferrer ugc\">Test</a>"
+        );
+    }
+    #[test]
     fn consider_rel_still_banned() {
         let fragment = "<a href=test rel=\"garbage\">Test</a>";
         let result = Builder::new()
@@ -3205,16 +3278,6 @@ mod test {
         Builder::new()
             .link_rel(Some("noopener noreferrer"))
             .generic_attributes(hashset!["rel"])
-            .clean("something");
-    }
-    #[test]
-    #[should_panic]
-    fn panic_if_rel_is_allowed_and_replaced_a() {
-        Builder::new()
-            .link_rel(Some("noopener noreferrer"))
-            .tag_attributes(hashmap![
-                "a" => hashset!["rel"],
-            ])
             .clean("something");
     }
     #[test]
@@ -3655,9 +3718,9 @@ mod test {
     #[test]
     fn ns_svg_2() {
         let fragment = "<svg><foreignObject><table><path><xmp><!--</xmp><img title'--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
-        let result =  Builder::default()
+        let result = Builder::default()
             .strip_comments(false)
-            .add_tags(&["svg","foreignObject","table","path","xmp"])
+            .add_tags(&["svg", "foreignObject", "table", "path", "xmp"])
             .clean(fragment);
         assert_eq!(
             result.to_string(),
@@ -3700,16 +3763,15 @@ mod test {
     #[test]
     fn ns_mathml_2() {
         let fragment = "<math><mtext><table><mglyph><xmp><!--</xmp><img title='--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
-        let result =  Builder::default()
+        let result = Builder::default()
             .strip_comments(false)
-            .add_tags(&["math","mtext","table","mglyph","xmp"])
+            .add_tags(&["math", "mtext", "table", "mglyph", "xmp"])
             .clean(fragment);
         assert_eq!(
             result.to_string(),
             "<math><mtext><table></table></mtext></math>"
         );
     }
-
 
     #[test]
     fn xml_processing_instruction() {
