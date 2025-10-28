@@ -23,5 +23,10 @@ cssparser = "0.35.0"
 version-sync = "0.9"
 env_logger = "0.11"
 
+[build-dependencies]
+html5ever = "0.25"
+markup5ever_rcdom = "0.1"
+reqwest = { version = "0.11", features = ["blocking", "rustls-tls"] }
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(ammonia_unstable)'] }
