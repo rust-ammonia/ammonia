@@ -15,7 +15,7 @@ rust-version = "1.80"
 [dependencies]
 html5ever = "0.35"
 maplit = "1.0"
-tendril = "0.4"
+tendril = "0.5"
 url = "2"
 cssparser = "0.36.0"
 
