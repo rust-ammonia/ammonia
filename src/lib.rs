@@ -38,7 +38,7 @@ mod style;
 use html5ever::interface::Attribute;
 use html5ever::serialize::{serialize, SerializeOpts};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
-use html5ever::{driver as html, local_name, ns, QualName};
+use html5ever::{driver as html, local_name, ns, Namespace, QualName};
 use maplit::{hashmap, hashset};
 use std::sync::LazyLock;
 use rcdom::{Handle, NodeData, RcDom, SerializableHandle};
@@ -1838,6 +1838,14 @@ impl<'a> Builder<'a> {
         // of course, contains nodes that need to be dropped (we can't just drop them,
         // because they could have a very deep child tree).
         while let Some(mut node) = stack.pop() {
+            if matches!(node.data, NodeData::Element { ref name, .. } if &*name.local == "selectedcontent" && name.ns == ns!(html)) &&
+                self.is_within(node.clone(), ns!(html), "select")
+            {
+                for sub in node.children.borrow_mut().iter_mut() {
+                    sub.parent.replace(None);
+                }
+                *node.children.borrow_mut() = Vec::new();
+            }
             let parent = node.parent
                 .replace(None).expect("a node in the DOM will have a parent, except the root, which is not processed")
                 .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
@@ -1870,6 +1878,23 @@ impl<'a> Builder<'a> {
             removed.extend_from_slice(&mem::take(&mut *node.children.borrow_mut())[..]);
         }
         Document(dom)
+    }
+
+    fn is_within(&self, mut child: Handle, ns: Namespace, tag: &str) -> bool {
+        while let Some(parent) = child.parent.take() {
+            child.parent.set(Some(parent.clone()));
+            match child.data {
+                NodeData::Element { ref name, .. } if name.ns == ns && &*name.local == tag => return true,
+                _ => {
+                    if let Some(parent) = parent.upgrade() {
+                        child = parent;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        }
+        false
     }
 
     /// Returns `true` if a node and all its content should be removed.
@@ -3748,6 +3773,28 @@ mod test {
         assert_eq!(b.generic_attribute_prefixes.as_ref().unwrap().len(), 1);
         b.rm_generic_attribute_prefixes(&prefix_data);
         assert!(b.generic_attribute_prefixes.is_none());
+    }
+
+    #[test]
+    fn selectedcontent() {
+        // https://github.com/servo/html5ever/issues/712
+        let fragment1 = r#"<select><selectedcontent></selectedcontent><option>X"#;
+        let fragment2 = r#"<select><selectedcontent></selectedcontent><option>X</option></select>"#;
+        let expected = r#"<select><selectedcontent></selectedcontent><option>X</option></select>"#;
+        assert_eq!(String::from(Builder::new().add_tags(&["select", "selectedcontent", "option"]).clean(fragment1)), expected);
+        assert_eq!(String::from(Builder::new().add_tags(&["select", "selectedcontent", "option"]).clean(fragment2)), expected);
+    }
+    
+    #[test]
+    fn new_select_parse() {
+        // https://github.com/whatwg/html/issues/10310#issuecomment-2304377029
+        let fragment = r#"
+<select><style></select><img src onerror=xss()></style></select>
+        "#;
+        let expected = r#"
+<select></select>
+        "#;
+        assert_eq!(String::from(Builder::new().add_tags(&["select", "new-select"]).clean_content_tags(hashset!["style"]).clean(fragment)), expected);
     }
 
     #[test]
