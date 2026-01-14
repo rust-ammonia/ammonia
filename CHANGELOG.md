@@ -1,5 +1,13 @@
 # Unreleased
 
+* chore: upgrade to [html5ever 0.37.1][]
+
+* chore: always strip the contents of [`selectedcontent`][] elements,
+  since the parser will always replace it with the actual contents anyway
+
+[html5ever 0.37.1]: https://docs.rs/html5ever/0.37.1/html5ever/
+[`selectedcontent`]: https://html.spec.whatwg.org/#the-selectedcontent-element
+
 # 4.1.2
 
 * fix: unexpected namespace switches after cleanup can cause mXSS (reported by zzm0902@shu.edu.cn)
