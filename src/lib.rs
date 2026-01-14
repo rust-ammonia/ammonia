@@ -52,9 +52,9 @@ use std::iter::IntoIterator as IntoIter;
 use std::mem;
 use std::rc::Rc;
 use std::str::FromStr;
-use tendril::stream::TendrilSink;
-use tendril::StrTendril;
-use tendril::{format_tendril, ByteTendril};
+use html5ever::tendril::stream::TendrilSink;
+use html5ever::tendril::StrTendril;
+use html5ever::tendril::{format_tendril, ByteTendril};
 pub use url::Url;
 
 use html5ever::buffer_queue::BufferQueue;
@@ -2673,7 +2673,7 @@ pub enum UrlRelative<'a> {
 }
 
 impl<'a> UrlRelative<'a> {
-    fn evaluate(&self, url: &str) -> Option<tendril::StrTendril> {
+    fn evaluate(&self, url: &str) -> Option<html5ever::tendril::StrTendril> {
         match self {
             UrlRelative::RewriteWithBase(ref url_base) => url_base
                 .join(url)
