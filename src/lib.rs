@@ -3798,6 +3798,22 @@ mod test {
     }
 
     #[test]
+    fn selectedcontent_not_in_select() {
+        // https://github.com/whatwg/html/issues/10310#issuecomment-2304377029
+        let fragment = r#"
+<selectedcontent>first</selectedcontent>
+<div><selectedcontent>second</selectedcontent></div>
+<select><selectedcontent>third</selectedcontent></select>
+        "#;
+        let expected = r#"
+<selectedcontent>first</selectedcontent>
+<div><selectedcontent>second</selectedcontent></div>
+<select><selectedcontent></selectedcontent></select>
+        "#;
+        assert_eq!(String::from(Builder::new().add_tags(&["select", "selectedcontent"]).clean(fragment)), expected);
+    }
+
+    #[test]
     fn generic_attribute_prefixes_clean() {
         let fragment = r#"<a data-1 data-2 code-1 code-2><a>Hello!</a></a>"#;
         let result_cleaned = String::from(
