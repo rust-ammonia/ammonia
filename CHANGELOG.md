@@ -1,11 +1,13 @@
 # Unreleased
 
-* chore: upgrade to [html5ever 0.37.1][]
+# 4.2.0
+
+* chore: upgrade to [html5ever 0.39.0][]
 
 * chore: always strip the contents of [`selectedcontent`][] elements,
   since the parser will always replace it with the actual contents anyway
 
-[html5ever 0.37.1]: https://docs.rs/html5ever/0.37.1/html5ever/
+[html5ever 0.39.0]: https://docs.rs/html5ever/0.39.0/html5ever/
 [`selectedcontent`]: https://html.spec.whatwg.org/#the-selectedcontent-element
 
 # 4.1.2
