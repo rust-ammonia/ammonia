@@ -1435,6 +1435,65 @@ impl<'a> Builder<'a> {
         matches!(self.url_relative, UrlRelative::Custom(_))
     }
 
+    /// Returns `true` if the relative URL resolver is set to `RewriteWithBase`.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::{Builder, Url, UrlRelative};
+    ///     # fn main() -> Result<(), url::ParseError> {
+    ///     let mut a = Builder::default();
+    ///     a.url_relative(UrlRelative::RewriteWithBase(Url::parse("https://example.com/")?));
+    ///     assert!(a.is_url_relative_rewrite_with_base());
+    ///     a.url_relative(UrlRelative::PassThrough);
+    ///     assert!(!a.is_url_relative_rewrite_with_base());
+    ///     # Ok(())
+    ///     # }
+    pub fn is_url_relative_rewrite_with_base(&self) -> bool {
+        matches!(self.url_relative, UrlRelative::RewriteWithBase(_))
+    }
+
+    /// Returns `true` if the relative URL resolver is set to `RewriteWithRoot`.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::{Builder, Url, UrlRelative};
+    ///     # fn main() -> Result<(), url::ParseError> {
+    ///     let mut a = Builder::default();
+    ///     a.url_relative(UrlRelative::RewriteWithRoot {
+    ///         root: Url::parse("https://example.com/")?,
+    ///         path: "index.html".to_string(),
+    ///     });
+    ///     assert!(a.is_url_relative_rewrite_with_root());
+    ///     a.url_relative(UrlRelative::PassThrough);
+    ///     assert!(!a.is_url_relative_rewrite_with_root());
+    ///     # Ok(())
+    ///     # }
+    pub fn is_url_relative_rewrite_with_root(&self) -> bool {
+        matches!(self.url_relative, UrlRelative::RewriteWithRoot { .. })
+    }
+
+    /// Returns the base [`Url`] when the relative URL resolver is set to
+    /// [`UrlRelative::RewriteWithBase`], or `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    ///     use ammonia::{Builder, Url, UrlRelative};
+    ///     # fn main() -> Result<(), url::ParseError> {
+    ///     let base = Url::parse("https://example.com/")?;
+    ///     let mut a = Builder::default();
+    ///     a.url_relative(UrlRelative::RewriteWithBase(base.clone()));
+    ///     assert_eq!(a.url_relative_base(), Some(&base));
+    ///     a.url_relative(UrlRelative::PassThrough);
+    ///     assert_eq!(a.url_relative_base(), None);
+    ///     # Ok(())
+    ///     # }
+    pub fn url_relative_base(&self) -> Option<&Url> {
+        match self.url_relative {
+            UrlRelative::RewriteWithBase(ref base) => Some(base),
+            _ => None,
+        }
+    }
+
     /// Configures a `rel` attribute that will be added on links.
     ///
     /// If `rel` is in the generic or tag attributes, this must be set to `None`.
