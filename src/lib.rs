@@ -1809,13 +1809,13 @@ impl<'a> Builder<'a> {
             let parent = node.parent
                 .replace(None).expect("a node in the DOM will have a parent, except the root, which is not processed")
                 .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
+            let pass = self.clean_child(&mut node);
+            self.adjust_node_attributes(&mut node, &link_rel, self.id_prefix);
             if self.clean_node_content(&node) || !self.check_expected_namespace(&parent, &node) {
                 removed.push(node);
                 continue;
             }
-            let pass = self.clean_child(&mut node);
             if pass {
-                self.adjust_node_attributes(&mut node, &link_rel, self.id_prefix);
                 dom.append(&parent.clone(), NodeOrText::AppendNode(node.clone()));
             } else {
                 for sub in node.children.borrow_mut().iter_mut() {
@@ -2004,8 +2004,8 @@ impl<'a> Builder<'a> {
     //
     // [1]: https://github.com/Plume-org/Plume/blob/main/plume-models/src/safe_string.rs#L21
     fn check_expected_namespace(&self, parent: &Handle, child: &Handle) -> bool {
-        let (parent, child) = match (&parent.data, &child.data) {
-            (NodeData::Element { name: pn, .. }, NodeData::Element { name: cn, .. }) => (pn, cn),
+        let (parent, parent_attr, child) = match (&parent.data, &child.data) {
+            (NodeData::Element { name: pn, attrs, .. }, NodeData::Element { name: cn, .. }) => (pn, attrs, cn),
             _ => return true,
         };
         // The only way to switch from html to svg is with the <svg> tag
@@ -2017,10 +2017,32 @@ impl<'a> Builder<'a> {
         // The only way to switch from mathml to svg/html is with a text integration point
         } else if parent.ns == ns!(mathml) && child.ns != ns!(mathml) {
             // https://html.spec.whatwg.org/#mathml
-            matches!(
-                &*parent.local,
-                "mi" | "mo" | "mn" | "ms" | "mtext" | "annotation-xml"
-            ) && if child.ns == ns!(html) { is_html_tag(&child.local) } else { true }
+            if &*parent.local == "annotation-xml" {
+                let parent_attr = parent_attr.borrow();
+                // https://html.spec.whatwg.org/#tree-construction
+                if child.ns == ns!(html)
+                    && parent_attr
+                        .iter()
+                        .filter(|attr| attr.name.local == local_name!("encoding"))
+                        .all(|attr| {
+                            &*attr.value == "text/html" || &*attr.value == "application/xhtml+xml"
+                        })
+                {
+                    is_html_tag(&child.local)
+                    && parent_attr
+                        .iter()
+                        .filter(|attr| attr.name.local == local_name!("encoding"))
+                        .count()
+                        == 1
+                } else {
+                    child.local == local_name!("svg") && child.ns == ns!(svg)
+                }
+            } else {
+                matches!(
+                    &*parent.local,
+                    "mi" | "mo" | "mn" | "ms" | "mtext"
+                ) && if child.ns == ns!(html) { is_html_tag(&child.local) } else { true }
+            }
         // The only way to switch from svg to mathml/html is with an html integration point
         } else if parent.ns == ns!(svg) && child.ns != ns!(svg) {
             // https://html.spec.whatwg.org/#svg-0
@@ -3664,6 +3686,56 @@ mod test {
         assert_eq!(
             result.to_string(),
             "<math><mtext><table></table></mtext></math>"
+        );
+    }
+
+    #[test]
+    fn ns_mathml_3() {
+        // try without the attr
+        let fragment = "<math><annotation-xml encoding='text/html'><xmp><!--</xmp><img title='--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
+        let result =  Builder::default()
+            .strip_comments(false)
+            .add_tags(&["math","annotation-xml","table","mglyph","xmp"])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<math><annotation-xml></annotation-xml></math>"
+        );
+        // now with the attr
+        let fragment = "<math><annotation-xml encoding='text/html'><xmp><!--</xmp><img title='--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
+        let result =  Builder::default()
+            .strip_comments(false)
+            .add_tags(&["math","annotation-xml","table","mglyph","xmp"])
+            .add_tag_attribute_values("annotation-xml", "encoding", ["text/html"])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            // yes, I tried it in Firefox, and the script didn't run
+            r#"<math><annotation-xml encoding="text/html"><xmp><!--</xmp><img title="--><img src=1 onerror=alert(1)>"></annotation-xml></math>"#
+        );
+        // now with a tweaked attr
+        let fragment = "<math><annotation-xml encoding='image/svg+xml'><xmp><!--</xmp><img title='--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
+        let result =  Builder::default()
+            .strip_comments(false)
+            .add_tags(&["math","annotation-xml","table","mglyph","xmp"])
+            .add_tag_attribute_values("annotation-xml", "encoding", ["image/svg+xml"])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            // yes, I tried it in Firefox, and the script didn't run
+            r#"<math><annotation-xml encoding="image/svg+xml"></annotation-xml></math>"#
+        );
+        // now with actual SVG
+        let fragment = "<math><annotation-xml encoding='image/svg+xml'><svg>";
+        let result =  Builder::default()
+            .strip_comments(false)
+            .add_tags(&["math","annotation-xml","svg"])
+            .add_tag_attribute_values("annotation-xml", "encoding", ["image/svg+xml"])
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            // yes, I tried it in Firefox, and the script didn't run
+            r#"<math><annotation-xml encoding="image/svg+xml"><svg></svg></annotation-xml></math>"#
         );
     }
 
