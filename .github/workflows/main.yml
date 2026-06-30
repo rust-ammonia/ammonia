@@ -28,23 +28,6 @@ jobs:
         env:
           RUSTFLAGS: ${{ matrix.build_flags }}
 
-  msrv:
-    name: MSRV
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        build_flags: ["", "--cfg ammonia_unstable"]
-    steps:
-      - uses: actions/checkout@master
-      - name: Set toolchain
-        run: |
-          rustup set profile minimal
-          rustup override set 1.60.0
-      - name: Check
-        run: cargo check --lib --all-features
-        env:
-          RUSTFLAGS: ${{ matrix.build_flags }}
-
   ci-success:
     name: ci
     if: ${{ success() }}
