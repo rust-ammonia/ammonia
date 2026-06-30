@@ -1,5 +1,9 @@
 # Unreleased
 
+# 3.3.2
+
+* fix: unexpected namespace switches after cleanup on MathML `annotation-xml` can cause mXSS
+
 # 3.3.1
 
 * fix: unexpected namespace switches after cleanup can cause mXSS
