@@ -370,6 +370,7 @@ pub struct Builder<'a> {
     id_prefix: Option<&'a str>,
     generic_attribute_prefixes: Option<HashSet<&'a str>>,
     style_properties: Option<HashSet<&'a str>>,
+    allow_custom_elements: bool,
 }
 
 impl<'a> Default for Builder<'a> {
@@ -491,6 +492,7 @@ impl<'a> Default for Builder<'a> {
             id_prefix: None,
             generic_attribute_prefixes: None,
             style_properties: None,
+            allow_custom_elements: false,
         }
     }
 }
@@ -1633,6 +1635,53 @@ impl<'a> Builder<'a> {
         self.strip_comments
     }
 
+    /// Configures whether HTML custom elements are allowed through without
+    /// being explicitly whitelisted in [`tags`].
+    ///
+    /// When set to `true`, any element whose name matches the HTML spec's
+    /// [valid custom element name][custom-element-name] is kept. Reserved
+    /// hyphenated names such as `font-face` and `annotation-xml` are NOT
+    /// treated as custom elements and remain stripped unless added to
+    /// [`tags`].
+    ///
+    /// Allowed custom elements are still subject to attribute filtering:
+    /// only [`generic_attributes`] and [`generic_attribute_prefixes`] apply
+    /// (per-tag attributes are not inferred for unknown elements).
+    ///
+    /// [`tags`]: #method.tags
+    /// [`generic_attributes`]: #method.generic_attributes
+    /// [`generic_attribute_prefixes`]: #method.generic_attribute_prefixes
+    /// [custom-element-name]: https://html.spec.whatwg.org/multipage/custom-elements.html#valid-custom-element-name
+    ///
+    /// # Examples
+    ///
+    ///     let a = ammonia::Builder::new()
+    ///         .allow_custom_elements(true)
+    ///         .clean("<my-widget>hi</my-widget>")
+    ///         .to_string();
+    ///     assert_eq!(a, "<my-widget>hi</my-widget>");
+    ///
+    /// # Defaults
+    ///
+    /// `false`
+    pub fn allow_custom_elements(&mut self, value: bool) -> &mut Self {
+        self.allow_custom_elements = value;
+        self
+    }
+
+    /// Returns `true` if custom elements are allowed.
+    ///
+    /// # Examples
+    ///
+    ///     let mut a = ammonia::Builder::new();
+    ///     a.allow_custom_elements(true);
+    ///     assert!(a.will_allow_custom_elements());
+    ///     a.allow_custom_elements(false);
+    ///     assert!(!a.will_allow_custom_elements());
+    pub fn will_allow_custom_elements(&self) -> bool {
+        self.allow_custom_elements
+    }
+
     /// Prefixes all "id" attribute values with a given string.  Note that the tag and
     /// attribute themselves must still be whitelisted.
     ///
@@ -1931,7 +1980,10 @@ impl<'a> Builder<'a> {
                 ref attrs,
                 ..
             } => {
-                if self.tags.contains(&*name.local) {
+                if self.tags.contains(&*name.local)
+                    || (self.allow_custom_elements
+                        && is_valid_custom_element_name(&name.local))
+                {
                     let attr_filter = |attr: &html5ever::Attribute| {
                         let whitelisted = self.generic_attributes.contains(&*attr.name.local)
                             || self.generic_attribute_prefixes.as_ref().map(|prefixes| {
@@ -2273,6 +2325,60 @@ fn is_url_attr(element: &str, attr: &str) -> bool {
         || ((element == "button" || element == "input") && attr == "formaction")
         || (element == "a" && attr == "ping")
         || (element == "video" && attr == "poster")
+}
+
+/// Returns `true` if `name` is a valid HTML custom element name as defined by
+/// <https://html.spec.whatwg.org/multipage/custom-elements.html#valid-custom-element-name>.
+fn is_valid_custom_element_name(name: &str) -> bool {
+    if matches!(
+        name,
+        "annotation-xml"
+            | "color-profile"
+            | "font-face"
+            | "font-face-src"
+            | "font-face-uri"
+            | "font-face-format"
+            | "font-face-name"
+            | "missing-glyph"
+    ) {
+        return false;
+    }
+    let mut chars = name.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !first.is_ascii_lowercase() {
+        return false;
+    }
+    let mut has_hyphen = false;
+    for c in chars {
+        if c == '-' {
+            has_hyphen = true;
+        } else if !is_pcen_char(c) {
+            return false;
+        }
+    }
+    has_hyphen
+}
+
+fn is_pcen_char(c: char) -> bool {
+    matches!(c, '.' | '_' | '0'..='9' | 'a'..='z')
+        || matches!(
+            c as u32,
+            0xB7
+                | 0xC0..=0xD6
+                | 0xD8..=0xF6
+                | 0xF8..=0x37D
+                | 0x37F..=0x1FFF
+                | 0x200C..=0x200D
+                | 0x203F..=0x2040
+                | 0x2070..=0x218F
+                | 0x2C00..=0x2FEF
+                | 0x3001..=0xD7FF
+                | 0xF900..=0xFDCF
+                | 0xFDF0..=0xFFFD
+                | 0x10000..=0xEFFFF
+        )
 }
 
 fn is_html_tag(element: &str) -> bool {
@@ -4074,5 +4180,136 @@ mod test {
                 assert_eq!(r, a);
             }
         }
+    }
+
+    #[test]
+    fn allow_custom_elements_enabled() {
+        let fragment = "<my-component>hi</my-component>";
+        let result = String::from(
+            Builder::new()
+                .allow_custom_elements(true)
+                .clean(fragment),
+        );
+        assert_eq!(result, "<my-component>hi</my-component>");
+    }
+
+    #[test]
+    fn allow_custom_elements_disabled_by_default() {
+        let fragment = "<my-component>hi</my-component>";
+        let result = String::from(Builder::new().clean(fragment));
+        assert_eq!(result, "hi");
+    }
+
+    #[test]
+    fn allow_custom_elements_skips_reserved_names() {
+        // For these reserved names, enabling allow_custom_elements must NOT
+        // start letting the tag through — the output must match the default
+        // (flag-off) behavior exactly.
+        for reserved in [
+            "annotation-xml",
+            "color-profile",
+            "font-face",
+            "font-face-src",
+            "font-face-uri",
+            "font-face-format",
+            "font-face-name",
+            "missing-glyph",
+        ] {
+            let fragment = format!("<{reserved}>x</{reserved}>");
+            let baseline = String::from(Builder::new().clean(&fragment));
+            let with_flag = String::from(
+                Builder::new()
+                    .allow_custom_elements(true)
+                    .clean(&fragment),
+            );
+            assert!(
+                !with_flag.contains(&format!("<{reserved}")),
+                "reserved name `{reserved}` must not be emitted as a tag"
+            );
+            assert_eq!(
+                baseline, with_flag,
+                "reserved name `{reserved}` must behave identically with the flag on/off"
+            );
+        }
+    }
+
+    #[test]
+    fn allow_custom_elements_requires_hyphen() {
+        // No hyphen → not a custom element → stripped even with flag on.
+        let fragment = "<mycomponent>hi</mycomponent>";
+        let result = String::from(
+            Builder::new()
+                .allow_custom_elements(true)
+                .clean(fragment),
+        );
+        assert_eq!(result, "hi");
+    }
+
+    #[test]
+    fn allow_custom_elements_does_not_break_standard_tags() {
+        let fragment = "<p>hi</p>";
+        let result = String::from(
+            Builder::new()
+                .allow_custom_elements(true)
+                .clean(fragment),
+        );
+        assert_eq!(result, "<p>hi</p>");
+    }
+
+    #[test]
+    fn allow_custom_elements_strips_unknown_attributes() {
+        let fragment = r#"<my-component foo="bar">hi</my-component>"#;
+        let result = String::from(
+            Builder::new()
+                .allow_custom_elements(true)
+                .clean(fragment),
+        );
+        assert_eq!(result, "<my-component>hi</my-component>");
+    }
+
+    #[test]
+    fn allow_custom_elements_respects_generic_attributes() {
+        let fragment = r#"<my-component title="t">hi</my-component>"#;
+        let result = String::from(
+            Builder::new()
+                .allow_custom_elements(true)
+                .clean(fragment),
+        );
+        assert_eq!(result, r#"<my-component title="t">hi</my-component>"#);
+    }
+
+    #[test]
+    fn allow_custom_elements_respects_generic_attribute_prefixes() {
+        let fragment = r#"<my-component data-x="1">hi</my-component>"#;
+        let result = String::from(
+            Builder::new()
+                .allow_custom_elements(true)
+                .add_generic_attribute_prefixes(&["data-"])
+                .clean(fragment),
+        );
+        assert_eq!(result, r#"<my-component data-x="1">hi</my-component>"#);
+    }
+
+    #[test]
+    fn is_valid_custom_element_name_rules() {
+        // Valid names
+        assert!(is_valid_custom_element_name("my-tag"));
+        assert!(is_valid_custom_element_name("a-"));
+        assert!(is_valid_custom_element_name("x-1"));
+        assert!(is_valid_custom_element_name("my-tag-with-dashes"));
+        assert!(is_valid_custom_element_name("foo.bar-baz"));
+        // Invalid: empty
+        assert!(!is_valid_custom_element_name(""));
+        // Invalid: no hyphen
+        assert!(!is_valid_custom_element_name("mytag"));
+        // Invalid: starts with non-lowercase ASCII letter
+        assert!(!is_valid_custom_element_name("1-tag"));
+        assert!(!is_valid_custom_element_name("-tag"));
+        assert!(!is_valid_custom_element_name("My-tag"));
+        // Invalid: contains uppercase ASCII
+        assert!(!is_valid_custom_element_name("my-Tag"));
+        // Invalid: reserved
+        assert!(!is_valid_custom_element_name("font-face"));
+        assert!(!is_valid_custom_element_name("annotation-xml"));
     }
 }
