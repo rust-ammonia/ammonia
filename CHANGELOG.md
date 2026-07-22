@@ -1,5 +1,9 @@
 # Unreleased
 
+# 3.3.3
+
+* fix: SVG `animation` and `set` can cause XSS, because `attributeName` is not checked (reported by Younghun Ko, koyokr)
+
 # 3.3.2
 
 * fix: unexpected namespace switches after cleanup on MathML `annotation-xml` can cause mXSS
