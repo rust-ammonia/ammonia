@@ -1791,6 +1791,8 @@ impl<'a> Builder<'a> {
             assert!(!self.tags.contains(tag_name));
             assert!(!self.tag_attributes.contains_key(tag_name));
         }
+        assert!(!self.tags.contains("animate"), "SVG animation is not supported: use 4.1.4 instead");
+        assert!(!self.tags.contains("set"), "SVG animation is not supported: use 4.1.4 instead");
         let body = {
             let children = dom.document.children.borrow();
             children[0].clone()
@@ -2193,6 +2195,10 @@ impl<'a> Builder<'a> {
 /// Given an element name and attribute name, determine if the given attribute contains a URL.
 fn is_url_attr(element: &str, attr: &str) -> bool {
     attr == "href"
+        // Don't have to worry about alternate xmlns prefixes, because HTML doesn't
+        // parse them, anyway:
+        // https://html.spec.whatwg.org/#adjust-foreign-attributes
+        || attr == "xlink:href"
         || attr == "src"
         || (element == "form" && attr == "action")
         || (element == "object" && attr == "data")
@@ -3595,6 +3601,20 @@ mod test {
     #[should_panic]
     fn panic_on_clean_content_tag() {
         Builder::new().clean_content_tags(hashset!["a"]).clean("");
+    }
+
+    // https://github.com/rust-ammonia/ammonia/security/advisories/GHSA-m6mh-2hw2-555x
+    #[test]
+    #[should_panic]
+    fn panic_on_allow_animate() {
+        Builder::new().add_tags(hashset!["animate"]).clean("");
+    }
+
+    // https://github.com/rust-ammonia/ammonia/security/advisories/GHSA-m6mh-2hw2-555x
+    #[test]
+    #[should_panic]
+    fn panic_on_allow_set() {
+        Builder::new().add_tags(hashset!["set"]).clean("");
     }
 
     #[test]
