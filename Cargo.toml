@@ -16,7 +16,7 @@ rust-version = "1.80"
 html5ever = "0.39"
 maplit = "1.0"
 url = "2"
-cssparser = { version = "0.37.0", default-features = false }
+cssparser = { version = "0.38.0", default-features = false }
 
 [dev-dependencies]
 version-sync = "0.9"
