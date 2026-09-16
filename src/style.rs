@@ -32,7 +32,7 @@
 //! [CSSATTR]: https://w3c.github.io/csswg-drafts/css-style-attr/
 use std::collections::HashSet;
 
-use cssparser::{BasicParseErrorKind, DeclarationParser, ParseError, ParseErrorKind, Parser, ParserInput, ParserState, ToCss, Token};
+use cssparser::{BasicParseErrorKind, DeclarationParser, ParseError, ParseErrorKind, Parser, ParserState, ToCss, Token};
 
 
 
@@ -46,10 +46,10 @@ pub fn filter_style_attribute(
     // add room for the trailing semicolon because we lazy
     let mut out = String::with_capacity(style.len() + 1);
 
-    let mut input = ParserInput::new(style);
-    let mut p = Parser::new(&mut input);
+    let mut p = Parser::new(style);
 
     loop {
+        let position_before_parse = p.position();
         match parse_one_declaration(&mut p, names) {
             Ok((name, value)) => {
                 if !name.is_empty() {
@@ -61,9 +61,12 @@ pub fn filter_style_attribute(
             },
             Err(e) => match e.kind {
                 ParseErrorKind::Basic(BasicParseErrorKind::EndOfInput) => break,
-                ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(Token::Semicolon)) => (),
-                ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken(_)) => {
-                    advance(&mut p);
+                ParseErrorKind::Basic(BasicParseErrorKind::UnexpectedToken) => {
+                    let position_after_parse = p.position();
+                    // scan to the next semicolon, if we didn't already hit one
+                    if !p.slice(position_before_parse..position_after_parse).trim_end().ends_with(';') {
+                        advance(&mut p);
+                    }
                 },
                 _ => unreachable!(
                     "parse_one_declaration should only attempt to parse an ident, a colon, \
@@ -87,10 +90,10 @@ pub fn filter_style_attribute(
 /// Finally, add property filtering directly so we don't need to pay for the
 /// `DeclarationParser::parse_value` if the property is not whitelisted. If
 /// a property is filtered out, it gets parsed as `("", "")`.
-pub fn parse_one_declaration<'i, 't>(
-    input: &mut Parser<'i, 't>,
+pub fn parse_one_declaration<'i>(
+    input: &mut Parser<'i>,
     valid_properties: &HashSet<&str>,
-) -> Result<(cssparser::CowRcStr<'i>, String), ParseError<'i, ()>>
+) -> Result<(cssparser::CowRcStr<'i>, String), ParseError<()>>
 {
     let name = input.expect_ident()?.clone();
     if !valid_properties.contains(&*name) {
@@ -107,12 +110,12 @@ impl <'i> DeclarationParser<'i> for Declarations {
     type Declaration = (cssparser::CowRcStr<'i>, String);
     type Error = ();
 
-    fn parse_value<'t>(
+    fn parse_value(
         &mut self,
         name: cssparser::CowRcStr<'i>,
-        input: &mut Parser<'i, 't>,
+        input: &mut Parser<'i>,
         _declaration_start: &ParserState,
-    ) -> Result<Self::Declaration, cssparser::ParseError<'i, Self::Error>> {
+    ) -> Result<Self::Declaration, cssparser::ParseError<Self::Error>> {
         let mut value = String::new();
         loop {
             let t = match input.next() {
@@ -131,8 +134,8 @@ impl <'i> DeclarationParser<'i> for Declarations {
                 }
 
                 BadString(_) | BadUrl(_) => {
-                    let err = cssparser::BasicParseErrorKind::UnexpectedToken(t.clone());
-                    return Err(input.new_error(err));
+                    let err = cssparser::BasicParseErrorKind::UnexpectedToken;
+                    return Err(ParseError::from_basic_kind(err));
                 }
 
                 Function(_) => {
@@ -140,8 +143,8 @@ impl <'i> DeclarationParser<'i> for Declarations {
                         value.push(' ');
                     }
                     let Ok(_) = t.to_css(&mut value) else {
-                        let err = cssparser::BasicParseErrorKind::UnexpectedToken(t.clone());
-                        return Err(input.new_error::<()>(err));
+                        let err = cssparser::BasicParseErrorKind::UnexpectedToken;
+                        return Err(ParseError::from_basic_kind(err));
                     };
                     input.parse_nested_block(|p| {
                         let mut first = true;
@@ -149,15 +152,15 @@ impl <'i> DeclarationParser<'i> for Declarations {
                             match p.next() {
                                 Ok(t) => {
                                     if t.is_parse_error() {
-                                        let err = cssparser::BasicParseErrorKind::UnexpectedToken(t.clone());
-                                        return Err(p.new_error(err));
+                                        let err = cssparser::BasicParseErrorKind::UnexpectedToken;
+                                        return Err(ParseError::from_basic_kind(err));
                                     }
                                     if !first && t != &Comma {
                                         value.push(' ');
                                     }
                                     let Ok(_) = t.to_css(&mut value) else {
-                                        let err = cssparser::BasicParseErrorKind::UnexpectedToken(t.clone());
-                                        return Err(p.new_error::<()>(err));
+                                        let err = cssparser::BasicParseErrorKind::UnexpectedToken;
+                                        return Err(ParseError::from_basic_kind(err));
                                     };
                                     first = false;
                                 }
@@ -176,12 +179,12 @@ impl <'i> DeclarationParser<'i> for Declarations {
                 value.push(' ');
             }
             let Ok(_) = t.to_css(&mut value) else {
-                let err = cssparser::BasicParseErrorKind::UnexpectedToken(t.clone());
-                return Err(input.new_error(err));
+                let err = cssparser::BasicParseErrorKind::UnexpectedToken;
+                return Err(ParseError::from_basic_kind(err));
             };
         }
         if value.chars().all(char::is_whitespace) {
-            Err(input.new_error(cssparser::BasicParseErrorKind::EndOfInput))
+            Err(ParseError::from_basic_kind(cssparser::BasicParseErrorKind::EndOfInput))
         } else {
             Ok((name, value))
         }
@@ -189,7 +192,7 @@ impl <'i> DeclarationParser<'i> for Declarations {
 }
 
 // find end of declaration (EOF or semicolon) in order to recover
-fn advance<'i, 't>(p: &mut Parser<'i, 't>) {
+fn advance<'i>(p: &mut Parser<'i>) {
     loop {
         match p.next() {
             Ok(Token::Semicolon) => { return }
