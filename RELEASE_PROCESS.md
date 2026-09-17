@@ -13,6 +13,9 @@ How to make a release of ammonia
 
 * Copy the CHANGELOG into a GitHub release
 
+* If this is a major or minor feature release, update SECURITY.md with the new set of supported releases.
+  There are never more than three supported release branches.
+
 * Make sure that README.md requests the same major.minor version, and that SECURITY.md describes the backport plan
 
 * Run `cargo publish`

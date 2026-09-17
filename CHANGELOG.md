@@ -5,6 +5,9 @@
 * chore: upgrade to [html5ever 0.40.0][]
 * chore: upgrade to [cssparser 0.38.0][]
 * chore: bump MSRV to 1.85.0
+* feat: add introspection methods for relative url settings to Builder (@gghez)
+* Security fixes are not backported to 4.0 any more.
+  Only 3.3, 4.1, and 4.2 are supported.
 
 [cssparser 0.38.0]: https://github.com/servo/rust-cssparser/releases/tag/v0.38.0
 [html5ever 0.39.0]: https://docs.rs/html5ever/0.40.0/html5ever/
