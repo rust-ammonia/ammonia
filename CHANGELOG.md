@@ -1,5 +1,11 @@
 # Unreleased
 
+# 4.2.0
+
+* chore: upgrade to [html5ever 0.39.0][]
+
+[html5ever 0.39.0]: https://docs.rs/html5ever/0.39.0/html5ever/
+
 # 4.1.4
 
 * fix: SVG `animation` and `set` can cause XSS, because `attributeName` is not checked (reported by Younghun Ko, koyokr)
