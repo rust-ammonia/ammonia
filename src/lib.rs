@@ -37,10 +37,12 @@ mod style;
 
 use html5ever::interface::Attribute;
 use html5ever::serialize::{serialize, SerializeOpts};
+use html5ever::tendril::stream::TendrilSink;
+use html5ever::tendril::StrTendril;
+use html5ever::tendril::{format_tendril, ByteTendril};
 use html5ever::tree_builder::{NodeOrText, TreeSink};
 use html5ever::{driver as html, local_name, ns, Namespace, QualName};
 use maplit::{hashmap, hashset};
-use std::sync::LazyLock;
 use rcdom::{Handle, NodeData, RcDom, SerializableHandle};
 use std::borrow::{Borrow, Cow};
 use std::cell::Cell;
@@ -52,9 +54,7 @@ use std::iter::IntoIterator as IntoIter;
 use std::mem;
 use std::rc::Rc;
 use std::str::FromStr;
-use html5ever::tendril::stream::TendrilSink;
-use html5ever::tendril::StrTendril;
-use html5ever::tendril::{format_tendril, ByteTendril};
+use std::sync::LazyLock;
 pub use url::Url;
 
 use html5ever::buffer_queue::BufferQueue;
@@ -1814,7 +1814,10 @@ impl<'a> Builder<'a> {
                 let attrs = attrs.borrow();
                 for attr in &attrs[..] {
                     if &*attr.name.local == "id" {
-                        id_to_tag_name_map.entry(attr.value.to_string()).and_modify(|ent| *ent = None).or_insert_with(|| Some(name.local.to_string()));
+                        id_to_tag_name_map
+                            .entry(attr.value.to_string())
+                            .and_modify(|ent| *ent = None)
+                            .or_insert_with(|| Some(name.local.to_string()));
                     }
                 }
             }
@@ -1843,7 +1846,10 @@ impl<'a> Builder<'a> {
                 .is_none());
         }
         for tag_name in &self.clean_content_tags {
-            assert!(!self.tags.contains(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time");
+            assert!(
+                !self.tags.contains(tag_name),
+                "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time"
+            );
             assert!(!self.tag_attributes.contains_key(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tag_attributes` at the same time");
         }
         let body = {
@@ -1860,8 +1866,8 @@ impl<'a> Builder<'a> {
         // of course, contains nodes that need to be dropped (we can't just drop them,
         // because they could have a very deep child tree).
         while let Some(mut node) = stack.pop() {
-            if matches!(node.data, NodeData::Element { ref name, .. } if &*name.local == "selectedcontent" && name.ns == ns!(html)) &&
-                self.is_within(node.clone(), ns!(html), "select")
+            if matches!(node.data, NodeData::Element { ref name, .. } if &*name.local == "selectedcontent" && name.ns == ns!(html))
+                && self.is_within(node.clone(), ns!(html), "select")
             {
                 for sub in node.children.borrow_mut().iter_mut() {
                     sub.parent.replace(None);
@@ -1872,7 +1878,13 @@ impl<'a> Builder<'a> {
                 .replace(None).expect("a node in the DOM will have a parent, except the root, which is not processed")
                 .upgrade().expect("a node's parent will be pointed to by its parent (or the root pointer), and will not be dropped");
             let pass = self.clean_child(&mut node, &parent, &id_to_tag_name_map);
-            self.adjust_node_attributes(&mut node, &link_rel, self.id_prefix, &parent, &id_to_tag_name_map);
+            self.adjust_node_attributes(
+                &mut node,
+                &link_rel,
+                self.id_prefix,
+                &parent,
+                &id_to_tag_name_map,
+            );
             if self.clean_node_content(&node) || !self.check_expected_namespace(&parent, &node) {
                 removed.push(node);
                 continue;
@@ -1906,7 +1918,9 @@ impl<'a> Builder<'a> {
         while let Some(parent) = child.parent.take() {
             child.parent.set(Some(parent.clone()));
             match child.data {
-                NodeData::Element { ref name, .. } if name.ns == ns && &*name.local == tag => return true,
+                NodeData::Element { ref name, .. } if name.ns == ns && &*name.local == tag => {
+                    return true
+                }
                 _ => {
                     if let Some(parent) = parent.upgrade() {
                         child = parent;
@@ -1936,7 +1950,12 @@ impl<'a> Builder<'a> {
     /// The root node doesn't need cleaning because we create the root node ourselves,
     /// and it doesn't get serialized, and ... it just exists to give the parser
     /// a context (in this case, a div-like block context).
-    fn clean_child(&self, child: &mut Handle, parent: &Handle, id_to_tag_name_map: &HashMap<String, Option<String>>) -> bool {
+    fn clean_child(
+        &self,
+        child: &mut Handle,
+        parent: &Handle,
+        id_to_tag_name_map: &HashMap<String, Option<String>>,
+    ) -> bool {
         match child.data {
             NodeData::Text { .. } => true,
             NodeData::Comment { .. } => !self.strip_comments,
@@ -1949,24 +1968,27 @@ impl<'a> Builder<'a> {
                 ..
             } => {
                 if self.tags.contains(&*name.local) {
-                    let whitelisted = |tag_name: &str, attr_name: &str, attr_val: &str|
-                        self.generic_attributes.contains(attr_name)
-                            || self.generic_attribute_prefixes.as_ref().map(|prefixes| {
-                                prefixes.iter().any(|&p| attr_name.starts_with(p))
-                            }) == Some(true)
-                            || self
-                                .tag_attributes
-                                .get(tag_name)
-                                .map(|ta| ta.contains(attr_name))
-                                == Some(true)
-                            || self
-                                .tag_attribute_values
-                                .get(tag_name)
-                                .and_then(|tav| tav.get(attr_name))
-                                .map(|vs| {
-                                    vs.iter().any(|v| v.to_lowercase() == attr_val.to_lowercase())
-                                })
-                                == Some(true);
+                    let whitelisted =
+                        |tag_name: &str, attr_name: &str, attr_val: &str| {
+                            self.generic_attributes.contains(attr_name)
+                                || self.generic_attribute_prefixes.as_ref().map(|prefixes| {
+                                    prefixes.iter().any(|&p| attr_name.starts_with(p))
+                                }) == Some(true)
+                                || self
+                                    .tag_attributes
+                                    .get(tag_name)
+                                    .map(|ta| ta.contains(attr_name))
+                                    == Some(true)
+                                || self
+                                    .tag_attribute_values
+                                    .get(tag_name)
+                                    .and_then(|tav| tav.get(attr_name))
+                                    .map(|vs| {
+                                        vs.iter()
+                                            .any(|v| v.to_lowercase() == attr_val.to_lowercase())
+                                    })
+                                    == Some(true)
+                        };
                     let attr_filter = |tag_name: &str, attr_name: &str, attr_val: &str| {
                         if !whitelisted(tag_name, attr_name, attr_val) {
                             // If the class attribute is not whitelisted,
@@ -1987,63 +2009,115 @@ impl<'a> Builder<'a> {
                             true
                         }
                     };
-                    attrs.borrow_mut().retain(|attr| attr_filter(&*name.local, &*attr.name.local, &*attr.value));
+                    attrs
+                        .borrow_mut()
+                        .retain(|attr| attr_filter(&*name.local, &*attr.name.local, &*attr.value));
                     if
-                        // https://svgwg.org/specs/animations/#AnimateElement
-                        name.ns == ns!(svg) &&
-                        (&*name.local == "animate" || &*name.local == "set")
-                    {
-                        let animate_name = attrs.borrow()
+                    // https://svgwg.org/specs/animations/#AnimateElement
+                    name.ns == ns!(svg) && (&*name.local == "animate" || &*name.local == "set") {
+                        let animate_name = attrs
+                            .borrow()
                             .iter()
                             .find(|attr| &*attr.name.local == "attributeName")
                             .map(|attr| attr.value.clone());
-                        let animate_values = attrs.borrow()
+                        let animate_values = attrs
+                            .borrow()
                             .iter()
                             .find(|attr| &*attr.name.local == "values")
                             .map(|attr| attr.value.clone());
-                        let animate_from = attrs.borrow()
+                        let animate_from = attrs
+                            .borrow()
                             .iter()
                             .find(|attr| &*attr.name.local == "from")
                             .map(|attr| attr.value.clone());
-                        let animate_to = attrs.borrow()
+                        let animate_to = attrs
+                            .borrow()
                             .iter()
                             .find(|attr| &*attr.name.local == "to")
                             .map(|attr| attr.value.clone());
-                        let animate_href = attrs.borrow()
+                        let animate_href = attrs
+                            .borrow()
                             .iter()
                             .find(|attr| &*attr.name.local == "href")
                             .map(|attr| attr.value.clone());
                         let animate_tag_name = animate_href
                             .map(|href| {
                                 if href.starts_with("#") {
-                                    id_to_tag_name_map.get(&href[1..]).and_then(|inner| Some(&inner.as_ref()?[..]))
+                                    id_to_tag_name_map
+                                        .get(&href[1..])
+                                        .and_then(|inner| Some(&inner.as_ref()?[..]))
                                 } else {
                                     None
                                 }
                             })
                             .unwrap_or_else(|| {
-                                if let &NodeData::Element { name: ref parent_name, .. } = &parent.data {
+                                if let &NodeData::Element {
+                                    name: ref parent_name,
+                                    ..
+                                } = &parent.data
+                                {
                                     Some(&*parent_name.local)
                                 } else {
                                     None
                                 }
                             });
-                        match (animate_name, animate_values, animate_from, animate_to, animate_tag_name) {
-                            (Some(animate_name), _, _, _, Some(animate_tag_name)) if self.set_tag_attribute_values.get(animate_tag_name).map_or(false, |attribute_values| attribute_values.contains_key(&*animate_name)) => false,
-                            (Some(animate_name), Some(animate_values), None, None, Some(animate_tag_name)) => {
+                        match (
+                            animate_name,
+                            animate_values,
+                            animate_from,
+                            animate_to,
+                            animate_tag_name,
+                        ) {
+                            (Some(animate_name), _, _, _, Some(animate_tag_name))
+                                if self.set_tag_attribute_values.get(animate_tag_name).map_or(
+                                    false,
+                                    |attribute_values| {
+                                        attribute_values.contains_key(&*animate_name)
+                                    },
+                                ) =>
+                            {
+                                false
+                            }
+                            (
+                                Some(animate_name),
+                                Some(animate_values),
+                                None,
+                                None,
+                                Some(animate_tag_name),
+                            ) => {
                                 // https://svgwg.org/specs/animations/#ValuesAttribute
-                                animate_values.split(';').all(|attr_val| attr_filter(animate_tag_name, &*animate_name, attr_val))
+                                animate_values.split(';').all(|attr_val| {
+                                    attr_filter(animate_tag_name, &*animate_name, attr_val)
+                                })
                             }
-                            (Some(animate_name), None, Some(animate_from), Some(animate_to), Some(animate_tag_name)) => {
+                            (
+                                Some(animate_name),
+                                None,
+                                Some(animate_from),
+                                Some(animate_to),
+                                Some(animate_tag_name),
+                            ) => {
                                 // https://svgwg.org/specs/animations/#FromAttribute
-                                attr_filter(animate_tag_name, &*animate_name, &*animate_from) &&
-                                    attr_filter(animate_tag_name, &*animate_name, &*animate_to)
+                                attr_filter(animate_tag_name, &*animate_name, &*animate_from)
+                                    && attr_filter(animate_tag_name, &*animate_name, &*animate_to)
                             }
-                            (Some(animate_name), None, Some(animate_from), None, Some(animate_tag_name)) => {
+                            (
+                                Some(animate_name),
+                                None,
+                                Some(animate_from),
+                                None,
+                                Some(animate_tag_name),
+                            ) => {
                                 // https://svgwg.org/specs/animations/#FromAttribute
                                 attr_filter(animate_tag_name, &*animate_name, &*animate_from)
                             }
-                            (Some(animate_name), None, None, Some(animate_to), Some(animate_tag_name)) => {
+                            (
+                                Some(animate_name),
+                                None,
+                                None,
+                                Some(animate_to),
+                                Some(animate_tag_name),
+                            ) => {
                                 // https://svgwg.org/specs/animations/#FromAttribute
                                 attr_filter(animate_tag_name, &*animate_name, &*animate_to)
                             }
@@ -2146,7 +2220,12 @@ impl<'a> Builder<'a> {
     // [1]: https://github.com/Plume-org/Plume/blob/main/plume-models/src/safe_string.rs#L21
     fn check_expected_namespace(&self, parent: &Handle, child: &Handle) -> bool {
         let (parent, parent_attr, child) = match (&parent.data, &child.data) {
-            (NodeData::Element { name: pn, attrs, .. }, NodeData::Element { name: cn, .. }) => (pn, attrs, cn),
+            (
+                NodeData::Element {
+                    name: pn, attrs, ..
+                },
+                NodeData::Element { name: cn, .. },
+            ) => (pn, attrs, cn),
             _ => return true,
         };
         // The only way to switch from html to svg is with the <svg> tag
@@ -2170,11 +2249,11 @@ impl<'a> Builder<'a> {
                         })
                 {
                     is_html_tag(&child.local)
-                    && parent_attr
-                        .iter()
-                        .filter(|attr| attr.name.local == local_name!("encoding"))
-                        .count()
-                        == 1
+                        && parent_attr
+                            .iter()
+                            .filter(|attr| attr.name.local == local_name!("encoding"))
+                            .count()
+                            == 1
                 } else {
                     child.local == local_name!("svg") && child.ns == ns!(svg)
                 }
@@ -2191,7 +2270,11 @@ impl<'a> Builder<'a> {
         } else if parent.ns == ns!(svg) && child.ns != ns!(svg) {
             // https://html.spec.whatwg.org/#svg-0
             matches!(&*parent.local, "foreignObject")
-                && if child.ns == ns!(html) { is_html_tag(&child.local) } else { true }
+                && if child.ns == ns!(html) {
+                    is_html_tag(&child.local)
+                } else {
+                    true
+                }
         } else if child.ns == ns!(svg) {
             is_svg_tag(&child.local)
         } else if child.ns == ns!(mathml) {
@@ -2309,7 +2392,13 @@ impl<'a> Builder<'a> {
             if let Some(allowed_values) = &self.style_properties {
                 for attr in &mut *attrs.borrow_mut() {
                     if &attr.name.local == "style" {
-                        attr.value = style::filter_style_attribute(&attr.value, allowed_values).into();
+                        attr.value = style::filter_style_attribute(
+                            &attr.value,
+                            allowed_values,
+                            &self.url_relative,
+                            &self.url_schemes,
+                        )
+                        .into();
                     }
                 }
             }
@@ -2328,10 +2417,8 @@ impl<'a> Builder<'a> {
                 }
             }
             if
-                // https://svgwg.org/specs/animations/#AnimateElement
-                name.ns == ns!(svg) &&
-                (&*name.local == "animate" || &*name.local == "set")
-            {
+            // https://svgwg.org/specs/animations/#AnimateElement
+            name.ns == ns!(svg) && (&*name.local == "animate" || &*name.local == "set") {
                 let mut attrs = attrs.borrow_mut();
                 let animate_name = attrs
                     .iter()
@@ -2344,19 +2431,27 @@ impl<'a> Builder<'a> {
                 let animate_tag_name = animate_href
                     .map(|href| {
                         if href.starts_with("#") {
-                            id_to_tag_name_map.get(&href[1..]).and_then(|inner| Some(&inner.as_ref()?[..]))
+                            id_to_tag_name_map
+                                .get(&href[1..])
+                                .and_then(|inner| Some(&inner.as_ref()?[..]))
                         } else {
                             None
                         }
                     })
                     .unwrap_or_else(|| {
-                        if let &NodeData::Element { name: ref parent_name, .. } = &parent.data {
+                        if let &NodeData::Element {
+                            name: ref parent_name,
+                            ..
+                        } = &parent.data
+                        {
                             Some(&*parent_name.local)
                         } else {
                             None
                         }
                     });
-                if let (Some(animate_name), Some(animate_tag_name)) = (animate_name, animate_tag_name) {
+                if let (Some(animate_name), Some(animate_tag_name)) =
+                    (animate_name, animate_tag_name)
+                {
                     if let Some(ref attr_filter) = self.attribute_filter {
                         if let Some((i, animate_values)) = attrs
                             .iter_mut()
@@ -2365,9 +2460,12 @@ impl<'a> Builder<'a> {
                             .map(|(i, attr)| (i, &mut attr.value))
                         {
                             let mut drop = false;
-                            let new_value = animate_values.split(';')
+                            let new_value = animate_values
+                                .split(';')
                                 .map(|value| {
-                                    if let Some(new_value) = attr_filter.filter(animate_tag_name, &animate_name, &value) {
+                                    if let Some(new_value) =
+                                        attr_filter.filter(animate_tag_name, &animate_name, &value)
+                                    {
                                         String::from(new_value)
                                     } else {
                                         drop = true;
@@ -2386,10 +2484,14 @@ impl<'a> Builder<'a> {
                         for (i, animate_value) in attrs
                             .iter_mut()
                             .enumerate()
-                            .filter(|(_, attr)| &*attr.name.local == "from" || &*attr.name.local == "to")
+                            .filter(|(_, attr)| {
+                                &*attr.name.local == "from" || &*attr.name.local == "to"
+                            })
                             .map(|(i, attr)| (i, &mut attr.value))
                         {
-                            if let Some(new_value) = attr_filter.filter(animate_tag_name, &animate_name, &animate_value) {
+                            if let Some(new_value) =
+                                attr_filter.filter(animate_tag_name, &animate_name, &animate_value)
+                            {
                                 *animate_value = new_value[..].into();
                             } else {
                                 drop_attrs.push(i);
@@ -2407,11 +2509,14 @@ impl<'a> Builder<'a> {
                             .map(|(i, attr)| (i, &mut attr.value))
                         {
                             let mut drop = false;
-                            let new_value = animate_values.split(';')
+                            let new_value = animate_values
+                                .split(';')
                                 .map(|value| {
                                     if !is_url_relative(value) {
                                         String::from(value)
-                                    } else if let Some(new_value) = self.url_relative.evaluate(value) {
+                                    } else if let Some(new_value) =
+                                        self.url_relative.evaluate(value)
+                                    {
                                         String::from(new_value)
                                     } else {
                                         drop = true;
@@ -2430,12 +2535,16 @@ impl<'a> Builder<'a> {
                         for (i, animate_value) in attrs
                             .iter_mut()
                             .enumerate()
-                            .filter(|(_, attr)| &*attr.name.local == "from" || &*attr.name.local == "to")
+                            .filter(|(_, attr)| {
+                                &*attr.name.local == "from" || &*attr.name.local == "to"
+                            })
                             .map(|(i, attr)| (i, &mut attr.value))
                         {
                             if !is_url_relative(animate_value) {
                                 // do nothing
-                            } else if let Some(new_value) = self.url_relative.evaluate(animate_value) {
+                            } else if let Some(new_value) =
+                                self.url_relative.evaluate(animate_value)
+                            {
                                 *animate_value = new_value;
                             } else {
                                 drop_attrs.push(i);
@@ -2452,9 +2561,15 @@ impl<'a> Builder<'a> {
                                 .find(|attr| &*attr.name.local == "values")
                                 .map(|attr| &mut attr.value)
                             {
-                                let new_value = animate_values.split(';')
+                                let new_value = animate_values
+                                    .split(';')
                                     .map(|value| {
-                                        style::filter_style_attribute(&value, allowed_values)
+                                        style::filter_style_attribute(
+                                            &value,
+                                            allowed_values,
+                                            &self.url_relative,
+                                            &self.url_schemes,
+                                        )
                                     })
                                     .collect::<Vec<String>>()
                                     .join(";");
@@ -2462,10 +2577,18 @@ impl<'a> Builder<'a> {
                             }
                             for animate_value in attrs
                                 .iter_mut()
-                                .filter(|attr| &*attr.name.local == "from" || &*attr.name.local == "to")
+                                .filter(|attr| {
+                                    &*attr.name.local == "from" || &*attr.name.local == "to"
+                                })
                                 .map(|attr| &mut attr.value)
                             {
-                                *animate_value = style::filter_style_attribute(&animate_value, allowed_values).into();
+                                *animate_value = style::filter_style_attribute(
+                                    &animate_value,
+                                    allowed_values,
+                                    &self.url_relative,
+                                    &self.url_schemes,
+                                )
+                                .into();
                             }
                         }
                     }
@@ -2476,7 +2599,8 @@ impl<'a> Builder<'a> {
                                 .find(|attr| &*attr.name.local == "values")
                                 .map(|attr| &mut attr.value)
                             {
-                                let new_value = animate_values.split(';')
+                                let new_value = animate_values
+                                    .split(';')
                                     .map(|value| {
                                         let mut classes = vec![];
                                         // https://html.spec.whatwg.org/#global-attributes:classes-2
@@ -2493,7 +2617,9 @@ impl<'a> Builder<'a> {
                             }
                             for animate_value in attrs
                                 .iter_mut()
-                                .filter(|attr| &*attr.name.local == "from" || &*attr.name.local == "to")
+                                .filter(|attr| {
+                                    &*attr.name.local == "from" || &*attr.name.local == "to"
+                                })
                                 .map(|attr| &mut attr.value)
                             {
                                 let mut classes = vec![];
@@ -3292,8 +3418,7 @@ mod test {
         // the sanitizer sees the tree. This test pins that documented
         // behavior; if it ever changes, the docs on `Builder::tags` need to
         // change too.
-        let fragment =
-            "<html><head>head content</head><body><div>test</div></body></html>";
+        let fragment = "<html><head>head content</head><body><div>test</div></body></html>";
         let result = Builder::default()
             .add_tags(["html", "head", "body"])
             .clean(fragment)
@@ -3994,9 +4119,9 @@ mod test {
     #[test]
     fn ns_svg_2() {
         let fragment = "<svg><foreignObject><table><path><xmp><!--</xmp><img title'--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
-        let result =  Builder::default()
+        let result = Builder::default()
             .strip_comments(false)
-            .add_tags(&["svg","foreignObject","table","path","xmp"])
+            .add_tags(&["svg", "foreignObject", "table", "path", "xmp"])
             .clean(fragment);
         assert_eq!(
             result.to_string(),
@@ -4039,9 +4164,9 @@ mod test {
     #[test]
     fn ns_mathml_2() {
         let fragment = "<math><mtext><table><mglyph><xmp><!--</xmp><img title='--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
-        let result =  Builder::default()
+        let result = Builder::default()
             .strip_comments(false)
-            .add_tags(&["math","mtext","table","mglyph","xmp"])
+            .add_tags(&["math", "mtext", "table", "mglyph", "xmp"])
             .clean(fragment);
         assert_eq!(
             result.to_string(),
@@ -4053,9 +4178,9 @@ mod test {
     fn ns_mathml_3() {
         // try without the attr
         let fragment = "<math><annotation-xml encoding='text/html'><xmp><!--</xmp><img title='--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
-        let result =  Builder::default()
+        let result = Builder::default()
             .strip_comments(false)
-            .add_tags(&["math","annotation-xml","table","mglyph","xmp"])
+            .add_tags(&["math", "annotation-xml", "table", "mglyph", "xmp"])
             .clean(fragment);
         assert_eq!(
             result.to_string(),
@@ -4063,9 +4188,9 @@ mod test {
         );
         // now with the attr
         let fragment = "<math><annotation-xml encoding='text/html'><xmp><!--</xmp><img title='--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
-        let result =  Builder::default()
+        let result = Builder::default()
             .strip_comments(false)
-            .add_tags(&["math","annotation-xml","table","mglyph","xmp"])
+            .add_tags(&["math", "annotation-xml", "table", "mglyph", "xmp"])
             .add_tag_attribute_values("annotation-xml", "encoding", ["text/html"])
             .clean(fragment);
         assert_eq!(
@@ -4075,9 +4200,9 @@ mod test {
         );
         // now with a tweaked attr
         let fragment = "<math><annotation-xml encoding='image/svg+xml'><xmp><!--</xmp><img title='--&gt;&lt;img src=1 onerror=alert(1)&gt;'>";
-        let result =  Builder::default()
+        let result = Builder::default()
             .strip_comments(false)
-            .add_tags(&["math","annotation-xml","table","mglyph","xmp"])
+            .add_tags(&["math", "annotation-xml", "table", "mglyph", "xmp"])
             .add_tag_attribute_values("annotation-xml", "encoding", ["image/svg+xml"])
             .clean(fragment);
         assert_eq!(
@@ -4086,9 +4211,9 @@ mod test {
         );
         // now with actual SVG
         let fragment = "<math><annotation-xml encoding='image/svg+xml'><svg>";
-        let result =  Builder::default()
+        let result = Builder::default()
             .strip_comments(false)
-            .add_tags(&["math","annotation-xml","svg"])
+            .add_tags(&["math", "annotation-xml", "svg"])
             .add_tag_attribute_values("annotation-xml", "encoding", ["image/svg+xml"])
             .clean(fragment);
         assert_eq!(
@@ -4129,15 +4254,14 @@ mod test {
                 </a>
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","animate"])
-            .add_tag_attributes("animate", ["attributeName","values","from","to"])
-            .url_relative(UrlRelative::RewriteWithBase(Url::parse("http://notriddle.com").unwrap()))
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "animate"])
+            .add_tag_attributes("animate", ["attributeName", "values", "from", "to"])
+            .url_relative(UrlRelative::RewriteWithBase(
+                Url::parse("http://notriddle.com").unwrap(),
+            ))
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4160,15 +4284,14 @@ mod test {
                 </a>
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","set"])
-            .add_tag_attributes("set", ["attributeName","values","from","to"])
-            .url_relative(UrlRelative::RewriteWithBase(Url::parse("http://notriddle.com").unwrap()))
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "set"])
+            .add_tag_attributes("set", ["attributeName", "values", "from", "to"])
+            .url_relative(UrlRelative::RewriteWithBase(
+                Url::parse("http://notriddle.com").unwrap(),
+            ))
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4191,16 +4314,15 @@ mod test {
                 </a>
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","set"])
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "set"])
             .add_tag_attributes("a", ["xlink:href"])
-            .add_tag_attributes("set", ["attributeName","values","from","to"])
-            .url_relative(UrlRelative::RewriteWithBase(Url::parse("http://notriddle.com").unwrap()))
+            .add_tag_attributes("set", ["attributeName", "values", "from", "to"])
+            .url_relative(UrlRelative::RewriteWithBase(
+                Url::parse("http://notriddle.com").unwrap(),
+            ))
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4228,10 +4350,7 @@ mod test {
             .add_tag_attributes("set", ["attributeName","values","from","to"])
             .url_relative(UrlRelative::RewriteWithBase(Url::parse("magnet:?xt=urn:btih:da39a3ee5e6b4b0d3255bfef95601890afd80709&xt=urn:btmh:1220e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap()))
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4264,16 +4383,13 @@ mod test {
                 </a>
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","animate"])
-            .add_tag_attributes("animate", ["attributeName","values","from","to"])
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "animate"])
+            .add_tag_attributes("animate", ["attributeName", "values", "from", "to"])
             .add_tag_attributes("a", ["x", "y"])
             .set_tag_attribute_value("a", "x", "0")
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4306,22 +4422,21 @@ mod test {
                 </a>
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","animate"])
-            .add_tag_attributes("animate", ["attributeName","values","from","to"])
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "animate"])
+            .add_tag_attributes("animate", ["attributeName", "values", "from", "to"])
             .add_tag_attributes("a", ["x", "y"])
-            .attribute_filter(|_tag, key, value| Some(if key == "x" {
-                "0".into()
-            } else if key == "y" && value == "1" {
-                return None;
-            } else {
-                value.into()
-            }))
+            .attribute_filter(|_tag, key, value| {
+                Some(if key == "x" {
+                    "0".into()
+                } else if key == "y" && value == "1" {
+                    return None;
+                } else {
+                    value.into()
+                })
+            })
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4346,15 +4461,12 @@ mod test {
                 </a>
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","animate"])
-            .add_tag_attributes("animate", ["attributeName","values","from","to"])
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "animate"])
+            .add_tag_attributes("animate", ["attributeName", "values", "from", "to"])
             .add_allowed_classes("a", ["a", "b", "c"])
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4379,16 +4491,13 @@ mod test {
                 </a>
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","animate"])
-            .add_tag_attributes("animate", ["attributeName","values","from","to"])
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "animate"])
+            .add_tag_attributes("animate", ["attributeName", "values", "from", "to"])
             .add_tag_attributes("a", ["style"])
             .filter_style_properties(["background"].into())
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4423,15 +4532,14 @@ mod test {
                 
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","animate"])
-            .add_tag_attributes("animate", ["attributeName","values","from","to","href"])
-            .url_relative(UrlRelative::RewriteWithBase(Url::parse("http://notriddle.com").unwrap()))
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "animate"])
+            .add_tag_attributes("animate", ["attributeName", "values", "from", "to", "href"])
+            .url_relative(UrlRelative::RewriteWithBase(
+                Url::parse("http://notriddle.com").unwrap(),
+            ))
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4454,16 +4562,13 @@ mod test {
                 
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","g","animate","object"])
-            .add_tag_attributes("animate", ["attributeName","values","href"])
-            .add_tag_attributes("g", ["data","id"])
-            .add_tag_attributes("object", ["data","id"])
+        let result = Builder::default()
+            .add_tags(&["svg", "g", "animate", "object"])
+            .add_tag_attributes("animate", ["attributeName", "values", "href"])
+            .add_tag_attributes("g", ["data", "id"])
+            .add_tag_attributes("object", ["data", "id"])
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4496,16 +4601,13 @@ mod test {
                 
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","animate"])
-            .add_tag_attributes("animate", ["attributeName","values","from","to","href"])
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "animate"])
+            .add_tag_attributes("animate", ["attributeName", "values", "from", "to", "href"])
             .add_tag_attributes("a", ["id", "x", "y"])
             .set_tag_attribute_value("a", "x", "0")
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4538,22 +4640,21 @@ mod test {
                 
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","animate"])
-            .add_tag_attributes("animate", ["attributeName","values","from","to","href"])
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "animate"])
+            .add_tag_attributes("animate", ["attributeName", "values", "from", "to", "href"])
             .add_tag_attributes("a", ["id", "x", "y"])
-            .attribute_filter(|_tag, key, value| Some(if key == "x" {
-                "0".into()
-            } else if key == "y" && value == "1" {
-                return None;
-            } else {
-                value.into()
-            }))
+            .attribute_filter(|_tag, key, value| {
+                Some(if key == "x" {
+                    "0".into()
+                } else if key == "y" && value == "1" {
+                    return None;
+                } else {
+                    value.into()
+                })
+            })
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4584,15 +4685,12 @@ mod test {
                 
             </svg>
         "##;
-        let result =  Builder::default()
-            .add_tags(&["svg","a","animate"])
-            .add_tag_attributes("animate", ["attributeName","values","from","to","href"])
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "animate"])
+            .add_tag_attributes("animate", ["attributeName", "values", "from", "to", "href"])
             .add_tag_attributes("a", ["id", "x", "y"])
             .clean(fragment);
-        assert_eq!(
-            result.to_string(),
-            filtered,
-        );
+        assert_eq!(result.to_string(), filtered,);
     }
 
     #[test]
@@ -4609,6 +4707,65 @@ mod test {
         let fragment = r##"<svg><?xml-stylesheet ><img src=x onerror="alert('Ammonia bypassed!!!')"> ?></svg>"##;
         let result = String::from(Builder::new().add_tags(&["svg"]).clean(fragment));
         assert_eq!(result.to_string(), "<svg></svg><img src=\"x\"> ?&gt;");
+    }
+
+    #[test]
+    fn url_scheme_filter_in_css() {
+        // https://github.com/rust-ammonia/ammonia/issues/255
+        let fragment = r#"
+<p style="background-image:url(https://example.com)">ok</p>
+<p style="background-image:url(javascript:alert)">technically still okay, but filtered nonetheless</p>
+<p style='background-image:url("https://example.com")'>ok</p>
+<p style='background-image:url("javascript:alert")'>technically still okay, but filtered nonetheless</p>
+        "#;
+        let expected = r#"
+<p style="background-image:url(&quot;https://example.com/&quot;)">ok</p>
+<p style="">technically still okay, but filtered nonetheless</p>
+<p style="background-image:url(&quot;https://example.com/&quot;)">ok</p>
+<p style="">technically still okay, but filtered nonetheless</p>
+        "#;
+        let mut builder = Builder::new();
+        builder.filter_style_properties(hashset!["background-image"]);
+        builder.add_generic_attributes(&["style"]);
+        assert_eq!(String::from(builder.clean(fragment)), expected);
+    }
+
+    #[test]
+    fn url_relative_ok_in_css() {
+        // https://github.com/rust-ammonia/ammonia/issues/255
+        let fragment = r#"
+<p style="background-image:url(example.com)">ok</p>
+<p style='background-image:url("example.com")'>ok</p>
+        "#;
+        let expected = r#"
+<p style="background-image:url(&quot;https://example.com/%22quoted'/example.com&quot;)">ok</p>
+<p style="background-image:url(&quot;https://example.com/%22quoted'/example.com&quot;)">ok</p>
+        "#;
+        let mut builder = Builder::new();
+        builder.filter_style_properties(hashset!["background-image"]);
+        builder.url_relative(UrlRelative::RewriteWithBase(
+            Url::parse(r#"https://example.com/"quoted'/"#).unwrap(),
+        ));
+        builder.add_generic_attributes(&["style"]);
+        assert_eq!(String::from(builder.clean(fragment)), expected);
+    }
+
+    #[test]
+    fn url_relative_deny_in_css() {
+        // https://github.com/rust-ammonia/ammonia/issues/255
+        let fragment = r#"
+<p style="background-image:url(example.com)">not ok</p>
+<p style='background-image:url("example.com")'>not ok</p>
+        "#;
+        let expected = r#"
+<p style="">not ok</p>
+<p style="">not ok</p>
+        "#;
+        let mut builder = Builder::new();
+        builder.filter_style_properties(hashset!["background-image"]);
+        builder.url_relative(UrlRelative::Deny);
+        builder.add_generic_attributes(&["style"]);
+        assert_eq!(String::from(builder.clean(fragment)), expected);
     }
 
     #[test]
@@ -4640,10 +4797,24 @@ mod test {
         let fragment1 = r#"<select><selectedcontent></selectedcontent><option>X"#;
         let fragment2 = r#"<select><selectedcontent></selectedcontent><option>X</option></select>"#;
         let expected = r#"<select><selectedcontent></selectedcontent><option>X</option></select>"#;
-        assert_eq!(String::from(Builder::new().add_tags(&["select", "selectedcontent", "option"]).clean(fragment1)), expected);
-        assert_eq!(String::from(Builder::new().add_tags(&["select", "selectedcontent", "option"]).clean(fragment2)), expected);
+        assert_eq!(
+            String::from(
+                Builder::new()
+                    .add_tags(&["select", "selectedcontent", "option"])
+                    .clean(fragment1)
+            ),
+            expected
+        );
+        assert_eq!(
+            String::from(
+                Builder::new()
+                    .add_tags(&["select", "selectedcontent", "option"])
+                    .clean(fragment2)
+            ),
+            expected
+        );
     }
-    
+
     #[test]
     fn new_select_parse() {
         // https://github.com/whatwg/html/issues/10310#issuecomment-2304377029
@@ -4653,7 +4824,15 @@ mod test {
         let expected = r#"
 <select></select>
         "#;
-        assert_eq!(String::from(Builder::new().add_tags(&["select", "new-select"]).clean_content_tags(hashset!["style"]).clean(fragment)), expected);
+        assert_eq!(
+            String::from(
+                Builder::new()
+                    .add_tags(&["select", "new-select"])
+                    .clean_content_tags(hashset!["style"])
+                    .clean(fragment)
+            ),
+            expected
+        );
     }
 
     #[test]
@@ -4669,7 +4848,14 @@ mod test {
 <div><selectedcontent>second</selectedcontent></div>
 <select><selectedcontent></selectedcontent></select>
         "#;
-        assert_eq!(String::from(Builder::new().add_tags(&["select", "selectedcontent"]).clean(fragment)), expected);
+        assert_eq!(
+            String::from(
+                Builder::new()
+                    .add_tags(&["select", "selectedcontent"])
+                    .clean(fragment)
+            ),
+            expected
+        );
     }
 
     #[test]

@@ -1,5 +1,9 @@
 # Unreleased
 
+# 4.1.5
+
+* fix: apply URL rewrites to CSS `url()` function
+
 # 4.1.4
 
 * fix: SVG `animation` and `set` can cause XSS, because `attributeName` is not checked (reported by Younghun Ko, koyokr)
