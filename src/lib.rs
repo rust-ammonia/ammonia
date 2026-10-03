@@ -1683,6 +1683,23 @@ impl<'a> Builder<'a> {
     ///         .to_string();
     ///     assert_eq!(a, "<p style=\"color:red\">my html</p>");
     ///     # }
+    ///
+    /// # Panics
+    ///
+    /// This implements style attributes. It can't filter whole stylesheets,
+    /// in `style` or `link` tags, because we don't implement selector sanitizing.
+    ///
+    /// ```should_panic
+    ///    use ammonia::Builder;
+    ///    use maplit::hashset;
+    ///
+    ///    # fn main() {
+    ///    Builder::default()
+    ///        .filter_style_properties(hashset!["background"])
+    ///        .add_tags(&["style"])
+    ///        .clean("");
+    ///    # }
+    /// ```
     pub fn filter_style_properties(&mut self, value: HashSet<&'a str>) -> &mut Self {
         self.style_properties = Some(value);
         self
@@ -1851,6 +1868,12 @@ impl<'a> Builder<'a> {
                 "`{tag_name}` appears in `clean_content_tags` and in `tags` at the same time"
             );
             assert!(!self.tag_attributes.contains_key(tag_name), "`{tag_name}` appears in `clean_content_tags` and in `tag_attributes` at the same time");
+        }
+        if self.tags.contains("style") {
+            assert!(
+                self.style_properties.is_none(),
+                "stylesheet filtering only works on attributes, not whole stylesheets"
+            );
         }
         let body = {
             let children = dom.document.children.borrow();

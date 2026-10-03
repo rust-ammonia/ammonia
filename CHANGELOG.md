@@ -3,6 +3,9 @@
 # 4.1.5
 
 * fix: apply URL rewrites to CSS `url()` function
+* Security fix: CSS sanitization only ever worked on attributes,
+  not stylesheets. This now panics if you try to enable the
+  style tag while also using style attribute filtering
 
 # 4.1.4
 
