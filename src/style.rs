@@ -384,6 +384,16 @@ mod tests {
             ),
             "color:green",
         );
+
+        assert_eq!(
+            filter_style_attribute(
+                "@import url(https://tracker.example/a.css); color: green",
+                &HashSet::from(["color"]),
+                &UrlRelative::PassThrough,
+                &HashSet::default()
+            ),
+            "color:green",
+        );
     }
 
     #[test]
