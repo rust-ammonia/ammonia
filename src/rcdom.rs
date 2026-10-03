@@ -68,9 +68,7 @@ pub enum NodeData {
     /// [document type declaration on wikipedia][dtd wiki].
     ///
     /// [dtd wiki]: https://en.wikipedia.org/wiki/Document_type_declaration
-    Doctype {
-        name: StrTendril,
-    },
+    Doctype { name: StrTendril },
 
     /// A text node.
     Text { contents: RefCell<StrTendril> },
@@ -263,12 +261,7 @@ impl TreeSink for RcDom {
         };
     }
 
-    fn create_element(
-        &self,
-        name: QualName,
-        attrs: Vec<Attribute>,
-        flags: ElementFlags,
-    ) -> Handle {
+    fn create_element(&self, name: QualName, attrs: Vec<Attribute>, flags: ElementFlags) -> Handle {
         Node::new(NodeData::Element {
             name,
             attrs: RefCell::new(attrs),
@@ -371,12 +364,7 @@ impl TreeSink for RcDom {
         _public_id: StrTendril,
         _system_id: StrTendril,
     ) {
-        append(
-            &self.document,
-            Node::new(NodeData::Doctype {
-                name,
-            }),
-        );
+        append(&self.document, Node::new(NodeData::Doctype { name }));
     }
 
     fn add_attrs_if_missing(&self, target: &Handle, attrs: Vec<Attribute>) {
