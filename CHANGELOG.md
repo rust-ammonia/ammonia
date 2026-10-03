@@ -1,5 +1,9 @@
 # Unreleased
 
+# 4.2.1
+
+* fix: apply URL rewrites to CSS `url()` function
+
 # 4.2.0
 
 * chore: upgrade to [html5ever 0.40.0][]
