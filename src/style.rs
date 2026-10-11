@@ -163,9 +163,12 @@ impl<'a, 'i> DeclarationParser<'i> for Declarations<'_, 'a> {
                     if let Some(url) = url {
                         // add quotes to URLs,
                         // because the relative URL rewriter might have done something
-                        value.push_str(r#"url(""#);
-                        value.push_str(&url[..]);
-                        value.push_str(r#"")"#);
+                        value.push_str("url(");
+                        let Ok(_) = QuotedString(url[..].into()).to_css(&mut value) else {
+                            let err = cssparser::BasicParseErrorKind::UnexpectedToken;
+                            return Err(ParseError::from_basic_kind(err));
+                        };
+                        value.push_str(")");
                         continue;
                     } else {
                         let err = cssparser::BasicParseErrorKind::UnexpectedToken;

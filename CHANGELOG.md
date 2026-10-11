@@ -1,12 +1,13 @@
 # Unreleased
 
-# 4.2.2
+# 4.2.3
 
 * Security fix: CSS sanitization did not correctly escape URLs
   when the URL scheme doesn't escape the quotes itself. This bug
   was reported by Uttej Badwane.
 * Security fix: Add missing elements to the list of CSS animation
   elements. This bug was reported by [ucsurf](https://uc.surf).
+* 4.2.2 was accidentally released with an incomplete fix.
 
 # 4.2.1
 
