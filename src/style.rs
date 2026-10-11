@@ -201,9 +201,12 @@ impl<'a, 'i> DeclarationParser<'i> for Declarations<'_, 'a> {
                         _ => None,
                     };
                     if let Some(url) = url {
-                        value.push_str(r#"url(""#);
-                        value.push_str(&url[..]);
-                        value.push_str(r#"")"#);
+                        value.push_str("url(");
+                        let Ok(_) = QuotedString(url[..].into()).to_css(&mut value) else {
+                            let err = cssparser::BasicParseErrorKind::EndOfInput;
+                            return Err(input.new_error(err));
+                        };
+                        value.push_str(")");
                         continue;
                     } else {
                         let err = cssparser::BasicParseErrorKind::EndOfInput;
