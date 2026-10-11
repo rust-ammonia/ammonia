@@ -206,9 +206,12 @@ impl<'a, 'i> DeclarationParser<'i> for Declarations<'_, 'a> {
                         _ => None,
                     };
                     if let Some(url) = url {
-                        value.push_str(r#"url(""#);
-                        value.push_str(&url[..]);
-                        value.push_str(r#"")"#);
+                        value.push_str("url(");
+                        let Ok(_) = QuotedString(url[..].into()).to_css(&mut value) else {
+                            let err = cssparser::BasicParseErrorKind::UnexpectedToken;
+                            return Err(ParseError::from_basic_kind(err));
+                        };
+                        value.push_str(")");
                         continue;
                     } else {
                         let err = cssparser::BasicParseErrorKind::UnexpectedToken;
