@@ -4813,6 +4813,24 @@ mod test {
     }
 
     #[test]
+    fn url_cid_in_css() {
+        // https://github.com/rust-ammonia/ammonia/issues/255
+        let fragment = r#"
+<p style='background-image:url("cid:\"")'>fix quotes as required by cid weirdness</p>
+<p style='background-image:url("http://example.com/\"")'>percent encoding is used in http</p>
+        "#;
+        let expected = r#"
+<p style="background-image:url(&quot;cid:\&quot;&quot;)">fix quotes as required by cid weirdness</p>
+<p style="background-image:url(&quot;http://example.com/%22&quot;)">percent encoding is used in http</p>
+        "#;
+        let mut builder = Builder::new();
+        builder.filter_style_properties(hashset!["background-image"]);
+        builder.add_generic_attributes(&["style"]);
+        builder.add_url_schemes(&["cid"]);
+        assert_eq!(String::from(builder.clean(fragment)), expected);
+    }
+
+    #[test]
     fn url_relative_ok_in_css() {
         // https://github.com/rust-ammonia/ammonia/issues/255
         let fragment = r#"
