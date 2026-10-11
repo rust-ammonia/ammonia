@@ -1792,8 +1792,11 @@ impl<'a> Builder<'a> {
             assert!(!self.tags.contains(tag_name));
             assert!(!self.tag_attributes.contains_key(tag_name));
         }
-        assert!(!self.tags.contains("animate"), "SVG animation is not supported: use 4.1.4 instead");
-        assert!(!self.tags.contains("set"), "SVG animation is not supported: use 4.1.4 instead");
+        assert!(!self.tags.contains("animate"), "SVG animation is not supported: use 4.1 or 4.2 instead");
+        assert!(!self.tags.contains("animateTransform"), "SVG animation is not supported: use 4.1 or 4.2 instead");
+        assert!(!self.tags.contains("animateMotion"), "SVG animation is not supported: use 4.1 or 4.2 instead");
+        assert!(!self.tags.contains("animateColor"), "SVG animation is not supported: use 4.1 or 4.2 instead");
+        assert!(!self.tags.contains("set"), "SVG animation is not supported: use 4.1 or 4.2 instead");
         let body = {
             let children = dom.document.children.borrow();
             children[0].clone()
