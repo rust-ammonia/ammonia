@@ -1,5 +1,9 @@
 # Unreleased
 
+# 3.3.4
+
+* fix: SVG `animateColor` works on some platforms, and should also panic if used (reported by Uttej Badwane)
+
 # 3.3.3
 
 * fix: SVG `animation` and `set` can cause XSS, because `attributeName` is not checked (reported by Younghun Ko, koyokr)
