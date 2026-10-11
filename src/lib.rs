@@ -2096,7 +2096,7 @@ impl<'a> Builder<'a> {
                         .retain(|attr| attr_filter(&*name.local, &*attr.name.local, &*attr.value));
                     if
                     // https://svgwg.org/specs/animations/#AnimateElement
-                    name.ns == ns!(svg) && (&*name.local == "animate" || &*name.local == "set") {
+                    name.ns == ns!(svg) && is_svg_animation_tag_name(&*name.local) {
                         let animate_name = attrs
                             .borrow()
                             .iter()
@@ -2500,7 +2500,7 @@ impl<'a> Builder<'a> {
             }
             if
             // https://svgwg.org/specs/animations/#AnimateElement
-            name.ns == ns!(svg) && (&*name.local == "animate" || &*name.local == "set") {
+            name.ns == ns!(svg) && is_svg_animation_tag_name(&*name.local) {
                 let mut attrs = attrs.borrow_mut();
                 let animate_name = attrs
                     .iter()
@@ -2737,11 +2737,11 @@ impl<'a> Builder<'a> {
 
 /// Given an element name and attribute name, determine if the given attribute contains a URL.
 fn is_url_attr(element: &str, attr: &str) -> bool {
-    (element != "animate" && element != "set" && attr == "href")
+    (!is_svg_animation_tag_name(element) && attr == "href")
         // Don't have to worry about alternate xmlns prefixes, because HTML doesn't
         // parse them, anyway:
         // https://html.spec.whatwg.org/#adjust-foreign-attributes
-        || (element != "animate" && element != "set" && attr == "xlink:href")
+        || (!is_svg_animation_tag_name(element) && attr == "xlink:href")
         || attr == "src"
         || (element == "form" && attr == "action")
         || (element == "object" && attr == "data")
@@ -2758,12 +2758,26 @@ fn is_html_tag(element: &str) -> bool {
         )
 }
 
+fn is_svg_animation_tag_name(element: &str) -> bool {
+    matches!(
+        element,
+        // https://svgwg.org/specs/animations/#AnimationElements
+        "animate"
+            | "animateMotion"
+            | "animateTransform"
+            | "set"
+            // https://www.w3.org/TR/SVG11/animate.html#AnimateColorElement
+            | "animateColor"
+    )
+}
+
 /// Given an element name, check if it's SVG
 fn is_svg_tag(element: &str) -> bool {
     // https://svgwg.org/svg2-draft/eltindex.html
     matches!(
         element,
         "a" | "animate"
+            | "animateColor" // https://www.w3.org/TR/SVG11/animate.html#AnimateColorElement
             | "animateMotion"
             | "animateTransform"
             | "circle"
@@ -4339,6 +4353,44 @@ mod test {
         let result = Builder::default()
             .add_tags(&["svg", "a", "animate"])
             .add_tag_attributes("animate", ["attributeName", "values", "from", "to"])
+            .url_relative(UrlRelative::RewriteWithBase(
+                Url::parse("http://notriddle.com").unwrap(),
+            ))
+            .clean(fragment);
+        assert_eq!(result.to_string(), filtered,);
+    }
+
+    #[test]
+    fn ns_svg_animatetransformmotioncolor_url_attr() {
+        let fragment = r##"
+            <svg>
+                <a>
+                    <animateTransform attributeName="href" to="./test2"></animateTransform>
+                    <animateMotion attributeName="href" to="./test2"></animateMotion>
+                    <animateColor attributeName="href" to="./test2"></animateColor>
+                    <animateTransform attributeName="href" to="javascript:xss"></animateTransform>
+                    <animateMotion attributeName="href" to="javascript:xss"></animateMotion>
+                    <animateColor attributeName="href" to="javascript:xss"></animateColor>
+                </a>
+            </svg>
+        "##;
+        let filtered = r##"
+            <svg>
+                <a rel="noopener noreferrer">
+                    <animateTransform attributeName="href" to="http://notriddle.com/test2"></animateTransform>
+                    <animateMotion attributeName="href" to="http://notriddle.com/test2"></animateMotion>
+                    <animateColor attributeName="href" to="http://notriddle.com/test2"></animateColor>
+                    
+                    
+                    
+                </a>
+            </svg>
+        "##;
+        let result = Builder::default()
+            .add_tags(&["svg", "a", "animateColor", "animateTransform", "animateMotion"])
+            .add_tag_attributes("animateTransform", ["attributeName", "values", "from", "to"])
+            .add_tag_attributes("animateMotion", ["attributeName", "values", "from", "to"])
+            .add_tag_attributes("animateColor", ["attributeName", "values", "from", "to"])
             .url_relative(UrlRelative::RewriteWithBase(
                 Url::parse("http://notriddle.com").unwrap(),
             ))
