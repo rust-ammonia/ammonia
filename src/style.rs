@@ -176,7 +176,7 @@ impl<'a, 'i> DeclarationParser<'i> for Declarations<'_, 'a> {
                     }
                 }
 
-                Function(name) if *name == "url" => {
+                Function(name) if name.eq_ignore_ascii_case("url") => {
                     if !value.is_empty() && value.chars().last() != Some(' ') {
                         value.push(' ');
                     }

@@ -1,5 +1,10 @@
 # Unreleased
 
+# 4.2.4
+
+* Security fix: Match CSS `url()` case-insensitively. This bug
+  was reported by [Louis Li](https://github.com/zhixuli0406).
+
 # 4.2.3
 
 * Security fix: CSS sanitization did not correctly escape URLs
