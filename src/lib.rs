@@ -4921,6 +4921,27 @@ mod test {
     }
 
     #[test]
+    fn url_fn_case_insensitive_css() {
+        let fragment = r#"
+<p style="background-image:Url(example.com)">not ok</p>
+<p style='background-image:uRl("example.com")'>not ok</p>
+<p style='background-image:urL("example.com")'>not ok</p>
+<p style="background-image:Url(https://example.com/)">ok</p>
+        "#;
+        let expected = r#"
+<p style="">not ok</p>
+<p style="">not ok</p>
+<p style="">not ok</p>
+<p style="background-image:url(&quot;https://example.com/&quot;)">ok</p>
+        "#;
+        let mut builder = Builder::new();
+        builder.filter_style_properties(hashset!["background-image"]);
+        builder.url_relative(UrlRelative::Deny);
+        builder.add_generic_attributes(&["style"]);
+        assert_eq!(String::from(builder.clean(fragment)), expected);
+    }
+
+    #[test]
     fn generic_attribute_prefixes() {
         let prefix_data = ["data-"];
         let prefix_code = ["code-"];
