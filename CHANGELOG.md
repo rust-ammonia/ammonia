@@ -1,5 +1,10 @@
 # Unreleased
 
+# 4.1.9
+
+* Security fix: Fix mutation XSS from combining MathML and SVG.
+  This bug was reported by Roger Meyer.
+
 # 4.1.8
 
 * Security fix: Match CSS `url()` case-insensitively. This bug
