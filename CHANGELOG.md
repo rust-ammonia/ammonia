@@ -1,5 +1,10 @@
 # Unreleased
 
+# 3.3.5
+
+* Security fix: Fix mutation XSS from combining MathML and SVG.
+  This bug was reported by Roger Meyer.
+
 # 3.3.4
 
 * fix: SVG `animateColor` works on some platforms, and should also panic if used (reported by Uttej Badwane)
