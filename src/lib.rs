@@ -2341,21 +2341,20 @@ impl<'a> Builder<'a> {
                 }
             } else {
                 matches!(&*parent.local, "mi" | "mo" | "mn" | "ms" | "mtext")
-                    && if child.ns == ns!(html) {
-                        is_html_tag(&child.local)
-                    } else {
-                        true
+                    && match child.ns {
+                        ns!(html) => is_html_tag(&child.local),
+                        ns!(svg) => child.local == local_name!("svg"),
+                        _ => false,
                     }
             }
-
         // The only way to switch from svg to mathml/html is with an html integration point
         } else if parent.ns == ns!(svg) && child.ns != ns!(svg) {
             // https://html.spec.whatwg.org/#svg-0
             matches!(&*parent.local, "foreignObject")
-                && if child.ns == ns!(html) {
-                    is_html_tag(&child.local)
-                } else {
-                    true
+                && match child.ns {
+                    ns!(html) => is_html_tag(&child.local),
+                    ns!(mathml) => child.local == local_name!("math"),
+                    _ => false,
                 }
         } else if child.ns == ns!(svg) {
             is_svg_tag(&child.local)
@@ -4225,6 +4224,20 @@ mod test {
         );
     }
 
+
+    #[test]
+    fn ns_svg_3() {
+        let fragment = "<svg><foreignObject><math><iframe><!--</iframe><img src onerror=alert(1)>-->";
+        let result = Builder::default()
+            .add_tags(&["svg", "foreignObject", "iframe"])
+            .strip_comments(false)
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<svg><foreignObject></foreignObject></svg>"
+        );
+    }
+
     #[test]
     fn ns_mathml() {
         // https://github.com/cure53/DOMPurify/pull/495
@@ -4315,6 +4328,19 @@ mod test {
         assert_eq!(
             result.to_string(),
             r#"<math><annotation-xml encoding="image/svg+xml"><svg></svg></annotation-xml></math>"#
+        );
+    }
+
+    #[test]
+    fn ns_mathml_4() {
+        let fragment = "<math><mi><svg><iframe><!--</iframe><img src onerror=alert(1)>-->";
+        let result = Builder::default()
+            .add_tags(&["math", "mi", "iframe"])
+            .strip_comments(false)
+            .clean(fragment);
+        assert_eq!(
+            result.to_string(),
+            "<math><mi></mi></math>"
         );
     }
 
